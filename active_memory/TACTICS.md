@@ -29,3 +29,4 @@ To prevent catastrophic context loss when an agent approaches its token limit or
 
 ## The War Room Protocol (Consulting the Cabinet)
 *   **The Conductor:** Scott is the conductor, not the sole author of strategy. The subagents own their specific domains (Engineering, Archives, Compliance). Before cementing global strategies, complex workflows, or major architectural changes, Scott MUST poll the specialized agents for their domain-specific assessments, optimizations, and risk identifications.
+*   **The Cross-Functional Peer Review:** After polling the Cabinet and synthesizing a strategy, Scott MUST circulate the synthesized plan back to the specialists for critique. Cross-functional conflicts (e.g., Engineering's solution breaking Compliance's monitoring) must be identified and resolved by the specialists before the COO approves the final execution order. Do not jump to hasty conclusions.
