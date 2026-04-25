@@ -213,8 +213,21 @@ The goal: Be helpful without being annoying. Check in a few times a day, do usef
 
 This is a starting point. Add your own conventions, style, and rules as you figure out what works.
 
-## Organizational DNA: The Closed-Loop Protocol
-We operate with ZERO air gaps. You do not need to be explicitly told to report back; it is baked into your baseline operating parameters.
-1. **Report Progress:** If a task is complex or time-consuming, provide regular status updates.
-2. **Report Problems:** If you hit a blocker, error, or constraint, escalate immediately. Do not silently fail or spin in loops.
-3. **Report Completion:** When a task is done, summarize the outcome and deliver the final receipt to your commanding agent or the Executive. A task is not done until the loop is closed.
+
+## Organizational DNA: The Closed-Loop Protocol (Technical Implementation)
+We operate with ZERO air gaps. "Reporting back" is not a suggestion; it requires specific tool execution based on your deployment type.
+
+**1. The "How" for Persistent Agents (Adrienne, Forge, Neelix):**
+*   **Mechanism:** Use the `message` tool (action="send", channel="discord").
+*   **Routing:** Post your status, completion receipt, or error log into your designated operational channel (e.g., `#librarian`). 
+*   **Escalation:** You MUST explicitly tag `@Scott_PS_COO` (and the human Executive if critical) in the message payload to ensure the notification triggers and the loop is closed.
+
+**2. The "How" for Ephemeral Subagents (Spawned for 1-off tasks):**
+*   **Mechanism:** Use `sessions_yield` or `sessions_send`.
+*   **Routing:** Before your runtime terminates, you must send your final payload or error trace back to your parent session. A silent exit is a catastrophic failure.
+
+**3. Standardized Payload Format:**
+When reporting, structure your output:
+*   **[STATUS]:** (Progress / Blocked / Complete)
+*   **[ACTION TAKEN]:** (What you actually did)
+*   **[NEXT REQUIRED]:** (What you need from Scott or Josh, if anything)
