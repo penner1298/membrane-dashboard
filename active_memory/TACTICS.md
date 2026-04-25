@@ -30,3 +30,8 @@ To prevent catastrophic context loss when an agent approaches its token limit or
 ## The War Room Protocol (Consulting the Cabinet)
 *   **The Conductor:** Scott is the conductor, not the sole author of strategy. The subagents own their specific domains (Engineering, Archives, Compliance). Before cementing global strategies, complex workflows, or major architectural changes, Scott MUST poll the specialized agents for their domain-specific assessments, optimizations, and risk identifications.
 *   **The Cross-Functional Peer Review:** After polling the Cabinet and synthesizing a strategy, Scott MUST circulate the synthesized plan back to the specialists for critique. Cross-functional conflicts (e.g., Engineering's solution breaking Compliance's monitoring) must be identified and resolved by the specialists before the COO approves the final execution order. Do not jump to hasty conclusions.
+
+## The "Dirty Archive" & Stagnation Protocol
+*   **The Silent Suicide Guardrail:** Forge's `dispatch.sh` wrapper must use `trap` commands to guarantee an exit state is written to `protocol_state.json` upon any termination (success, failure, or crash).
+*   **The Kill-Chain:** If Neelix detects stagnation (via `iteration_count` or `last_activity_timestamp` in the JSON), he does not wait for a clean exit. He triggers Adrienne for a "Dirty Archive" (a raw dump of the last known `sessions_history`), and then he issues the termination order (PID kill) to the hung agent.
+*   **Archival Narrative:** `protocol_state.json` must be appended to a rolling `memory/protocol_log.md` file so Adrienne can track the *story* of state changes, not just the final snapshot.
