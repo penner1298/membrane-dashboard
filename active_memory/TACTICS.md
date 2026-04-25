@@ -26,3 +26,6 @@ To prevent catastrophic context loss when an agent approaches its token limit or
 1.  **The Sensor (Neelix):** Neelix continuously monitors the token usage of all active sessions via `sessions_list` / `session_status`. When any agent crosses the 80% context threshold (e.g., 160k tokens), Neelix flags a "Cognitive Health Alert" and halts their tactical progression.
 2.  **The Surgeon (Adrienne):** Upon receiving the alert from Neelix, Adrienne steps in. She pulls the `sessions_history` of the bloated agent, extracts all critical context, unclosed loops, and strategic decisions, and archives them into `active_memory/` or the agent's specific memory ledger.
 3.  **The Flush:** Once Adrienne confirms the archive is pristine and committed, Neelix authorizes the session flush/reboot, allowing the agent to wake up fresh with their context safely stored in external memory.
+
+## The War Room Protocol (Consulting the Cabinet)
+*   **The Conductor:** Scott is the conductor, not the sole author of strategy. The subagents own their specific domains (Engineering, Archives, Compliance). Before cementing global strategies, complex workflows, or major architectural changes, Scott MUST poll the specialized agents for their domain-specific assessments, optimizations, and risk identifications.
