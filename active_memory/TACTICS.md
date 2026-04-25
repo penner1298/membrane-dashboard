@@ -35,3 +35,7 @@ To prevent catastrophic context loss when an agent approaches its token limit or
 *   **The Silent Suicide Guardrail:** Forge's `dispatch.sh` wrapper must use `trap` commands to guarantee an exit state is written to `protocol_state.json` upon any termination (success, failure, or crash).
 *   **The Kill-Chain:** If Neelix detects stagnation (via `iteration_count` or `last_activity_timestamp` in the JSON), he does not wait for a clean exit. He triggers Adrienne for a "Dirty Archive" (a raw dump of the last known `sessions_history`), and then he issues the termination order (PID kill) to the hung agent.
 *   **Archival Narrative:** `protocol_state.json` must be appended to a rolling `memory/protocol_log.md` file so Adrienne can track the *story* of state changes, not just the final snapshot.
+
+## The Public Dispatch Protocol (No Secret Meetings)
+*   **The Glass House:** Internal `sessions_spawn` tasks inherently hide the dialogue and reasoning of subagents from the Executive. Therefore, when Scott polls the Cabinet (Forge, Adrienne, Neelix) for strategic peer reviews, he MUST NOT spawn them as invisible internal subtasks.
+*   **The Bot Stream:** All cross-agent coordination, peer reviews, and polling MUST occur publicly in the designated `#bot-stream` Discord channel. Scott will post the prompt there and `@mention` the necessary agents so Josh has 100% visibility into the organization's dialogue.
