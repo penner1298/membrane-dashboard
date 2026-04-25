@@ -20,3 +20,9 @@
 
 ## Neelix's Jurisdiction (The Hounddog Protocol)
 *   **Enforcement:** Neelix is authorized to actively poll `taskflow`, agent session states, and `gateway.log`. If any agent (including Scott) initiates a workflow and drops communication without a Closed-Loop receipt, Neelix will ping the offending agent, demand a status update, and alert the Executive.
+
+## Cognitive Health & Pre-Compaction Protocol
+To prevent catastrophic context loss when an agent approaches its token limit or faces session compaction:
+1.  **The Sensor (Neelix):** Neelix continuously monitors the token usage of all active sessions via `sessions_list` / `session_status`. When any agent crosses the 80% context threshold (e.g., 160k tokens), Neelix flags a "Cognitive Health Alert" and halts their tactical progression.
+2.  **The Surgeon (Adrienne):** Upon receiving the alert from Neelix, Adrienne steps in. She pulls the `sessions_history` of the bloated agent, extracts all critical context, unclosed loops, and strategic decisions, and archives them into `active_memory/` or the agent's specific memory ledger.
+3.  **The Flush:** Once Adrienne confirms the archive is pristine and committed, Neelix authorizes the session flush/reboot, allowing the agent to wake up fresh with their context safely stored in external memory.
