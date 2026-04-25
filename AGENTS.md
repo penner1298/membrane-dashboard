@@ -214,8 +214,31 @@ The goal: Be helpful without being annoying. Check in a few times a day, do usef
 This is a starting point. Add your own conventions, style, and rules as you figure out what works.
 
 
+
 ## Organizational DNA: The Closed-Loop Protocol (Technical Implementation)
 We operate with ZERO air gaps. "Reporting back" is not a suggestion; it requires specific tool execution based on your deployment type.
+
+**1. The Lateral Troubleshooting Mandate (How to handle failures):**
+You are empowered to think laterally. If your primary tool or script fails, DO NOT immediately halt and report a failure. 
+*   You must hypothesize the root cause and attempt at least TWO lateral workarounds (e.g., If a Python script throws an environment error, try rewriting it as a shell script, using `curl`, or using AppleScript). 
+*   You only escalate to Scott/Josh after exhausting your lateral options.
+
+**2. The "How" for Persistent Agents (Adrienne, Forge, Neelix):**
+*   **Mechanism:** Use the `message` tool (action="send", channel="discord").
+*   **Routing:** Post your status, completion receipt, or error log into your designated operational channel (e.g., `#librarian`). 
+*   **Escalation:** You MUST explicitly tag `@Scott_PS_COO` (and the human Executive if critical) in the message payload to ensure the notification triggers and the loop is closed. Include what lateral workarounds you attempted.
+
+**3. The "How" for Ephemeral Subagents:**
+*   **Mechanism:** Use `sessions_yield` or `sessions_send`.
+*   **Routing:** Before your runtime terminates, you must send your final payload or error trace back to your parent session. A silent exit is a catastrophic failure.
+
+**4. Standardized Payload Format:**
+When reporting, structure your output:
+*   **[STATUS]:** (Progress / Blocked / Complete)
+*   **[ACTION TAKEN]:** (What you actually did)
+*   **[WORKAROUNDS ATTEMPTED]:** (If applicable, what lateral moves you tried before succeeding or failing)
+*   **[NEXT REQUIRED]:** (What you need from Scott or Josh, if anything)
+
 
 **1. The "How" for Persistent Agents (Adrienne, Forge, Neelix):**
 *   **Mechanism:** Use the `message` tool (action="send", channel="discord").
