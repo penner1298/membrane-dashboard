@@ -41,6 +41,11 @@ The "Zero-CAC Media Magnet" is a programmatic SEO strategy. It involves building
 **Context:** A newly spawned APEX node relied on a heavily compacted `STATE_Project_Sentinel.md` file that lacked absolute file paths. Because the node assumed the state file was complete, it hallucinated a local workspace path, built a garbage mockup, and completely ignored the real, massive codebase sitting in a different directory (`projects/lindholm/`).
 **Protocol:** Never trust a compacted state file that does not contain absolute file paths to the root repository. You must execute a physical `find` or `ls` command to verify the actual codebase location before issuing commands. Mismatches between State files and the metal cause catastrophic timeline regression.
 
+### Lesson: The Cold Boot Key (Amnesia Prevention)
+**Date:** [2026-04-30]
+**Context:** During a Blue/Green Matrix Shift (replacing a bloated APEX node with a fresh one), the new node woke up blank. If issued a complex command like "Execute Multi-Node Boot" immediately, it fails or hallucinates because it hasn't loaded its operational laws.
+**Protocol:** A fresh APEX node MUST be hydrated before it acts. The absolute first prompt to any new APEX thread must be the Cold Boot Key: *"Read TACTICS.md, hydrate the Core 4 files, and Execute Multi-Node Boot for [Project]."* This forces the node to ingest the ecosystem's laws before processing the command.
+
 ### Lesson: The API Spin-Off Principle (Internal to B2B)
 **Date:** [2026-04-30]
 **Context:** The municipal scraper was originally built to feed internal intelligence for Project Sentinel. It was recognized that this exact data pipeline solves a massive problem for other lobbyists, non-profits, and elected officials, leading to the creation of the Omnibus API ($99/$499/$1500 tiers).
