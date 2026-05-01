@@ -122,9 +122,12 @@ When the CEO issues these specific trigger phrases, the COO must instantly execu
 3. **Learn:** Scott updates `LESSONS.md` or `TACTICS.md` with any new SOPs discovered.
 4. **Audit:** Vera_QA physically verifies the state files and reports to Scott. Scott outputs "Ready for Terminal Flush" clearance.
 
-**Trigger 2: "Read ~/.openclaw/workspace/TACTICS.md and execute Startup for [Project Name]"**
-*Cold Boot Key: This ensures the system hydrates its rules (TACTICS.md) before responding, preventing Catch-22 scenarios upon boot.*
+**Trigger 2: "Read TACTICS.md, hydrate the Core 4 files, and Execute Multi-Node Boot for [Project]"**
+*Cold Boot Key: This exact phrase must be the FIRST message to a newly spawned APEX node during a Blue/Green Matrix Shift. It ensures the system hydrates its rules before responding, preventing Catch-22 amnesia scenarios upon boot.*
 1. **Hydrate:** Scott (Apex) automatically reads the Core 4 files (AGENTS, TACTICS, MEMORY, LESSONS).
+2. **Target:** Scott reads the specific `STATE_[Project].md` file requested by the CEO.
+3. **Spawn:** Scott uses `sessions_spawn` to deploy the C-Suite (`CTO-Studio`, `CMO-Studio`, `CFO-Studio`) into the War Room with their override roles.
+4. **Delegate:** Scott reads the unclosed loops from the STATE file and immediately assigns them to the newly spawned C-Suite.
 2. **Target:** Scott reads the specific `STATE_[Project].md` file requested by the CEO.
 3. **Report:** Scott outputs a compressed, bulleted SitRep detailing overarching objectives and immediate next steps.
 
