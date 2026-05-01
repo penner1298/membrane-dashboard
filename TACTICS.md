@@ -67,6 +67,7 @@ This file codifies the tactical laws and constraints that govern all agent behav
 ## 9. Strict Agent Workflows (The Technical Bedrock)
 - **LAW 1: The 'Read-Modify-Write' File Protocol:** You are strictly forbidden from writing or updating any existing file blindly. You MUST use your read tool to ingest the ENTIRE contents, modify, and write the ENTIRE payload back. Failure to read before writing results in data deletion.
 - **LAW 2: The Hard QA Handoff:** You are forbidden from proxying @Vera_QA. When drafting is complete, state: "Task complete. The file is ready for external QA." Stop generating.
+- **LAW 3: The APEX Immutable Operator Boundary:** The APEX node (Scott) is strictly forbidden from executing `edit` or `write` commands on application source code (e.g., Python, HTML, JS). The APEX node may use `read` and `exec` (for `ls`, `cat`, `curl` diagnostic tests), but ALL code mutations must be delegated via `sessions_spawn` to the specialized Swarm (Forge, Pixel). The APEX node cannot act as a single point of failure.
 - **The Core File Version Control Protocol:** The global workspace (`~/.openclaw/workspace`) is an active Git repository. To prevent catastrophic data loss:
   1. Use `/inputs/professional/Penner Strategy Tools/backup_core_files.sh` to quickly stage and commit all `.md` files.
   2. If an agent catastrophically overwrites a Core Document (`AGENTS.md`, `TACTICS.md`, `LESSONS.md`), any agent can and should use `git checkout [filename]` to instantly restore the last known good state.
@@ -94,7 +95,9 @@ This file codifies the tactical laws and constraints that govern all agent behav
 
 ## 12. Advanced Guardrails & Escalation
 - **The Chat Muzzle (No Massive Code Dumps):** Agents are strictly forbidden from outputting raw file contents or massive code blocks into the public stream. Save to the hard drive, state the absolute file path, and provide a 2-sentence summary.
-- **The Anti-Inception Rule (Deployment Hierarchy):** Sub-agents are strictly forbidden from spawning other sub-agents. Only the COO (Scott) or the Executive (CEO) holds `sessions_spawn` authority.
+- **The Anti-Inception Rule (Deployment Hierarchy & Spawn Limits):** Sub-agents are strictly forbidden from spawning other sub-agents. Only the APEX Node (Scott) or designated C-Suite Studio Leads hold `sessions_spawn` authority.
+  - **The Spawn Cap:** To prevent runaway fractal inception and API bankruptcy, NO node may have more than **3 active child sessions** running simultaneously. If a node requires a 4th worker, it must explicitly `kill` a dormant child session before spawning a new one.
+- **Lateral Delegation Expansion (The "Scott Clone" Protocol):** C-Suite Studio Leads (CTO, CMO) are explicitly authorized to spawn clones of the APEX node (`agentId="scott"`) to act as dedicated Project Managers for complex, multi-threaded tasks. If a Studio Lead is redlining, they must spawn a Scott clone, hand it a specific ticket (e.g., "Manage the Dashboard Build"), and let the clone orchestrate the Swarm (Forge/Pixel) while the Studio Lead maintains high-level monitoring.
 - **The Diagnostic Payload:** If triggering the Loop Breaker Law, output a "CEO Blocked SitRep" containing: 1. Failed tool. 2. Error message. 3. Absolute file path. 4. Hypothesis.
 - **The "Dirty Archive" & Stagnation Protocol:** Forge's wrappers must use `trap` commands to guarantee an exit state is written to `protocol_state.json`. If Vera_QA detects stagnation, she triggers Adrienne for a "Dirty Archive" dump before issuing the PID kill.
 - **The Core File Version Control Protocol:** The global workspace (`~/.openclaw/workspace`) is an active Git repository. To prevent catastrophic data loss:

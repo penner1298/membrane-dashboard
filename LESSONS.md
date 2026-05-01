@@ -26,6 +26,16 @@ The "Zero-CAC Media Magnet" is a programmatic SEO strategy. It involves building
 **Context:** Specific agent models (e.g., Forge) may experience hard infrastructure crashes (0 tokens in / 0 tokens out) due to API rate limits or excessive context bloat.
 **Protocol:** When an agent hard-crashes, DO NOT fall into the Operator Trap by attempting to write the code or execute the task manually. Immediately execute "Lateral Agent Delegation." Re-route the ticket to a parallel agent (e.g., Weaver) running on a different model endpoint to bypass the blackout and maintain the automated assembly line.
 
+### Lesson: Dynamic E2E Testing vs. Static Code Analysis (UAT Flaw)
+**Date:** [2026-04-30]
+**Context:** The UAT Agent (Citizen) passed the frontend HTML file by reading the raw text (verifying strings and anchor tags existed). However, because the agent didn't execute a dynamic browser test, it completely missed that the backend API was returning a 500 error (due to missing Vercel environment variables) and failing CORS checks (due to missing `flask-cors`).
+**Protocol:** UAT verification (`CITIZEN-PASS`) is invalid if it only relies on static text analysis. For any web application, UAT must include a dynamic End-to-End (E2E) fetch validation or utilize a headless browser to ensure network payloads (200 OK) and CORS configurations are actually functioning on the metal.
+
+### Lesson: The Token Cascade (Orchestrator Bloat)
+**Date:** [2026-04-30]
+**Context:** The APEX node and C-Suite reached 130% token capacity (260k+ tokens) in under two hours while managing multiple parallel Swarms (Forge, Pixel, Citizen). 
+**Protocol:** Orchestrator nodes bloat exponentially faster than worker nodes because they ingest the telemetry of every Swarm they manage. Orchestrators must execute "Dirty Archives" and trigger terminal flushes (gateway restarts) far more frequently than typical conversational agents. Never attempt to run a multi-hour assembly line without scheduling a context flush.
+
 ### Lesson: The Compaction Trap (Ground Truth vs. State Summaries)
 **Date:** [2026-04-30]
 **Context:** A newly spawned APEX node relied on a heavily compacted `STATE_Project_Sentinel.md` file that lacked absolute file paths. Because the node assumed the state file was complete, it hallucinated a local workspace path, built a garbage mockup, and completely ignored the real, massive codebase sitting in a different directory (`projects/lindholm/`).
