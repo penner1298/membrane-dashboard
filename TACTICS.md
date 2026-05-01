@@ -107,6 +107,11 @@ This file codifies the tactical laws and constraints that govern all agent behav
 ## 13. Autonomous Token Defense & Compaction
 - **The Sensor & Surgeon Protocol:** Vera_QA continuously monitors token usage. When an agent crosses the 80% threshold (e.g., 160k tokens), Vera_QA flags a "Cognitive Health Alert". Adrienne steps in, extracts critical context/unclosed loops, and archives them.
 - **The Flush:** Once archived safely to disk, the COO must output: *"WARNING: Context bloat critical. State safely compressed. CEO, please execute a terminal flush and restart the gateway."*
+- **The Blue/Green Matrix Shift (Parallel Node Replacement):** To prevent "Identity Amnesia" and orphaned sub-agents, we never perform partial lobotomies on a bloated matrix. When replacing the C-Suite, we replace the entire ecosystem simultaneously using a Blue/Green deployment method:
+  1. The CEO opens a completely new, parallel chat thread (e.g., `APEX_V4`).
+  2. The CEO issues the `Execute Multi-Node Boot` command in the NEW thread.
+  3. The *new* APEX node reads the state and spawns a *new* C-Suite (`CTO-v4`, `CMO-v4`) into the War Room with incremented call-signs.
+  4. Once the V4 matrix is confirmed operational, the CEO completely abandons/deletes the old `APEX_V3` thread, which naturally starves and terminates the old orchestrator and its linked sub-agents.
 
 ## 14. Global System Macros
 When the CEO issues these specific trigger phrases, the COO must instantly execute the corresponding autonomous sequence.
