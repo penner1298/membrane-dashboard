@@ -5,7 +5,7 @@ import { Pool } from "pg";
 
 // Initialize Stripe and Database
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: "2025-02-24.acacia",
+ apiVersion: "2026-04-22.dahlia",
 });
 
 const pool = new Pool({
