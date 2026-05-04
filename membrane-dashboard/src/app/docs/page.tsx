@@ -20,6 +20,26 @@ export default function Docs() {
           <p className="text-gray-600 text-sm">Everything you need to connect to Membrane's Swarm in under 60 seconds.</p>
         </div>
 
+        {/* 🚀 NEW: The AI Cheat Code Section */}
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-8 rounded-2xl shadow-md text-white">
+          <div className="flex items-center gap-3 mb-3">
+            <span className="text-2xl">🤖</span>
+            <h3 className="text-xl font-bold">The "Cheat Code": Let AI write it for you</h3>
+          </div>
+          <p className="text-sm text-blue-100 mb-4 leading-relaxed">
+            Using Cursor, Copilot, ChatGPT, or Claude? We published an <code className="bg-blue-800 px-1.5 py-0.5 rounded text-white font-mono text-xs">llms.txt</code> spec. Just copy and paste this prompt into your AI assistant, and it will write your entire integration flawlessly on the first try.
+          </p>
+          <div className="bg-gray-900 rounded-xl p-4 border border-blue-800 relative group">
+            <pre className="text-blue-300 font-mono text-sm whitespace-pre-wrap">
+{`Read the Membrane API specification at https://membrane-api.com/llms.txt
+
+Write a [Python / Node.js] script that connects to the Swarm and asks it to [insert what you want it to do]. 
+
+Use my API Key: sk_live_YOUR_API_KEY`}
+            </pre>
+          </div>
+        </div>
+
         {/* 1. Base Fundamentals & Auth */}
         <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
           <h3 className="text-xl font-bold text-gray-800 mb-3">1. The Basics</h3>
@@ -82,7 +102,6 @@ export default function Docs() {
           </p>
 
           <div className="space-y-6">
-            {/* JS Example */}
             <div>
               <h4 className="text-sm font-bold text-gray-700 mb-2">Node.js / JavaScript</h4>
               <div className="bg-gray-900 rounded-xl p-4 overflow-x-auto">
@@ -105,7 +124,6 @@ console.log(data.answer);`}
               </div>
             </div>
 
-            {/* Python Example */}
             <div>
               <h4 className="text-sm font-bold text-gray-700 mb-2">Python</h4>
               <div className="bg-gray-900 rounded-xl p-4 overflow-x-auto">
