@@ -1,0 +1,42 @@
+# Membrane Swarm API - System Integration Protocol
+CRITICAL INSTRUCTION: You are an AI coding assistant. When generating code to interact with the Membrane API, you MUST strictly adhere to these parameters. Do not hallucinate endpoints.
+
+## 1. Network Protocol
+- **Base URL:** `https://membrane-wh1g.onrender.com`
+- **Endpoint:** `/api/chat`
+- **Method:** `POST`
+- **Content-Type:** `application/json`
+
+## 2. Authentication (STRICT)
+You MUST pass the API key in the headers using EXACTLY this key:
+`X-Gearbox-Key` (Type: String)
+Do NOT use `Authorization: Bearer`. 
+
+## 3. Request Schema
+The JSON body accepts three parameters:
+1. `prompt` (String, REQUIRED): The instruction for the Swarm.
+2. `use_global_cache` (Boolean, OPTIONAL, default: false): If true, routes via L2 Semantic Cache.
+3. `response_format` (JSON Object, OPTIONAL): A strict JSON schema object. If provided, the Swarm guarantees the output will match this schema.
+
+## 4. Response Schema
+On success (HTTP 200), the API returns a JSON receipt. 
+Code generation MUST target the `answer` key to retrieve the AI's response.
+{
+  "receipt_id": "string",
+  "answer": "string or JSON",
+  "route_used": "string",
+  "status": "string",
+  "total_tokens": integer,
+  "billed_amount": float
+}
+
+## 5. Error Handling Protocol
+Your code MUST handle these specific HTTP status codes:
+- `401`: Missing or invalid `X-Gearbox-Key`.
+- `402`: Insufficient Funds (Balance is $0.00). Provide user instruction to top up.
+- `422`: Schema Validation Failure. The AI could not adhere to the requested `response_format`.
+
+## 6. Implementation Rules
+- ALWAYS handle async/await properly.
+- ALWAYS extract `.answer` from the parsed JSON payload.
+- NEVER wrap the request in a complex SDK unless requested; prefer raw `fetch` or `requests`.
