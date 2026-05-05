@@ -18,6 +18,9 @@ export default async function DashboardPage() {
     redirect("/");
   }
 
+  // Self-Healing Database Fix
+  await pool.query("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS has_paid BOOLEAN DEFAULT FALSE;");
+
   // Check for the 10-second flash cookie
   const cookieStore = await cookies();
   const flashKey = cookieStore.get("new_api_key")?.value;
