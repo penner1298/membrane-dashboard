@@ -18,8 +18,10 @@ export default async function DashboardPage() {
     redirect("/");
   }
 
-  // Self-Healing Database Fix
+  // Self-Healing Database Fixes
   await pool.query("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS has_paid BOOLEAN DEFAULT FALSE;");
+  await pool.query("ALTER TABLE api_logs ADD COLUMN IF NOT EXISTS savings DECIMAL(10, 4) DEFAULT 0.0;");
+  await pool.query("ALTER TABLE api_logs ADD COLUMN IF NOT EXISTS wholesale_cost DECIMAL(10, 6) DEFAULT 0.0;");
 
   // Check for the 10-second flash cookie
   const cookieStore = await cookies();
