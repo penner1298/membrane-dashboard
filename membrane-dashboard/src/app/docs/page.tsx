@@ -33,28 +33,35 @@ export default function DocsPage() {
           {/* Section 1: Endpoint */}
           <div className="flex items-center gap-2 mb-6">
             <Server className="w-6 h-6 text-green-600" />
-            <h2 className="text-2xl font-bold text-gray-900 m-0">1. The Endpoint</h2>
+            <h2 className="text-2xl font-bold text-gray-900 m-0">1. The Endpoint (OpenAI Compatible)</h2>
           </div>
           <p className="text-gray-600 mb-4">
-            Make a <code>POST</code> request to our primary chat endpoint. All requests must be authenticated using your API key.
+            Membrane is a drop-in replacement for OpenAI. Point your existing applications to our Base URL and use your Membrane API key as the Bearer token.
           </p>
           <div className="bg-gray-900 rounded-lg p-4 font-mono text-sm text-gray-300 mb-10 overflow-x-auto">
             <div className="flex gap-4 mb-2">
               <span className="text-green-400 font-bold">POST</span>
-              <span className="text-white">https://membrane-api.com/api/chat</span>
+              <span className="text-white">https://membrane-api.com/v1/chat/completions</span>
             </div>
             <div className="flex gap-4">
               <span className="text-purple-400">Headers:</span>
-              <span>X-Gearbox-Key: sk_live_YOUR_API_KEY</span>
+              <span>Authorization: Bearer sk_live_YOUR_API_KEY</span>
             </div>
           </div>
 
-          {/* Section 2: Payload */}
+          {/* Section 2: Payload & Zero-Shot Isolation */}
           <div className="flex items-center gap-2 mb-6">
             <Terminal className="w-6 h-6 text-green-600" />
-            <h2 className="text-2xl font-bold text-gray-900 m-0">2. Request Payload</h2>
+            <h2 className="text-2xl font-bold text-gray-900 m-0">2. Zero-Shot Protocol & Payload</h2>
           </div>
-          <p className="text-gray-600 mb-4">Send your data as a JSON body with the following parameters:</p>
+          <p className="text-gray-600 mb-4">
+            Membrane prevents cascading hallucinations using the <strong>Zero-Shot Isolation Protocol</strong>. To format your payload properly:
+          </p>
+          <ul className="list-disc pl-6 mb-6 text-gray-600 space-y-2">
+            <li><strong>Agent DNA:</strong> Place your system instructions, rules, and behavioral guidelines in <code>system</code> messages. Membrane preserves these.</li>
+            <li><strong>Immediate Task:</strong> Membrane will only look at the <em>last</em> <code>user</code> message in the array to determine the current task.</li>
+            <li><strong>Conversational Bloat:</strong> All intermediate <code>assistant</code> and older <code>user</code> messages are automatically stripped out before routing to prevent context confusion.</li>
+          </ul>
           
           <div className="border border-gray-200 rounded-lg overflow-hidden mb-10">
             <table className="w-full text-left text-sm m-0">
@@ -67,19 +74,14 @@ export default function DocsPage() {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 <tr>
-                  <td className="px-6 py-4 font-mono text-gray-900">prompt <span className="text-red-500">*</span></td>
+                  <td className="px-6 py-4 font-mono text-gray-900">messages <span className="text-red-500">*</span></td>
+                  <td className="px-6 py-4 text-gray-500">array</td>
+                  <td className="px-6 py-4 text-gray-600">Standard OpenAI messages array. Put your rules in <code className="bg-gray-100 px-1 rounded">system</code> and task in the last <code className="bg-gray-100 px-1 rounded">user</code> message.</td>
+                </tr>
+                <tr>
+                  <td className="px-6 py-4 font-mono text-gray-900">model</td>
                   <td className="px-6 py-4 text-gray-500">string</td>
-                  <td className="px-6 py-4 text-gray-600">The question, instruction, or text you want the AI to process.</td>
-                </tr>
-                <tr>
-                  <td className="px-6 py-4 font-mono text-gray-900">use_global_cache</td>
-                  <td className="px-6 py-4 text-gray-500">boolean</td>
-                  <td className="px-6 py-4 text-gray-600">Set to <code>true</code> to pull from community history for massive savings and speed. Defaults to <code>false</code>.</td>
-                </tr>
-                <tr>
-                  <td className="px-6 py-4 font-mono text-gray-900">response_format</td>
-                  <td className="px-6 py-4 text-gray-500">JSON object</td>
-                  <td className="px-6 py-4 text-gray-600">Optional. Provide a JSON Schema to strictly force the AI to return structured data.</td>
+                  <td className="px-6 py-4 text-gray-600">Optional. You can send <code className="bg-gray-100 px-1 rounded">membrane-engagement-layer</code> or anything else; we route it automatically.</td>
                 </tr>
               </tbody>
             </table>
@@ -91,20 +93,35 @@ export default function DocsPage() {
             <h2 className="text-2xl font-bold text-gray-900 m-0">3. Success Response</h2>
           </div>
           <p className="text-gray-600 mb-4">
-            If successful, you will receive a <code>200 OK</code> status. Extract your text from the <code>answer</code> key.
+            You will receive a standard OpenAI-compatible response. Additionally, we append a custom <code>membrane_metadata</code> object so you can track your savings in real-time.
           </p>
           <div className="bg-gray-900 rounded-lg p-4 font-mono text-sm text-green-400 mb-10 overflow-x-auto">
             <pre>
 {`{
-  "receipt_id": "md5_hash_string",
-  "answer": "Silicon paths glow, routing requests in the dark, speed is all we know.",
-  "route_used": "Membrane-Engagement-Layer",
-  "status": "DEEP_COGNITION",
-  "total_tokens": 42,
-  "hypothetical_pro_cost": 0.0003,
-  "actual_cost": 0.0001,
-  "billed_amount": 0.0002,
-  "savings_percent": 33.3
+  "id": "chatcmpl-md5_hash_string",
+  "object": "chat.completion",
+  "created": 1714930000,
+  "model": "membrane-engagement-layer",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "Silicon paths glow, routing requests in the dark, speed is all we know."
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 21,
+    "completion_tokens": 21,
+    "total_tokens": 42
+  },
+  "membrane_metadata": {
+    "billed_amount": 0.0002,
+    "savings_percent": 33.3,
+    "status": "DEEP_COGNITION"
+  }
 }`}
             </pre>
           </div>
@@ -115,9 +132,10 @@ export default function DocsPage() {
             <h2 className="text-2xl font-bold text-gray-900 m-0">4. Error Handling</h2>
           </div>
           <ul className="space-y-3 text-gray-600">
-            <li><strong className="text-gray-900">401 Unauthorized:</strong> Missing or invalid <code>X-Gearbox-Key</code>.</li>
+            <li><strong className="text-gray-900">401 Unauthorized:</strong> Missing or invalid API key in the Authorization header.</li>
             <li><strong className="text-gray-900">402 Payment Required:</strong> Your prepaid balance hit $0.00. Time to top up.</li>
             <li><strong className="text-gray-900">422 Unprocessable Entity:</strong> The AI failed to format the data into your requested JSON schema.</li>
+            <li><strong className="text-gray-900">502 Bad Gateway:</strong> All upstream frontier models failed to process the request.</li>
           </ul>
 
         </div>

@@ -28,7 +28,7 @@ export default async function DashboardPage() {
 
   // 1. FETCH REAL TENANT DATA (Balance, Referral, & Paid Status)
   const { rows: tenantRows } = await pool.query(
-    "SELECT balance, referral_code, has_paid FROM tenants WHERE clerk_user_id = $1",
+    "SELECT balance, referral_code, has_paid, total_saved FROM tenants WHERE clerk_user_id = $1",
     [user.id]
   );
   let tenant = tenantRows[0];
@@ -55,23 +55,21 @@ export default async function DashboardPage() {
     SELECT 
       COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days') as total_calls_30d, 
       COALESCE(SUM(cost) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days'), 0) as total_cost_30d,
+      COALESCE(SUM(savings) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days'), 0) as total_savings_30d,
       COALESCE(SUM(cost), 0) as total_cost_lifetime
     FROM api_logs 
     WHERE clerk_user_id = $1
   `, [user.id]);
   
-  const stats = statsRows[0] || { total_calls_30d: 0, total_cost_30d: 0, total_cost_lifetime: 0 };
+  const stats = statsRows[0] || { total_calls_30d: 0, total_cost_30d: 0, total_savings_30d: 0, total_cost_lifetime: 0 };
 
-  // Calculate the mathematical savings (Assuming OpenAI charges 5x your Membrane rate, so savings = 4x)
   const cost30d = Number(stats.total_cost_30d);
-  const savings30d = cost30d * 4; 
-  
-  const costLifetime = Number(stats.total_cost_lifetime);
-  const savingsLifetime = costLifetime * 4;
+  const savings30d = Number(stats.total_savings_30d);
+  const savingsLifetime = Number(tenant.total_saved);
 
   // 3. FETCH RECENT TRANSACTIONS
   const { rows: logs } = await pool.query(`
-    SELECT endpoint, cost, created_at 
+    SELECT endpoint, cost, savings, created_at 
     FROM api_logs 
     WHERE clerk_user_id = $1 
     ORDER BY created_at DESC 
@@ -83,7 +81,8 @@ export default async function DashboardPage() {
     SELECT 
       TO_CHAR(DATE_TRUNC('day', created_at), 'YYYY-MM-DD') as date_str,
       COUNT(*) as total_calls,
-      COALESCE(SUM(cost), 0) as total_cost
+      COALESCE(SUM(cost), 0) as total_cost,
+      COALESCE(SUM(savings), 0) as total_savings
     FROM api_logs
     WHERE clerk_user_id = $1 AND created_at >= NOW() - INTERVAL '7 days'
     GROUP BY DATE_TRUNC('day', created_at)
@@ -97,6 +96,7 @@ export default async function DashboardPage() {
       dateStr: d.toISOString().split('T')[0],
       calls: 0,
       cost: 0,
+      savings: 0,
     };
   });
 
@@ -105,20 +105,18 @@ export default async function DashboardPage() {
     if (match) {
       match.calls = Number(row.total_calls);
       match.cost = Number(row.total_cost);
+      match.savings = Number(row.total_savings);
     }
   });
 
-  const maxOpenAiCost = Math.max(...last7Days.map(d => d.cost * 5)) || 1;
+  const maxOpenAiCost = Math.max(...last7Days.map(d => d.cost + d.savings)) || 1;
 
   const chartData = last7Days.map(d => {
-    const openAiCost = d.cost * 5; 
-    const savings = openAiCost - d.cost;
-    
     return {
       day: d.day,
       calls: d.calls >= 1000 ? (d.calls / 1000).toFixed(1) + 'k' : d.calls.toString(),
       costHeight: `${(d.cost / maxOpenAiCost) * 100}%`,
-      savedHeight: `${(savings / maxOpenAiCost) * 100}%`
+      savedHeight: `${(d.savings / maxOpenAiCost) * 100}%`
     };
   });
 
@@ -174,7 +172,9 @@ export default async function DashboardPage() {
                 <Sparkles className="w-5 h-5 text-purple-500" />
                 <h2 className="text-lg font-semibold text-gray-900">AI Quick Start</h2>
               </div>
-              <p className="text-sm text-gray-500 mb-4">Membrane is a frictionless, drop-in replacement for OpenAI. Just point your existing code or AI editor to our Base URL.</p>
+              <p className="text-sm text-gray-500 mb-4">
+                Membrane is a drop-in replacement for OpenAI with a powerful anti-hallucination engine. By using our Zero-Shot Isolation Protocol, you can load your Agent DNA (rules) into <code className="bg-gray-100 px-1 rounded">system</code> messages and your immediate task into the last <code className="bg-gray-100 px-1 rounded">user</code> message.
+              </p>
               
               <div className="space-y-3">
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex justify-between items-center">
@@ -196,7 +196,7 @@ export default async function DashboardPage() {
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
                   <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Model Name</span>
                   <code className="text-sm font-mono text-gray-900">membrane-engagement-layer</code>
-                  <p className="text-xs text-gray-500 mt-1">Or leave it blank. We automatically route your prompt to the most efficient model.</p>
+                  <p className="text-xs text-gray-500 mt-1">Routing is automatic. We strip conversational bloat, apply your System Rules, and route to the most efficient tier.</p>
                 </div>
               </div>
             </div>
@@ -343,10 +343,23 @@ export default async function DashboardPage() {
                       logs.map((log: any, index: number) => (
                         <tr key={index} className="bg-white hover:bg-gray-50 transition-colors">
                           <td className="px-6 py-4">
-                            <div className="font-medium text-gray-900 truncate max-w-[150px]">{log.endpoint}</div>
+                            <div className="font-medium text-gray-900 truncate max-w-[200px]">
+                              {log.endpoint.includes('L1_GLOBAL_CACHE') && <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-2" title="L1 Global Cache"></span>}
+                              {log.endpoint.includes('L2_SILO_CACHE') && <span className="inline-block w-2 h-2 rounded-full bg-purple-500 mr-2" title="L2 Silo Cache"></span>}
+                              {log.endpoint.includes('DEEP_COGNITION') && <span className="inline-block w-2 h-2 rounded-full bg-orange-500 mr-2" title="Deep Cognition"></span>}
+                              {log.endpoint.includes('SURFACE_ENGAGEMENT') && <span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-2" title="Surface Engagement"></span>}
+                              {log.endpoint}
+                            </div>
                             <div className="text-xs text-gray-500 mt-0.5">{new Date(log.created_at).toLocaleDateString()}</div>
                           </td>
-                          <td className="px-6 py-4 text-right text-gray-900 font-medium">-${Number(log.cost).toFixed(4)}</td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="text-gray-900 font-medium">-${Number(log.cost).toFixed(4)}</div>
+                            {Number(log.savings) > 0 && (
+                              <div className="text-xs text-green-600 font-medium mt-0.5">
+                                Saved ${Number(log.savings).toFixed(4)}
+                              </div>
+                            )}
+                          </td>
                         </tr>
                       ))
                     )}
