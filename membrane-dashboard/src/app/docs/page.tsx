@@ -1,197 +1,126 @@
 import Link from "next/link";
-import { UserButton } from "@clerk/nextjs";
+import { ArrowLeft, Terminal, Server, ShieldAlert, Zap } from "lucide-react";
 
-export default function Docs() {
+export default function DocsPage() {
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans pb-12">
-      <nav className="flex items-center justify-between p-6 bg-white border-b border-gray-200 shadow-sm">
-        <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">
-          Membrane<span className="text-blue-600">.</span>
-        </h1>
-        <div className="flex items-center gap-6">
-          <Link href="/" className="text-sm font-medium text-gray-500 hover:text-gray-900">Dashboard</Link>
-          <UserButton />
-        </div>
-      </nav>
-
-      <main className="max-w-4xl mx-auto mt-10 p-6 space-y-8">
-        <div>
-          <h2 className="text-3xl font-extrabold text-gray-900 mb-2">API Documentation</h2>
-          <p className="text-gray-600 text-sm">Everything you need to connect to Membrane's Swarm in under 60 seconds.</p>
-        </div>
-
-        {/* 🚀 NEW: The AI Cheat Code Section */}
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-8 rounded-2xl shadow-md text-white">
-          <div className="flex items-center gap-3 mb-3">
-            <span className="text-2xl">🤖</span>
-            <h3 className="text-xl font-bold">The "Cheat Code": Let AI write it for you</h3>
+    <div className="min-h-screen bg-white">
+      {/* Docs Header */}
+      <header className="border-b border-gray-200 bg-gray-50/50 sticky top-0 z-10 backdrop-blur-sm">
+        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link href="/" className="text-gray-400 hover:text-gray-900 transition-colors">
+              <ArrowLeft className="w-5 h-5" />
+            </Link>
+            <span className="font-bold text-gray-900 text-lg">Membrane Documentation</span>
           </div>
-          <p className="text-sm text-blue-100 mb-4 leading-relaxed">
-            Using Cursor, Copilot, ChatGPT, or Claude? We published an <code className="bg-blue-800 px-1.5 py-0.5 rounded text-white font-mono text-xs">llms.txt</code> spec. Just copy and paste this prompt into your AI assistant, and it will write your entire integration flawlessly on the first try.
-          </p>
-          <div className="bg-gray-900 rounded-xl p-4 border border-blue-800 relative group">
-            <pre className="text-blue-300 font-mono text-sm whitespace-pre-wrap">
-{`Read the Membrane API specification at https://membrane-api.com/llms.txt
-
-Write a [Python / Node.js] script that connects to the Swarm and asks it to [insert what you want it to do]. 
-
-Use my API Key: sk_live_YOUR_API_KEY`}
-            </pre>
-          </div>
+          <Link href="/dashboard" className="text-sm font-medium text-green-600 hover:text-green-700">
+            Go to Dashboard
+          </Link>
         </div>
+      </header>
 
-        {/* 1. Base Fundamentals & Auth */}
-        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
-          <h3 className="text-xl font-bold text-gray-800 mb-3">1. The Basics</h3>
-          <p className="text-sm text-gray-600 mb-4">
-            Membrane exposes a single, powerful endpoint. All requests must be sent as a <code className="bg-gray-100 px-1 rounded">POST</code> request and include your API key in the headers.
+      <main className="max-w-4xl mx-auto px-6 py-12">
+        <div className="prose prose-gray max-w-none">
+          <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 mb-4">
+            Swarm API Specification
+          </h1>
+          <p className="text-lg text-gray-500 mb-12">
+            Membrane is a high-speed, agent-agnostic routing layer. Send a prompt, get an answer. Everything you need to integrate is on this single page.
           </p>
-          <div className="space-y-3">
-            <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-lg border border-gray-200">
-              <span className="bg-gray-200 text-gray-600 font-bold text-xs px-2 py-1 rounded uppercase tracking-wider">URL</span>
-              <code className="font-mono text-sm text-gray-800">https://membrane-wh1g.onrender.com/api/chat</code>
+
+          <hr className="my-10 border-gray-200" />
+
+          {/* Section 1: Endpoint */}
+          <div className="flex items-center gap-2 mb-6">
+            <Server className="w-6 h-6 text-green-600" />
+            <h2 className="text-2xl font-bold text-gray-900 m-0">1. The Endpoint</h2>
+          </div>
+          <p className="text-gray-600 mb-4">
+            Make a <code>POST</code> request to our primary chat endpoint. All requests must be authenticated using your API key.
+          </p>
+          <div className="bg-gray-900 rounded-lg p-4 font-mono text-sm text-gray-300 mb-10 overflow-x-auto">
+            <div className="flex gap-4 mb-2">
+              <span className="text-green-400 font-bold">POST</span>
+              <span className="text-white">https://membrane-api.com/api/chat</span>
             </div>
-            <div className="flex items-center gap-3 bg-red-50 p-3 rounded-lg border border-red-100">
-              <span className="bg-red-200 text-red-800 font-bold text-xs px-2 py-1 rounded uppercase tracking-wider">HEADER</span>
-              <code className="font-mono text-sm text-red-700">X-Gearbox-Key: sk_live_YOUR_API_KEY</code>
+            <div className="flex gap-4">
+              <span className="text-purple-400">Headers:</span>
+              <span>X-Gearbox-Key: sk_live_YOUR_API_KEY</span>
             </div>
           </div>
-        </div>
 
-        {/* 2. Request Structure */}
-        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
-          <h3 className="text-xl font-bold text-gray-800 mb-3">2. Request Parameters</h3>
-          <p className="text-sm text-gray-600 mb-4">
-            Send your data as a JSON body. Here are the parameters you can use to control the Swarm:
-          </p>
-          <div className="overflow-x-auto border border-gray-200 rounded-lg">
-            <table className="w-full text-left text-sm text-gray-600">
-              <thead className="bg-gray-50 border-b border-gray-200 text-gray-800">
+          {/* Section 2: Payload */}
+          <div className="flex items-center gap-2 mb-6">
+            <Terminal className="w-6 h-6 text-green-600" />
+            <h2 className="text-2xl font-bold text-gray-900 m-0">2. Request Payload</h2>
+          </div>
+          <p className="text-gray-600 mb-4">Send your data as a JSON body with the following parameters:</p>
+          
+          <div className="border border-gray-200 rounded-lg overflow-hidden mb-10">
+            <table className="w-full text-left text-sm m-0">
+              <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-4 py-3 font-semibold">Parameter</th>
-                  <th className="px-4 py-3 font-semibold">Type</th>
-                  <th className="px-4 py-3 font-semibold">Description</th>
+                  <th className="px-6 py-3 font-semibold text-gray-900">Parameter</th>
+                  <th className="px-6 py-3 font-semibold text-gray-900">Type</th>
+                  <th className="px-6 py-3 font-semibold text-gray-900">Description</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-gray-200">
                 <tr>
-                  <td className="px-4 py-3 font-mono text-xs text-blue-600">prompt</td>
-                  <td className="px-4 py-3 text-xs">string <span className="text-red-500 font-bold">*</span></td>
-                  <td className="px-4 py-3">The question, instruction, or text you want the AI to process.</td>
+                  <td className="px-6 py-4 font-mono text-gray-900">prompt <span className="text-red-500">*</span></td>
+                  <td className="px-6 py-4 text-gray-500">string</td>
+                  <td className="px-6 py-4 text-gray-600">The question, instruction, or text you want the AI to process.</td>
                 </tr>
                 <tr>
-                  <td className="px-4 py-3 font-mono text-xs text-blue-600">use_global_cache</td>
-                  <td className="px-4 py-3 text-xs">boolean</td>
-                  <td className="px-4 py-3">Set to <code className="bg-gray-100 px-1 rounded">true</code> to pull from community history for massive savings, or <code className="bg-gray-100 px-1 rounded">false</code> for a unique generation.</td>
+                  <td className="px-6 py-4 font-mono text-gray-900">use_global_cache</td>
+                  <td className="px-6 py-4 text-gray-500">boolean</td>
+                  <td className="px-6 py-4 text-gray-600">Set to <code>true</code> to pull from community history for massive savings and speed. Defaults to <code>false</code>.</td>
                 </tr>
                 <tr>
-                  <td className="px-4 py-3 font-mono text-xs text-blue-600">response_format</td>
-                  <td className="px-4 py-3 text-xs">JSON object</td>
-                  <td className="px-4 py-3">Optional. Provide a JSON Schema to strictly force the AI to return structured data.</td>
+                  <td className="px-6 py-4 font-mono text-gray-900">response_format</td>
+                  <td className="px-6 py-4 text-gray-500">JSON object</td>
+                  <td className="px-6 py-4 text-gray-600">Optional. Provide a JSON Schema to strictly force the AI to return structured data.</td>
                 </tr>
               </tbody>
             </table>
           </div>
-        </div>
 
-        {/* 3. Quickstart Tooling */}
-        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
-          <h3 className="text-xl font-bold text-gray-800 mb-3">3. Quickstart Code</h3>
-          <p className="text-sm text-gray-600 mb-6">
-            Copy and paste these snippets to make your first request immediately.
-          </p>
-
-          <div className="space-y-6">
-            <div>
-              <h4 className="text-sm font-bold text-gray-700 mb-2">Node.js / JavaScript</h4>
-              <div className="bg-gray-900 rounded-xl p-4 overflow-x-auto">
-                <pre className="text-yellow-400 font-mono text-xs leading-relaxed">
-{`const response = await fetch("https://membrane-wh1g.onrender.com/api/chat", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    "X-Gearbox-Key": "sk_live_YOUR_API_KEY"
-  },
-  body: JSON.stringify({
-    prompt: "Write a haiku about artificial intelligence.",
-    use_global_cache: true
-  })
-});
-
-const data = await response.json();
-console.log(data.answer);`}
-                </pre>
-              </div>
-            </div>
-
-            <div>
-              <h4 className="text-sm font-bold text-gray-700 mb-2">Python</h4>
-              <div className="bg-gray-900 rounded-xl p-4 overflow-x-auto">
-                <pre className="text-blue-400 font-mono text-xs leading-relaxed">
-{`import requests
-
-url = "https://membrane-wh1g.onrender.com/api/chat"
-headers = {
-    "X-Gearbox-Key": "sk_live_YOUR_API_KEY",
-    "Content-Type": "application/json"
-}
-data = {
-    "prompt": "Write a haiku about artificial intelligence.",
-    "use_global_cache": True
-}
-
-response = requests.post(url, headers=headers, json=data)
-print(response.json()["answer"])`}
-                </pre>
-              </div>
-            </div>
+          {/* Section 3: Response */}
+          <div className="flex items-center gap-2 mb-6">
+            <Zap className="w-6 h-6 text-green-600" />
+            <h2 className="text-2xl font-bold text-gray-900 m-0">3. Success Response</h2>
           </div>
-        </div>
-
-        {/* 4. Responses & Errors */}
-        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
-          <h3 className="text-xl font-bold text-gray-800 mb-3">4. Responses & Errors</h3>
-          <p className="text-sm text-gray-600 mb-4">
-            If successful, you will receive a <code className="bg-gray-100 px-1 rounded">200 OK</code> status with your answer and a billing receipt. If something goes wrong, Membrane uses standard HTTP error codes.
+          <p className="text-gray-600 mb-4">
+            If successful, you will receive a <code>200 OK</code> status. Extract your text from the <code>answer</code> key.
           </p>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <h4 className="text-xs font-bold text-green-700 uppercase tracking-wider mb-2">✅ Success Payload</h4>
-              <div className="bg-gray-900 rounded-xl p-4 overflow-x-auto h-full">
-                <pre className="text-gray-300 font-mono text-xs leading-relaxed">
+          <div className="bg-gray-900 rounded-lg p-4 font-mono text-sm text-green-400 mb-10 overflow-x-auto">
+            <pre>
 {`{
   "receipt_id": "md5_hash_string",
-  "answer": "Silicon minds wake,\\nLearning patterns in the dark,\\nData blooms like spring.",
-  "route_used": "Membrane Swarm",
-  "status": "FLASH OK",
+  "answer": "Silicon paths glow, routing requests in the dark, speed is all we know.",
+  "route_used": "Membrane-Engagement-Layer",
+  "status": "DEEP_COGNITION",
   "total_tokens": 42,
-  "billed_amount": 0.0001
+  "hypothetical_pro_cost": 0.0003,
+  "actual_cost": 0.0001,
+  "billed_amount": 0.0002,
+  "savings_percent": 33.3
 }`}
-                </pre>
-              </div>
-            </div>
-
-            <div>
-              <h4 className="text-xs font-bold text-red-700 uppercase tracking-wider mb-2">❌ Common Errors</h4>
-              <div className="bg-red-50 border border-red-100 rounded-xl p-4 h-full flex flex-col justify-center space-y-4">
-                <div>
-                  <span className="font-bold text-red-800 text-sm">401 Unauthorized</span>
-                  <p className="text-xs text-red-600 mt-1">You forgot your API key, or the key is invalid.</p>
-                </div>
-                <div>
-                  <span className="font-bold text-red-800 text-sm">402 Payment Required</span>
-                  <p className="text-xs text-red-600 mt-1">Your prepaid balance hit $0.00. Top up on the dashboard.</p>
-                </div>
-                <div>
-                  <span className="font-bold text-red-800 text-sm">422 Unprocessable Entity</span>
-                  <p className="text-xs text-red-600 mt-1">The AI failed to format the data into your requested JSON schema.</p>
-                </div>
-              </div>
-            </div>
+            </pre>
           </div>
-        </div>
 
+          {/* Section 4: Errors */}
+          <div className="flex items-center gap-2 mb-6">
+            <ShieldAlert className="w-6 h-6 text-green-600" />
+            <h2 className="text-2xl font-bold text-gray-900 m-0">4. Error Handling</h2>
+          </div>
+          <ul className="space-y-3 text-gray-600">
+            <li><strong className="text-gray-900">401 Unauthorized:</strong> Missing or invalid <code>X-Gearbox-Key</code>.</li>
+            <li><strong className="text-gray-900">402 Payment Required:</strong> Your prepaid balance hit $0.00. Time to top up.</li>
+            <li><strong className="text-gray-900">422 Unprocessable Entity:</strong> The AI failed to format the data into your requested JSON schema.</li>
+          </ul>
+
+        </div>
       </main>
     </div>
   );
