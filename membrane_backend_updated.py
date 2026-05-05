@@ -447,9 +447,12 @@ async def openai_compatible_endpoint(request: Request, background_tasks: Backgro
     # 3. Fuse them into the single payload sent to Membrane's core
     prompt = system_instructions + last_user_prompt
 
-    # 3. Translate it into a Membrane request
+    response_format = body.get("response_format")
+
+    # 4. Translate it into a Membrane request
     internal_req = ChatRequest(
         prompt=prompt,
+        response_format=response_format,
         use_global_cache=False # FIXED: Defaults to False for absolute L2 Silo privacy!
     )
 
