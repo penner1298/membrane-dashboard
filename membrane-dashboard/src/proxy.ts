@@ -6,7 +6,8 @@ const isPublicRoute = createRouteMatcher([
   '/sign-in(.*)',
   '/sign-up(.*)',
   '/api/webhook/stripe(.*)',
-  '/llms.txt'
+  '/llms.txt',
+  '/v1(.*)' // <-- Added the Membrane API Gateway tunnel
 ]);
 
 // 👇 Notice the 'async' here and 'await' below!
