@@ -1,12 +1,21 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // This tells Vercel to bypass the strict checks and just build the app!
+  // Keep the build bypasses active
   typescript: {
     ignoreBuildErrors: true,
   },
   eslint: {
     ignoreDuringBuilds: true,
+  },
+  // Add the stealth API Gateway tunnel
+  async rewrites() {
+    return [
+      {
+        source: '/v1/:path*',
+        destination: 'https://membrane-wh1g.onrender.com/v1/:path*',
+      },
+    ];
   },
 };
 
