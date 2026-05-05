@@ -7,9 +7,8 @@ import { cookies } from "next/headers";
 import { CopyButton } from "@/components/copy-button";
 import { pool } from "@/lib/db";
 import { 
-  Key, Sparkles, CreditCard, Zap, ChevronDown, 
-  Code2, Gift, History, BookOpen, ArrowRight, RefreshCw, 
-  TrendingDown, Trophy, ShieldAlert, Mail, Lock 
+  Key, Sparkles, CreditCard, Zap, RefreshCw, 
+  TrendingDown, Trophy, ShieldAlert, Mail, Lock, History 
 } from "lucide-react";
 
 export default async function DashboardPage() {
