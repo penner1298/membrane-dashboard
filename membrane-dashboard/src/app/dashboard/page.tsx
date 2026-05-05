@@ -34,13 +34,14 @@ export default async function DashboardPage() {
   if (!tenant) {
     const newRefCode = `REF-${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
     const startingBalance = 50.00;
+    const pendingHash = `PENDING_${user.id}`; // Makes the placeholder unique
 
-    // Insert them into the database instantly with their $50 and a placeholder hash
+    // Insert them into the database instantly with their $50 and a unique placeholder
     await pool.query(`
       INSERT INTO tenants (clerk_user_id, balance, referral_code, total_saved, api_key_hash)
-      VALUES ($1, $2, $3, 0, 'PENDING_GENERATION')
+      VALUES ($1, $2, $3, 0, $4)
       ON CONFLICT (clerk_user_id) DO NOTHING
-    `, [user.id, startingBalance, newRefCode]);
+    `, [user.id, startingBalance, newRefCode, pendingHash]);
 
     // Set the local variable so the UI updates instantly
     tenant = { balance: startingBalance, total_saved: 0, referral_code: newRefCode };
