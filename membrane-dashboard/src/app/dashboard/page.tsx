@@ -8,7 +8,8 @@ import { CopyButton } from "@/components/copy-button";
 import { pool } from "@/lib/db";
 import { 
   Key, Sparkles, CreditCard, Zap, ChevronDown, 
-  Code2, Gift, History, BookOpen, ArrowRight, RefreshCw, TrendingDown, Trophy, ShieldAlert, Mail 
+  Code2, Gift, History, BookOpen, ArrowRight, RefreshCw, 
+  TrendingDown, Trophy, ShieldAlert, Mail, Lock 
 } from "lucide-react";
 
 export default async function DashboardPage() {
@@ -23,9 +24,9 @@ export default async function DashboardPage() {
   const flashKey = cookieStore.get("new_api_key")?.value;
   const apiKey = flashKey || "sk_live_... (Click Rotate to generate)";
 
-  // 1. FETCH REAL TENANT DATA (Balance & Referral)
+  // 1. FETCH REAL TENANT DATA (Balance, Referral, & Paid Status)
   const { rows: tenantRows } = await pool.query(
-    "SELECT balance, referral_code FROM tenants WHERE clerk_user_id = $1",
+    "SELECT balance, referral_code, has_paid FROM tenants WHERE clerk_user_id = $1",
     [user.id]
   );
   let tenant = tenantRows[0];
@@ -38,13 +39,13 @@ export default async function DashboardPage() {
 
     // Insert them into the database instantly with their $50 and a unique placeholder
     await pool.query(`
-      INSERT INTO tenants (clerk_user_id, balance, referral_code, total_saved, api_key_hash)
-      VALUES ($1, $2, $3, 0, $4)
+      INSERT INTO tenants (clerk_user_id, balance, referral_code, total_saved, api_key_hash, has_paid)
+      VALUES ($1, $2, $3, 0, $4, FALSE)
       ON CONFLICT (clerk_user_id) DO NOTHING
     `, [user.id, startingBalance, newRefCode, pendingHash]);
 
     // Set the local variable so the UI updates instantly
-    tenant = { balance: startingBalance, total_saved: 0, referral_code: newRefCode };
+    tenant = { balance: startingBalance, total_saved: 0, referral_code: newRefCode, has_paid: false };
   }
 
   // 2. FETCH UNIFIED STATS
@@ -213,14 +214,23 @@ export default async function DashboardPage() {
               </form>
             </div>
 
-            {/* 👇 UPDATED REFERRAL CARD WITH REDEEM FORM */}
+            {/* 👇 THE NEW SYBIL-RESISTANT REFERRAL CARD */}
             <div className="bg-green-50 rounded-xl border border-green-200 p-6 shadow-sm relative overflow-hidden flex flex-col justify-between">
               <div className="relative z-10 mb-4">
                 <h3 className="text-lg font-bold text-green-900 mb-2">Send $10, Get $10</h3>
-                <div className="bg-white/60 border border-green-200 p-3 rounded-lg flex justify-between items-center text-sm font-mono text-green-900">
-                  <span className="font-bold tracking-wider">{tenant.referral_code}</span>
-                  <CopyButton textToCopy={tenant.referral_code} className="font-medium text-green-700 hover:text-green-800 bg-transparent border-none p-0" />
-                </div>
+                
+                {tenant.has_paid ? (
+                  <div className="bg-white/60 border border-green-200 p-3 rounded-lg flex justify-between items-center text-sm font-mono text-green-900">
+                    <span className="font-bold tracking-wider">{tenant.referral_code}</span>
+                    <CopyButton textToCopy={tenant.referral_code} className="font-medium text-green-700 hover:text-green-800 bg-transparent border-none p-0" />
+                  </div>
+                ) : (
+                  <div className="bg-white/50 border border-green-200/60 p-4 rounded-lg flex flex-col items-center justify-center text-center">
+                    <Lock className="w-5 h-5 text-green-700 mb-2" />
+                    <p className="text-sm font-bold text-green-900 mb-1">Referral Code Locked</p>
+                    <p className="text-xs text-green-800 leading-relaxed">Make your first deposit of $5 or more to unlock your code and start earning free API credits!</p>
+                  </div>
+                )}
               </div>
               
               <div className="relative z-10 pt-4 border-t border-green-200/50">

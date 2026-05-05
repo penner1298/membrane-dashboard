@@ -42,11 +42,12 @@ export async function POST(req: Request) {
 
     if (clerkUserId && amountPaid > 0) {
       try {
+        // 👇 UPDATE: Now we add the money AND unlock the referral code!
         await pool.query(
-          "UPDATE tenants SET balance = balance + $1 WHERE clerk_user_id = $2",
+          "UPDATE tenants SET balance = balance + $1, has_paid = TRUE WHERE clerk_user_id = $2",
           [amountPaid, clerkUserId]
         );
-        console.log(`🏦 SUCCESS: Added $${amountPaid} to DB for ${clerkUserId}`);
+        console.log(`🏦 SUCCESS: Added $${amountPaid} to DB and unlocked referrals for ${clerkUserId}`);
       } catch (dbError) {
         console.error("🔥 DATABASE ERROR:", dbError);
         return new NextResponse("Database Error", { status: 500 });
