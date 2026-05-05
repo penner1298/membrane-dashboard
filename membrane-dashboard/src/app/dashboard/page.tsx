@@ -119,9 +119,6 @@ export default async function DashboardPage() {
     };
   });
 
-  const chatEndpoint = "https://membrane-api.com/api/chat";
-  const docsUrl = "https://membrane-api.com/docs";
-
   return (
     <div className="min-h-screen bg-gray-50/50 pb-10">
       <header className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center sticky top-0 z-10">
@@ -174,14 +171,30 @@ export default async function DashboardPage() {
                 <Sparkles className="w-5 h-5 text-purple-500" />
                 <h2 className="text-lg font-semibold text-gray-900">AI Quick Start</h2>
               </div>
-              <p className="text-sm text-gray-500 mb-4">Copy and paste this prompt into Cursor, Windsurf, or Copilot.</p>
-              <div className="bg-gray-900 rounded-lg p-5 relative group">
-                <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <CopyButton textToCopy={`"Write a standard HTTP POST request to ${chatEndpoint}... X-Gearbox-Key: ${apiKey}"`} className="bg-gray-800 text-gray-300 hover:text-white hover:bg-gray-700 px-3 py-1.5 rounded-md text-xs font-medium border border-gray-700" />
+              <p className="text-sm text-gray-500 mb-4">Membrane is a frictionless, drop-in replacement for OpenAI. Just point your existing code or AI editor to our Base URL.</p>
+              
+              <div className="space-y-3">
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex justify-between items-center">
+                  <div>
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Base URL</span>
+                    <code className="text-sm font-mono text-gray-900">https://membrane-api.com/v1</code>
+                  </div>
+                  <CopyButton textToCopy="https://membrane-api.com/v1" className="text-gray-400 hover:text-gray-900" />
                 </div>
-                <p className="text-sm text-green-400 font-mono leading-relaxed pr-16">
-                  "Write a standard HTTP POST request to {chatEndpoint}. Use the header X-Gearbox-Key with my API key: <span className="text-white">{apiKey}</span>. Send a JSON body containing a prompt string and set use_global_cache to true. Extract the answer string from the JSON response. Before coding, review the docs at {docsUrl} (or /llms.txt) for full context."
-                </p>
+
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex justify-between items-center">
+                  <div>
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">API Key</span>
+                    <code className="text-sm font-mono text-gray-900">Bearer {apiKey.substring(0, 12)}...</code>
+                  </div>
+                  <CopyButton textToCopy={apiKey} className="text-gray-400 hover:text-gray-900" />
+                </div>
+
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider block mb-1">Model Name</span>
+                  <code className="text-sm font-mono text-gray-900">membrane-engagement-layer</code>
+                  <p className="text-xs text-gray-500 mt-1">Or leave it blank. We automatically route your prompt to the most efficient model.</p>
+                </div>
               </div>
             </div>
           </div>
