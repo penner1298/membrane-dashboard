@@ -7,6 +7,8 @@ const isPublicRoute = createRouteMatcher([
   '/sign-up(.*)',
   '/api/webhook/stripe(.*)',
   '/llms.txt',
+  '/openapi.json',
+  '/docs(.*)',
   '/v1(.*)' // <-- Added the Membrane API Gateway tunnel
 ]);
 
