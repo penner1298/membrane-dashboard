@@ -8,7 +8,7 @@ import { CopyButton } from "@/components/copy-button";
 import { pool } from "@/lib/db";
 import { 
   Key, Sparkles, CreditCard, Zap, RefreshCw, 
-  TrendingDown, Trophy, ShieldAlert, Mail, Lock, History 
+  TrendingDown, Trophy, ShieldAlert, Mail, Lock, History, Activity, Layers, CheckCircle
 } from "lucide-react";
 
 export default async function DashboardPage() {

@@ -78,6 +78,7 @@ async def lifespan(app: FastAPI):
                     tokens INTEGER NOT NULL,
                     cost DECIMAL(10, 4) NOT NULL,
                     wholesale_cost DECIMAL(10, 6) DEFAULT 0.0,
+                    savings DECIMAL(10, 4) DEFAULT 0.0,
                     created_at TIMESTAMPTZ DEFAULT NOW()
                 );
                 """)
@@ -121,6 +122,20 @@ async def lifespan(app: FastAPI):
                     is_global BOOLEAN DEFAULT FALSE
                 );
                 CREATE INDEX IF NOT EXISTS idx_aversive_hash ON aversive_memory(prompt_hash);
+                """)
+
+                # --- PHASE 1: COGNITIVE TELEMETRY (SHADOW MODE) ---
+                # This table stores the results of the 8B Senescent Node timeout test
+                # cross-referenced against the actual success/failure of the Canary model.
+                await conn.execute("""
+                CREATE TABLE IF NOT EXISTS shadow_telemetry (
+                    id SERIAL PRIMARY KEY,
+                    receipt_id VARCHAR(255),
+                    ttfb FLOAT,
+                    died BOOLEAN,
+                    flash_failed BOOLEAN DEFAULT FALSE,
+                    created_at TIMESTAMPTZ DEFAULT NOW()
+                );
                 """)
 
             print("✅ Database connected. Multi-Tenant Ledger initialized.")
@@ -265,6 +280,74 @@ def fidelity_check(prompt: str, answer: str, schema: Optional[dict] = None):
     return True, None, answer
 
 
+# --- SENESCENT NODE (SHADOW MODE IMPLEMENTATION) ---
+async def run_senescent_shadow(prompt: str, receipt_id: str):
+    """
+    Phase 1 Cognitive Telemetry Probe.
+    Fires the prompt at a hyper-fast 8B model with a brutal timeout guillotine.
+    If it hits the timeout, we assume the prompt has High Cognitive Density (it 'died').
+    This runs entirely in the background and does not affect the live user request.
+    """
+    if not db_pool: return
+    start_time = time.time()
+    died = False
+    ttfb = 0.0
+    
+    try:
+        # The Guillotine: 0.25s (250ms) limit for initial Shadow Mode calibration.
+        # We will adjust this threshold down once we have statistical data.
+        response = await asyncio.wait_for(
+            acompletion(
+                model="gemini/gemini-1.5-flash-8b",
+                messages=[
+                    {"role": "system", "content": "Reply '1' if complex logic/coding, '0' if simple extraction."},
+                    {"role": "user", "content": prompt}
+                ],
+                stream=True, # We stream so we can measure Time-To-First-Token accurately
+                api_key=os.environ.get("GEMINI_API_KEY")
+            ),
+            timeout=0.25
+        )
+        async for chunk in response:
+            # The node survived. Record the TTFB and kill the stream.
+            ttfb = time.time() - start_time
+            break 
+            
+    except (asyncio.TimeoutError, Exception):
+        # The node choked on the complexity and hit the guillotine limit.
+        died = True
+        ttfb = time.time() - start_time
+
+    # Silently log the telemetry outcome to the database.
+    try:
+        async with db_pool.acquire() as conn:
+            await conn.execute(
+                "INSERT INTO shadow_telemetry (receipt_id, ttfb, died) VALUES ($1, $2, $3)",
+                receipt_id, ttfb, died
+            )
+    except Exception as e:
+        print(f"Shadow Telemetry DB Error: {e}")
+
+async def mark_shadow_flash_failed(receipt_id: str):
+    """
+    Updates the shadow_telemetry table when the Canary model fails the fidelity check.
+    This provides the 'Ground Truth' for our calibration matrix.
+    """
+    if not db_pool: return
+    try:
+        async with db_pool.acquire() as conn:
+            # We use an UPDATE because run_senescent_shadow might have already INSERTed the row, 
+            # or it might still be running. We use UPSERT logic just in case.
+            await conn.execute("""
+                INSERT INTO shadow_telemetry (receipt_id, flash_failed) 
+                VALUES ($1, TRUE) 
+                ON CONFLICT (id) DO NOTHING; -- Fallback, though we usually update
+                
+                UPDATE shadow_telemetry SET flash_failed = TRUE WHERE receipt_id = $1;
+            """, receipt_id)
+    except Exception: pass
+
+
 # 3. 🚀 THE TOLL BOOTH: Async Ledger Deduction & Logging
 async def charge_and_log_api(api_key_hash: str, retail_cost: float, wholesale_cost: float, endpoint: str, tokens: int, savings: float = 0.0):
     if not db_pool or retail_cost <= 0: return
@@ -272,9 +355,6 @@ async def charge_and_log_api(api_key_hash: str, retail_cost: float, wholesale_co
         async with db_pool.acquire() as conn:
             tenant = await conn.fetchrow("SELECT clerk_user_id FROM tenants WHERE api_key_hash = $1", api_key_hash)
             clerk_user_id = tenant['clerk_user_id'] if tenant and tenant['clerk_user_id'] else "unknown_system_user"
-
-            await conn.execute("ALTER TABLE api_logs ADD COLUMN IF NOT EXISTS wholesale_cost DECIMAL(10, 6) DEFAULT 0.0;")
-            await conn.execute("ALTER TABLE api_logs ADD COLUMN IF NOT EXISTS savings DECIMAL(10, 4) DEFAULT 0.0;")
 
             async with conn.transaction():
                 await conn.execute(
@@ -305,6 +385,11 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
     scope_identifier = "GLOBAL_HIVE" if request.use_global_cache else api_key_hash
     req_hash = hashlib.md5((scope_identifier + request.prompt + str(request.response_format)).encode()).hexdigest()
     
+    # --- PHASE 1: SENESCENT NODE SHADOW MODE ---
+    # Fire the cognitive density probe asynchronously. 
+    # This measures prompt difficulty in the background without blocking the live request.
+    background_tasks.add_task(run_senescent_shadow, request.prompt, req_hash)
+
     # 3-Tier Dynamic Pricing Enforcement for Cache
     applied_cache_fee = L1_CACHE_FEE if request.use_global_cache else L2_CACHE_FEE
     cache_status_label = "L1_GLOBAL_CACHE" if request.use_global_cache else "L2_SILO_CACHE"
@@ -384,6 +469,13 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
                 if status_label == "HEURISTIC_RECOVERY":
                     await log_to_dlq(api_key_hash, request.prompt, request.response_format, ans, str(e))
                     raise HTTPException(status_code=422, detail={"error_type": "schema_validation_failure", "message": str(e), "failed_output": ans})
+                
+                # --- SHADOW MODE GROUND TRUTH LOGGING ---
+                # If the Canary model fails the fidelity check, we log it. 
+                # This proves whether the Senescent Node was right to 'die'.
+                if model == CANARY_MODEL:
+                    background_tasks.add_task(mark_shadow_flash_failed, req_hash)
+
                 print(f"🦅 Model {model} Failed ({e}). Shifting...")
                 
         raise HTTPException(status_code=502, detail="All upstream models failed to process the request.")
@@ -447,6 +539,114 @@ async def openai_compatible_models():
             }
         ]
     }
+
+class SwarmMapRequest(BaseModel):
+    model: str = "membrane-engagement-layer"
+    system_prompt: str
+    chunks: List[str]
+    max_concurrency: int = 20
+    temperature: float = 0.0
+
+class SwarmMapResponse(BaseModel):
+    merged_results: List[Any]
+    total_chunks_processed: int
+    failed_chunks: int
+
+@app.post("/v1/swarm/map", response_model=SwarmMapResponse)
+async def swarm_map(request: SwarmMapRequest, background_tasks: BackgroundTasks, api_key_hash: str = Security(verify_access)):
+    """
+    Membrane Native Swarm: Parallel Map-Reduce for bulk data extraction.
+    Accepts an array of text chunks, processes them concurrently, and merges the JSON output.
+    """
+    if not request.chunks:
+        raise HTTPException(status_code=400, detail="Chunks array cannot be empty")
+
+    if len(request.chunks) > 50:
+        raise HTTPException(status_code=400, detail="Max 50 chunks per request")
+
+    # Force route to Flash for speed/cost on small chunks
+    mapped_model = CANARY_MODEL
+
+    async def process_chunk(chunk: str, chunk_index: int, sem: asyncio.Semaphore):
+        async with sem:
+            try:
+                messages = [
+                    {"role": "system", "content": request.system_prompt},
+                    {"role": "user", "content": chunk}
+                ]
+                
+                response = await acompletion(
+                    model=mapped_model,
+                    messages=messages,
+                    temperature=request.temperature,
+                    response_format={"type": "json_object"},
+                    api_key=os.environ.get("GEMINI_API_KEY")
+                )
+                
+                # Calculate cost and trigger background billing
+                in_tok = response.usage.prompt_tokens
+                out_tok = response.usage.completion_tokens
+                actual_cost = calc_cost(mapped_model, in_tok, out_tok, response)
+                retail_cost = actual_cost * MARKUP_MULTIPLIER # 2x markup for swarm processing
+
+                background_tasks.add_task(
+                    charge_and_log_api,
+                    api_key_hash,
+                    retail_cost,
+                    actual_cost,
+                    "/v1/swarm/map",
+                    in_tok + out_tok,
+                    0.0 # Swarm doesn't track hypothetical savings right now
+                )
+
+                content = response.choices[0].message.content
+                # Strip markdown code blocks if present
+                if content.startswith("```json"): content = content[7:-3]
+                elif content.startswith("```"): content = content[3:-3]
+                
+                parsed_json = json.loads(content)
+                return {"index": chunk_index, "data": parsed_json, "error": None}
+            except Exception as e:
+                print(f"Swarm chunk {chunk_index} failed: {e}")
+                return {"index": chunk_index, "data": None, "error": str(e)}
+
+    # Limit concurrency to avoid triggering underlying provider rate limits instantly
+    semaphore = asyncio.Semaphore(request.max_concurrency)
+    
+    tasks = [process_chunk(chunk, i, semaphore) for i, chunk in enumerate(request.chunks)]
+    results = await asyncio.gather(*tasks)
+    
+    merged_output = []
+    failed = 0
+    
+    # Re-order results based on original index to maintain structural integrity
+    results.sort(key=lambda x: x["index"])
+    
+    for res in results:
+        if res["error"]:
+            failed += 1
+            continue
+        
+        data = res["data"]
+        # Intelligently merge: If the JSON returned an array as the root key (e.g. {"clauses": [...]})
+        # Extract the items and flatten them into our merged output list.
+        if isinstance(data, dict):
+            # Find the first key that is a list (e.g., 'clauses', 'entities')
+            list_keys = [k for k, v in data.items() if isinstance(v, list)]
+            if list_keys:
+                # Merge the contents of the primary list
+                primary_key = list_keys[0]
+                merged_output.extend(data[primary_key])
+            else:
+                merged_output.append(data)
+        elif isinstance(data, list):
+            merged_output.extend(data)
+
+    return SwarmMapResponse(
+        merged_results=merged_output,
+        total_chunks_processed=len(request.chunks),
+        failed_chunks=failed
+    )
 
 @app.post("/v1/chat/completions")
 async def openai_compatible_endpoint(request: Request, background_tasks: BackgroundTasks, api_key_hash: str = Security(verify_access)):
