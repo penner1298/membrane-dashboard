@@ -237,7 +237,7 @@ export default async function DashboardPage() {
                   {apiKey}
                 </div>
                 {flashKey && <CopyButton text={flashKey} />}
-                <form action="/api/rotate-key" method="POST">
+                <form action="/api/keys/reset" method="POST">
                   <button className="flex items-center gap-2 bg-black text-white px-4 py-3 rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium shrink-0">
                     <RefreshCw className="w-4 h-4" />
                     Rotate
@@ -351,7 +351,7 @@ export default async function DashboardPage() {
               </div>
               <p className="text-xs text-gray-400 mb-6">Prepaid credits remaining</p>
               
-              <form action="/api/checkout" method="POST">
+              <form action="/api/stripe/checkout" method="POST">
                 <div className="flex flex-col gap-2">
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium">$</span>
@@ -399,7 +399,7 @@ export default async function DashboardPage() {
 
               <div className="pt-4 border-t border-gray-100">
                 <p className="text-sm font-semibold text-gray-700 mb-3">Have a code?</p>
-                <form action="/api/redeem" method="POST" className="flex gap-2">
+                <form action="/api/referral/redeem" method="POST" className="flex gap-2">
                   <input 
                     type="text" 
                     name="code"
