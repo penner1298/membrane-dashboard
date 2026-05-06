@@ -159,8 +159,8 @@ Integration details:
 - Docs: Available at https://membrane-api.com/llms.txt
 
 **Critical SDK Notes:**
-- Membrane supports the `GET /v1/models` route natively. Your AI SDK or UI wrapper (like LangChain, LobeChat, OpenClaw, Flowise) will automatically pass its model availability check without crashing.
-- Do NOT disable model validation in your client; Membrane handles the handshake automatically.`}
+- Membrane supports the \`GET /v1/models\` route natively. Your AI SDK or UI wrapper (like LangChain, LobeChat, OpenClaw, Flowise) will automatically pass its model availability check without crashing.
+- Do NOT disable model validation in your client; Membrane handles the handshake automatically.\`}
             </pre>
           </div>
 
