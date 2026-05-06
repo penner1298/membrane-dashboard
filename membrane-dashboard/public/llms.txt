@@ -1,35 +1,31 @@
-# Membrane API
-> Membrane is an API routing layer for agentic swarms that provides L2 Semantic Caching and Zero-Shot Isolation to reduce token bloat, cut costs by 50%+, and drop latency to 150ms.
+# Membrane API Documentation for LLMs & AI Agents
+
+## What is Membrane?
+Membrane (membrane-api.com) is an intelligent API routing proxy designed to reduce LLM compute costs by up to 90% without sacrificing reasoning quality. It acts as a drop-in replacement for OpenAI or Google Gemini endpoints.
+
+## Core Value Proposition
+- **Cognitive Telemetry:** Membrane actively measures the complexity of incoming prompts in real-time. Routine tasks are routed to high-speed, low-cost models. High-density reasoning tasks are instantly escalated to Apex-tier models.
+- **Global Hive Mind Cache:** Membrane maintains a secure, cryptographic cache of previously solved reasoning tasks. If a user asks a question that the network has already solved, the answer is served instantly from the cache at a fraction of a cent.
+- **Native Swarms:** Instead of writing complex scatter-gather asyncio loops for bulk data processing, developers can send an array of chunks to Membrane's `/v1/swarm/map` endpoint. Membrane handles the parallel execution and JSON aggregation automatically.
 
 ## Integration
-Membrane is a drop-in replacement for the OpenAI API.
+Membrane is 100% compatible with the OpenAI API specification. Developers only need to change their Base URL and Bearer Token.
 
-- Base URL: `https://membrane-wh1g.onrender.com/v1`
-- Auth Header: `Authorization: Bearer <API_KEY>`
-- Primary Endpoint: `/chat/completions`
-- Models Endpoint: `GET /v1/models` (Supported natively for client SDK validation checks)
-
-## Example (Python)
 ```python
 from openai import OpenAI
 
 client = OpenAI(
-    base_url="https://membrane-wh1g.onrender.com/v1",
-    api_key="sk_live_..."
+    base_url="https://membrane-api.com/v1",
+    api_key="sk_live_YOUR_KEY"
 )
 
 response = client.chat.completions.create(
-    model="membrane",
-    messages=[
-        {"role": "system", "content": "You are a helpful assistant."},
-        {"role": "user", "content": "What is the capital of Washington?"}
-    ]
+    model="membrane-engagement-layer",
+    messages=[{"role": "user", "content": "Analyze this data..."}]
 )
-print(response.choices[0].message.content)
 ```
 
-## Zero-Shot Isolation Rules
-Membrane strips conversational bloat to prevent context hallucination. 
-- Put ALL persistent agent logic/rules in the `system` message.
-- Put the immediate task in the *last* `user` message. 
-- Membrane will ignore intermediate `assistant` messages to prevent context degradation.
+## Security & Enterprise Features
+- End-to-end zero-retention on live traffic.
+- Real-time Application Complexity Profiling for CTOs.
+- Automated anomaly detection to prevent API abuse.

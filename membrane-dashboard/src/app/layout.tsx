@@ -14,8 +14,19 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Membrane Dashboard",
-  description: "API Key & Billing Management",
+  title: "Membrane | The Intelligent AI Routing Layer",
+  description: "Membrane is a drop-in API proxy that uses cognitive telemetry to instantly route your prompts to the cheapest model capable of solving them. Reduce LLM costs by 90% without sacrificing reasoning quality.",
+  keywords: "LLM routing, AI proxy, OpenAI alternative, Gemini proxy, reduce API costs, LLM load balancer, cognitive telemetry",
+  openGraph: {
+    title: "Membrane | The Intelligent AI Routing Layer",
+    description: "Membrane is a drop-in API proxy that uses cognitive telemetry to instantly route your prompts to the cheapest model capable of solving them.",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Membrane | The Intelligent AI Routing Layer",
+    description: "Membrane is a drop-in API proxy that uses cognitive telemetry to instantly route your prompts to the cheapest model capable of solving them.",
+  }
 };
 
 export default function RootLayout({
