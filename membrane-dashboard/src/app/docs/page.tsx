@@ -49,6 +49,35 @@ export default function DocsPage() {
             </div>
           </div>
 
+          {/* Section 1.5: Native Swarm Endpoint */}
+          <div className="flex items-center gap-2 mb-6 mt-16">
+            <Zap className="w-6 h-6 text-green-600" />
+            <h2 className="text-2xl font-bold text-gray-900" id="swarm-endpoint">Native Swarm Endpoint</h2>
+          </div>
+          <p className="text-gray-600 mb-6 leading-relaxed">
+            Stop writing complex scatter-gather asyncio loops. Membrane provides a native Map-Reduce engine for processing massive datasets (like PDFs, massive web scrapes, or database dumps). Pass an array of chunks, and Membrane handles the parallel execution, rate limiting, and JSON aggregation automatically.
+          </p>
+          <div className="bg-gray-900 rounded-lg p-4 font-mono text-sm text-gray-300 mb-6 overflow-x-auto">
+            <div className="flex gap-4 mb-2">
+              <span className="text-green-400 font-bold">POST</span>
+              <span className="text-white">https://membrane-api.com/v1/swarm/map</span>
+            </div>
+            <pre className="mt-4 text-gray-400">
+{`{
+  "model": "membrane-engagement-layer",
+  "system_prompt": "Extract liabilities into a JSON array: { 'clauses': [...] }",
+  "chunks": [
+    "Page 1 of your PDF...",
+    "Page 2 of your PDF...",
+    "Page 3 of your PDF..."
+  ]
+}`}
+            </pre>
+          </div>
+          <p className="text-gray-600 mb-10 leading-relaxed text-sm bg-blue-50 p-4 rounded-lg border border-blue-100">
+            <strong>Response:</strong> Membrane instantly fans out up to 50 concurrent requests, parses the returned JSON, and intelligently merges the extracted items into a single, flat array (<code>merged_results</code>) for your application.
+          </p>
+
           {/* Section 2: Payload & Zero-Shot Isolation */}
           <div className="flex items-center gap-2 mb-6">
             <Terminal className="w-6 h-6 text-green-600" />
