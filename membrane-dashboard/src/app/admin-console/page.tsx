@@ -7,7 +7,7 @@ export default async function AdminConsolePage() {
   const user = await currentUser();
 
   // ONLY allow your specific Clerk ID (or emails) to access this route
-  const allowedEmails = ["josh@penner.com", "thejoshpenner@gmail.com", "joshpenner@gmail.com"]; // Add yours
+  const allowedEmails = ["josh@penner.com", "thejoshpenner@gmail.com", "joshpenner@gmail.com", "josh@corevaluesconsulting.com"]; // Add yours
   const userEmail = user?.emailAddresses[0]?.emailAddress;
 
   if (!user || !userEmail || !allowedEmails.includes(userEmail)) {
