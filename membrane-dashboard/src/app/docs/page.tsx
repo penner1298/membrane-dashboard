@@ -155,15 +155,19 @@ export default function DocsPage() {
             </pre>
           </div>
 
-          {/* Section 4: Errors */}
+          {/* Section 4: Security & Error Handling */}
           <div className="flex items-center gap-2 mb-6">
             <ShieldAlert className="w-6 h-6 text-green-600" />
-            <h2 className="text-2xl font-bold text-gray-900 m-0">4. Error Handling</h2>
+            <h2 className="text-2xl font-bold text-gray-900 m-0">4. Security & Error Handling</h2>
           </div>
+          <p className="text-gray-600 mb-4">
+            Membrane operates a Zero-Latency Threat Firewall. If our semantic classification engine detects a Prompt Injection, Jailbreak, or severe Policy Violation mid-flight, it will immediately sever the connection and return an HTTP 400. Ensure your application has proper <code>try/catch</code> blocks to gracefully handle these security rejections.
+          </p>
           <ul className="space-y-3 text-gray-600 mb-12">
+            <li><strong className="text-gray-900">400 Bad Request:</strong> Membrane Policy Violation (Prompt Injection / Jailbreak Detected).</li>
             <li><strong className="text-gray-900">401 Unauthorized:</strong> Missing or invalid API key in the Authorization header.</li>
             <li><strong className="text-gray-900">402 Payment Required:</strong> Your prepaid balance hit $0.00. Time to top up.</li>
-            <li><strong className="text-gray-900">422 Unprocessable Entity:</strong> The AI failed to format the data into your requested JSON schema.</li>
+            <li><strong className="text-gray-900">422 Unprocessable Entity:</strong> The AI failed to format the data into your requested JSON schema after multiple recovery attempts.</li>
             <li><strong className="text-gray-900">502 Bad Gateway:</strong> All upstream frontier models failed to process the request.</li>
           </ul>
 
