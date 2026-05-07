@@ -26,6 +26,6 @@ response = client.chat.completions.create(
 ```
 
 ## Security & Enterprise Features
-- **Zero-Latency Threat Firewall (Asynchronous Sniper):** Membrane runs an 8B intent-classification model concurrently with every request. Prompt injections, jailbreaks, and adversarial attacks are identified and the connection is severed mid-flight with zero TTFT penalty to safe requests.
-- **Zero-Retention Telemetry (Vectorial Fingerprinting):** Membrane hashes and embeds prompts into 768-dimensional mathematical coordinates. Enterprises receive visual telemetry of abuse clusters and cognitive complexity (Vector Topography Maps) without ever exposing plaintext PII.
-- **The Mechanical Waterfall:** A strict deterministic fallback loop that guarantees mathematical JSON structural fidelity, even when the underlying Canary model hallucinates formatting.
+- **Zero-Latency Threat Firewall:** Membrane runs advanced intent-classification concurrently with every request. Prompt injections, jailbreaks, and adversarial attacks are identified and the connection is severed mid-flight with zero TTFT penalty to safe requests.
+- **Zero-Retention Telemetry:** Membrane hashes and embeds prompts into 768-dimensional mathematical coordinates. Enterprises receive visual telemetry of abuse clusters and cognitive complexity (Vector Topography Maps) without ever exposing plaintext PII.
+- **Strict Structural Fidelity:** A deterministic fallback loop guarantees mathematical JSON structural fidelity, automatically repairing hallucinated formatting before returning the payload to your application.
