@@ -130,12 +130,17 @@ async def lifespan(app: FastAPI):
                 await conn.execute("""
                 CREATE TABLE IF NOT EXISTS shadow_telemetry (
                     id SERIAL PRIMARY KEY,
-                    receipt_id VARCHAR(255),
+                    receipt_id VARCHAR(255) UNIQUE,
                     ttfb FLOAT,
                     died BOOLEAN,
                     flash_failed BOOLEAN DEFAULT FALSE,
+                    prompt_hash VARCHAR(255),
+                    prompt_embedding VECTOR(768),
                     created_at TIMESTAMPTZ DEFAULT NOW()
                 );
+                CREATE INDEX IF NOT EXISTS idx_telemetry_receipt ON shadow_telemetry(receipt_id);
+                CREATE INDEX IF NOT EXISTS idx_telemetry_embedding
+                ON shadow_telemetry USING hnsw (prompt_embedding vector_cosine_ops);
                 """)
 
             print("✅ Database connected. Multi-Tenant Ledger initialized.")
@@ -348,13 +353,23 @@ async def run_senescent_shadow(prompt: str, receipt_id: str):
         died = True
         ttfb = time.time() - start_time
 
-    # Silently log the telemetry outcome to the database.
+    # Generate Vectorial Fingerprint for Zero-Retention Telemetry
+    prompt_hash = hashlib.sha256(prompt.encode()).hexdigest()
+    embedding = await get_embedding(prompt)
+
+    # Silently log the telemetry outcome to the database without the raw prompt text.
     try:
         async with db_pool.acquire() as conn:
-            await conn.execute(
-                "INSERT INTO shadow_telemetry (receipt_id, ttfb, died) VALUES ($1, $2, $3)",
-                receipt_id, ttfb, died
-            )
+            if embedding:
+                await conn.execute(
+                    "INSERT INTO shadow_telemetry (receipt_id, ttfb, died, prompt_hash, prompt_embedding) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (receipt_id) DO NOTHING",
+                    receipt_id, ttfb, died, prompt_hash, str(embedding)
+                )
+            else:
+                await conn.execute(
+                    "INSERT INTO shadow_telemetry (receipt_id, ttfb, died, prompt_hash) VALUES ($1, $2, $3, $4) ON CONFLICT (receipt_id) DO NOTHING",
+                    receipt_id, ttfb, died, prompt_hash
+                )
     except Exception as e:
         print(f"Shadow Telemetry DB Error: {e}")
 
@@ -366,13 +381,7 @@ async def mark_shadow_flash_failed(receipt_id: str):
     if not db_pool: return
     try:
         async with db_pool.acquire() as conn:
-            # We use an UPDATE because run_senescent_shadow might have already INSERTed the row, 
-            # or it might still be running. We use UPSERT logic just in case.
             await conn.execute("""
-                INSERT INTO shadow_telemetry (receipt_id, flash_failed) 
-                VALUES ($1, TRUE) 
-                ON CONFLICT (id) DO NOTHING; -- Fallback, though we usually update
-                
                 UPDATE shadow_telemetry SET flash_failed = TRUE WHERE receipt_id = $1;
             """, receipt_id)
     except Exception: pass
