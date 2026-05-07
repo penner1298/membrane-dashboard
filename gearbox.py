@@ -294,8 +294,8 @@ async def run_senescent_shadow(prompt: str, receipt_id: str):
     ttfb = 0.0
     
     try:
-        # The Guillotine: 0.25s (250ms) limit for initial Shadow Mode calibration.
-        # We will adjust this threshold down once we have statistical data.
+        # The Guillotine: 0.75s (750ms) limit for initial Shadow Mode calibration.
+        # Gives the node enough time to clear network IO, but kills it if it hesitates cognitively.
         response = await asyncio.wait_for(
             acompletion(
                 model="gemini/gemini-1.5-flash-8b",
@@ -476,7 +476,7 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
                 if model == CANARY_MODEL:
                     background_tasks.add_task(mark_shadow_flash_failed, req_hash)
 
-                print(f"🦅 Model {model} Failed ({e}). Shifting...")
+                print(f"🦅 Model {model} Failed ({e}). Shifting to APEX...")
                 
         raise HTTPException(status_code=502, detail="All upstream models failed to process the request.")
 
