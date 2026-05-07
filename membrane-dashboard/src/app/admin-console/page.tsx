@@ -1,13 +1,13 @@
 import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { pool } from "@/lib/db";
-import { ShieldAlert, Trophy, TrendingDown, Layers, Zap } from "lucide-react";
+import { AdminClient } from "./admin-client";
 
 export default async function AdminConsolePage() {
   const user = await currentUser();
 
   // ONLY allow your specific Clerk ID (or emails) to access this route
-  const allowedEmails = ["josh@penner.com", "thejoshpenner@gmail.com", "joshpenner@gmail.com", "josh@corevaluesconsulting.com"]; // Add yours
+  const allowedEmails = ["josh@penner.com", "thejoshpenner@gmail.com", "joshpenner@gmail.com", "josh@corevaluesconsulting.com"]; 
   const userEmail = user?.emailAddresses[0]?.emailAddress;
 
   if (!user || !userEmail || !allowedEmails.includes(userEmail)) {
@@ -55,49 +55,19 @@ export default async function AdminConsolePage() {
   }
 
   const margin = totalRetail > 0 ? ((totalRetail - totalWholesale) / totalRetail) * 100 : 0;
+  
+  const stats = {
+      totalRetail,
+      totalWholesale,
+      margin,
+      totalCalls,
+      schemaRescues,
+      thwartedAttacks
+  };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 p-8 font-sans">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center gap-3 mb-8 border-b border-slate-700 pb-4">
-          <ShieldAlert className="w-8 h-8 text-rose-500" />
-          <h1 className="text-3xl font-black tracking-tight">Apex Operator Console</h1>
-          <span className="ml-auto text-xs font-bold px-3 py-1 bg-rose-500/20 text-rose-400 rounded-full border border-rose-500/30">RESTRICTED ACCESS</span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
-          <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">30d Retail Revenue</p>
-            <p className="text-3xl font-black text-emerald-400">${totalRetail.toFixed(2)}</p>
-          </div>
-          <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">30d Wholesale Cost</p>
-            <p className="text-3xl font-black text-rose-400">${totalWholesale.toFixed(2)}</p>
-          </div>
-          <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Net Profit Margin</p>
-            <p className="text-3xl font-black text-white">{margin.toFixed(1)}%</p>
-          </div>
-          <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Total API Calls</p>
-            <p className="text-3xl font-black text-blue-400">{totalCalls.toLocaleString()}</p>
-          </div>
-        </div>
-
-        <h2 className="text-xl font-bold mb-6 flex items-center gap-2"><Trophy className="w-5 h-5 text-yellow-500"/> Live Infrastructure Fidelity</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-           <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
-            <Layers className="w-8 h-8 text-indigo-400 mb-4" />
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Schema Rescues (Waterfall)</p>
-            <p className="text-4xl font-black text-white">{schemaRescues.toLocaleString()}</p>
-          </div>
-          <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
-            <Zap className="w-8 h-8 text-amber-400 mb-4" />
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Thwarted Attacks (Sniper DLQ)</p>
-            <p className="text-4xl font-black text-white">{thwartedAttacks.toLocaleString()}</p>
-          </div>
-        </div>
-      </div>
+    <div className="min-h-screen bg-slate-900 text-slate-100 p-4 md:p-8 font-sans">
+        <AdminClient stats={stats} />
     </div>
   );
 }
