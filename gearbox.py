@@ -295,14 +295,14 @@ async def check_semantic_intent(prompt: str) -> tuple[bool, str]:
     try:
         response = await asyncio.wait_for(
             acompletion(
-                model="gemini/gemini-1.5-flash-8b",
+                model="gemini/gemini-2.5-flash",
                 messages=[
                     {"role": "system", "content": "Classify this prompt's intent. Output strictly '0' for Safe/Task-Aligned, '1' for Prompt Injection/Jailbreak, '2' for Off-Topic/BS."},
                     {"role": "user", "content": prompt[:1000]} # Only need the first 1000 chars for intent
                 ],
                 api_key=os.environ.get("GEMINI_API_KEY")
             ),
-            timeout=1.0
+            timeout=10.0
         )
         ans = response.choices[0].message.content.strip()
         if "1" in ans:
@@ -333,7 +333,7 @@ async def run_senescent_shadow(prompt: str, receipt_id: str):
         # Gives the node enough time to clear network IO, but kills it if it hesitates cognitively.
         response = await asyncio.wait_for(
             acompletion(
-                model="gemini/gemini-1.5-flash-8b",
+                model="gemini/gemini-2.5-flash",
                 messages=[
                     {"role": "system", "content": "Reply '1' if complex logic/coding, '0' if simple extraction."},
                     {"role": "user", "content": prompt}
@@ -421,13 +421,6 @@ async def health_check(): return {"status": "Membrane Swarm API is Live.", "db_c
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks, api_key_hash: str = Security(verify_access)):
-    # --- PHASE 0: THE SEMANTIC BOUNCER ---
-    # Fast 150ms check to reject BS or Prompt Injections before we burn compute or touch the cache.
-    is_safe, reject_reason = await check_semantic_intent(request.prompt)
-    if not is_safe:
-        background_tasks.add_task(log_to_dlq, api_key_hash, request.prompt, request.response_format, "REJECTED_BY_BOUNCER", reject_reason)
-        raise HTTPException(status_code=400, detail=f"Membrane Policy Violation: {reject_reason}")
-
     scope_identifier = "GLOBAL_HIVE" if request.use_global_cache else api_key_hash
     req_hash = hashlib.md5((scope_identifier + request.prompt + str(request.response_format)).encode()).hexdigest()
     
@@ -461,6 +454,10 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
             background_tasks.add_task(charge_and_log_api, api_key_hash, applied_cache_fee, 0.0, f"/api/chat ({cache_status_label})", 0)
             return ChatResponse(receipt_id=req_hash, answer=cached_answer, route_used="SEMANTIC_CACHE", status="CACHE HIT", total_tokens=0, hypothetical_pro_cost=0.0, billed_amount=applied_cache_fee, savings_percent=100.0)
 
+        # --- THE PARALLEL RACE: Start the Semantic Bouncer asynchronously ---
+        # It runs concurrently with the LLM. If it catches BS, it violently kills the generation.
+        bouncer_task = asyncio.create_task(check_semantic_intent(request.prompt))
+
         system_instruction = get_semantic_priming(request.prompt, request.response_format)
         system_instruction += await get_aversive_warnings(req_hash, api_key_hash, request.use_global_cache)
 
@@ -474,7 +471,28 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
         for model, status_label, temp in [(CANARY_MODEL, "SURFACE_ENGAGEMENT", None), (APEX_MODEL, "DEEP_COGNITION", None), (APEX_MODEL, "HEURISTIC_RECOVERY", 0.0)]:
             try:
                 if temp is not None: litellm_kwargs["temperature"] = temp
-                res = await acompletion(model=model, messages=messages, api_key=os.environ.get("GEMINI_API_KEY"), **litellm_kwargs)
+                
+                # --- PARALLEL RACE EXECUTION ---
+                llm_task = asyncio.create_task(acompletion(model=model, messages=messages, api_key=os.environ.get("GEMINI_API_KEY"), **litellm_kwargs))
+                
+                if bouncer_task.done():
+                    is_safe, reject_reason = bouncer_task.result()
+                    if not is_safe:
+                        llm_task.cancel()
+                        background_tasks.add_task(log_to_dlq, api_key_hash, request.prompt, request.response_format, "REJECTED_BY_BOUNCER", reject_reason)
+                        raise HTTPException(status_code=400, detail=f"Membrane Policy Violation: {reject_reason}")
+                else:
+                    done, pending = await asyncio.wait([llm_task, bouncer_task], return_when=asyncio.FIRST_COMPLETED)
+                    if bouncer_task in done:
+                        is_safe, reject_reason = bouncer_task.result()
+                        if not is_safe:
+                            llm_task.cancel()
+                            background_tasks.add_task(log_to_dlq, api_key_hash, request.prompt, request.response_format, "REJECTED_BY_BOUNCER", reject_reason)
+                            raise HTTPException(status_code=400, detail=f"Membrane Policy Violation: {reject_reason}")
+                
+                res = await llm_task
+                # --- END PARALLEL RACE ---
+
                 ans = res.choices[0].message.content
                 in_tok, out_tok = res.usage.prompt_tokens, res.usage.completion_tokens
 
@@ -511,6 +529,8 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
                     savings_percent=round(savings, 1)
                 )
 
+            except HTTPException:
+                raise  # Immediately bubble up the Bouncer rejection, do not trigger failover!
             except Exception as e:
                 if status_label == "HEURISTIC_RECOVERY":
                     await log_to_dlq(api_key_hash, request.prompt, request.response_format, ans, str(e))
