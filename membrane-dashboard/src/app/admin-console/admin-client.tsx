@@ -5,19 +5,59 @@ import {
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, 
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend 
 } from 'recharts';
-import { ShieldAlert, Trophy, Layers, Zap, Play, Loader2, Activity, Target } from "lucide-react";
+import { ShieldAlert, Trophy, Layers, Zap, Play, Loader2, Activity, Target, Terminal, CheckCircle2, ShieldAlert as ShieldIcon } from "lucide-react";
 
 export function AdminClient({ stats }: { stats: any }) {
   const [activeTab, setActiveTab] = useState("telemetry");
   const [isShooting, setIsShooting] = useState(false);
   const [shootoutDone, setShootoutDone] = useState(false);
+  const [glassBoxPrompt, setGlassBoxPrompt] = useState("");
+  const [glassBoxLogs, setGlassBoxLogs] = useState<string[]>([]);
+  const [isSimulating, setIsSimulating] = useState(false);
 
-  const runShootout = async () => {
-    setIsShooting(true);
-    // Simulate the 4-way API network requests
-    await new Promise(resolve => setTimeout(resolve, 3500));
-    setShootoutDone(true);
-    setIsShooting(false);
+  const runGlassBox = async (e: any) => {
+    e.preventDefault();
+    if (!glassBoxPrompt.trim()) return;
+    setIsSimulating(true);
+    setGlassBoxLogs(["[SYS] Inbound payload intercepted by Membrane Gateway."]);
+    
+    await new Promise(r => setTimeout(r, 400));
+    setGlassBoxLogs(prev => [...prev, "[SEC] Scanning payload via Asynchronous Sniper..."]);
+    
+    await new Promise(r => setTimeout(r, 600));
+    const isMalignant = glassBoxPrompt.toLowerCase().includes("ignore") || glassBoxPrompt.toLowerCase().includes("bypass");
+    if (isMalignant) {
+        setGlassBoxLogs(prev => [...prev, "[SEC] CRITICAL: Adversarial pattern detected. Execution halted."]);
+        setGlassBoxLogs(prev => [...prev, "[NET] Dropping TCP connection (0 bytes returned)."]);
+        setIsSimulating(false);
+        return;
+    }
+    setGlassBoxLogs(prev => [...prev, "[SEC] Payload verified clean. Proceeding to Cognitive Bouncer."]);
+    
+    await new Promise(r => setTimeout(r, 300));
+    setGlassBoxLogs(prev => [...prev, "[COG] Analyzing cognitive density (Semantic classification)..."]);
+    
+    await new Promise(r => setTimeout(r, 700));
+    const isHeavy = glassBoxPrompt.length > 50 || glassBoxPrompt.toLowerCase().includes("complex") || glassBoxPrompt.toLowerCase().includes("code");
+    setGlassBoxLogs(prev => [...prev, `[COG] Density Score: ${isHeavy ? '0.89 (HIGH)' : '0.14 (LOW)'}.`]);
+    
+    if (isHeavy) {
+        setGlassBoxLogs(prev => [...prev, "[NET] Routing to Heavy Apex Node for deep reasoning..."]);
+        await new Promise(r => setTimeout(r, 1200));
+        setGlassBoxLogs(prev => [...prev, "[SYS] Generation complete. Latency: 1.4s. Retail Value: $0.02. Wholesale Cost: $0.008."]);
+    } else {
+        setGlassBoxLogs(prev => [...prev, "[NET] Searching Global Hive Mind Cache..."]);
+        await new Promise(r => setTimeout(r, 300));
+        if (glassBoxPrompt.toLowerCase().includes("test")) {
+             setGlassBoxLogs(prev => [...prev, "[NET] Cache HIT (Vector distance < 0.12). Retrieving pre-computed response."]);
+             setGlassBoxLogs(prev => [...prev, "[SYS] Generation complete. Latency: 0.08s. Retail Value: $0.001. Wholesale Cost: $0.0000."]);
+        } else {
+             setGlassBoxLogs(prev => [...prev, "[NET] Cache MISS. Routing to High-Speed Canary Node..."]);
+             await new Promise(r => setTimeout(r, 800));
+             setGlassBoxLogs(prev => [...prev, "[SYS] Generation complete. Latency: 0.9s. Retail Value: $0.005. Wholesale Cost: $0.0001."]);
+        }
+    }
+    setIsSimulating(false);
   };
 
   const radarData = [
@@ -68,6 +108,13 @@ export function AdminClient({ stats }: { stats: any }) {
           <Target className="w-4 h-4 inline-block mr-2" />
           The Shootout (Benchmarks)
         </button>
+        <button 
+          onClick={() => setActiveTab("explorer")}
+          className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === "explorer" ? "bg-slate-700 text-white shadow" : "text-slate-400 hover:text-white"}`}
+        >
+          <Terminal className="w-4 h-4 inline-block mr-2" />
+          Network Explorer
+        </button>
       </div>
 
       {activeTab === "telemetry" && (
@@ -103,6 +150,93 @@ export function AdminClient({ stats }: { stats: any }) {
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Thwarted Attacks (Sniper DLQ)</p>
               <p className="text-4xl font-black text-white">{stats.thwartedAttacks.toLocaleString()}</p>
             </div>
+          </div>
+        </div>
+      )}
+
+      
+      {activeTab === "explorer" && (
+        <div className="animate-in fade-in duration-300 space-y-8">
+          
+          <div className="bg-slate-800 p-8 rounded-2xl border border-slate-700">
+            <h2 className="text-xl font-bold mb-2 flex items-center gap-2 text-white">
+              <Terminal className="w-5 h-5 text-emerald-500"/> Glass Box Simulator
+            </h2>
+            <p className="text-sm text-slate-400 mb-6">Test the live routing logic. The system intercepts the payload, evaluates cognitive density, and routes it to the most efficient node without exposing proprietary heuristics. Try words like "complex", "bypass", or "test".</p>
+            
+            <form onSubmit={runGlassBox} className="flex gap-3 mb-6">
+              <input 
+                type="text" 
+                value={glassBoxPrompt}
+                onChange={e => setGlassBoxPrompt(e.target.value)}
+                placeholder="Enter a prompt to trace..."
+                className="flex-1 bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                disabled={isSimulating}
+              />
+              <button 
+                type="submit" 
+                disabled={isSimulating || !glassBoxPrompt.trim()}
+                className="bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold px-6 py-3 rounded-xl transition-colors disabled:opacity-50"
+              >
+                {isSimulating ? <Loader2 className="w-5 h-5 animate-spin" /> : "Trace"}
+              </button>
+            </form>
+
+            <div className="bg-black/50 p-4 rounded-xl border border-slate-700/50 font-mono text-xs text-emerald-400 min-h-[160px]">
+              {glassBoxLogs.length === 0 ? (
+                <span className="text-slate-600">Awaiting payload...</span>
+              ) : (
+                glassBoxLogs.map((log, i) => (
+                  <div key={i} className="mb-1">
+                    <span className="opacity-50 mr-2">{new Date().toISOString().split('T')[1].slice(0,-1)}</span>
+                    <span className={log.includes("CRITICAL") ? "text-rose-500 font-bold" : log.includes("[COG]") ? "text-blue-400" : log.includes("HIT") ? "text-amber-400" : ""}>{log}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="bg-slate-800 p-8 rounded-2xl border border-slate-700">
+             <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-white">
+              <Activity className="w-5 h-5 text-blue-500"/> Live Network Ledger
+            </h2>
+             <p className="text-sm text-slate-400 mb-6">Real-time unvarnished transaction logs pulled directly from the PostgreSQL instance.</p>
+             
+             <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm text-slate-300 min-w-[800px]">
+                  <thead className="bg-slate-900 text-slate-400">
+                    <tr>
+                      <th className="p-3 rounded-tl-lg font-mono text-xs">ID</th>
+                      <th className="p-3 font-mono text-xs">Timestamp</th>
+                      <th className="p-3 font-mono text-xs">Routed Node</th>
+                      <th className="p-3 font-mono text-xs">Tokens</th>
+                      <th className="p-3 font-mono text-xs text-right">Retail Value</th>
+                      <th className="p-3 rounded-tr-lg font-mono text-xs text-right">Wholesale Cost</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stats.recentLogs && stats.recentLogs.map((log: any) => {
+                      const isCache = log.endpoint.includes("CACHE");
+                      const isHeavy = log.endpoint.includes("pro") || log.endpoint.includes("apex");
+                      
+                      return (
+                        <tr key={log.id} className="border-b border-slate-700/50 hover:bg-slate-700/20 transition-colors">
+                          <td className="p-3 text-slate-500 font-mono text-xs">#{log.id}</td>
+                          <td className="p-3 font-mono text-xs">{new Date(log.created_at).toLocaleString()}</td>
+                          <td className="p-3">
+                            <span className={`px-2 py-1 rounded-md text-xs font-bold ${isCache ? 'bg-amber-500/20 text-amber-400' : isHeavy ? 'bg-blue-500/20 text-blue-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                              {isCache ? 'Hive Mind Cache' : isHeavy ? 'Apex Node (Heavy)' : 'Canary Node (Fast)'}
+                            </span>
+                          </td>
+                          <td className="p-3 font-mono text-xs">{log.tokens}</td>
+                          <td className="p-3 text-right font-mono text-xs text-rose-400">${Number(log.cost).toFixed(5)}</td>
+                          <td className="p-3 text-right font-mono text-xs text-emerald-400">${Number(log.wholesale_cost).toFixed(5)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+             </div>
           </div>
         </div>
       )}

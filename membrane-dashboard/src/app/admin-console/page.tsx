@@ -20,6 +20,7 @@ export default async function AdminConsolePage() {
   let schemaRescues = 0;
   let thwartedAttacks = 0;
   let totalCalls = 0;
+  let recentLogs: any[] = [];
   
   try {
       const statsResult = await pool.query(`
@@ -27,7 +28,7 @@ export default async function AdminConsolePage() {
           SUM(billed_amount) as total_retail,
           SUM(wholesale_cost) as total_wholesale,
           COUNT(*) as total_calls,
-          SUM(CASE WHEN status LIKE '%CACHE%' THEN 1 ELSE 0 END) as cache_hits
+          SUM(CASE WHEN endpoint ILIKE '%CACHE%' THEN 1 ELSE 0 END) as cache_hits
         FROM api_logs 
         WHERE created_at > NOW() - INTERVAL '30 days'
       `);
@@ -62,7 +63,8 @@ export default async function AdminConsolePage() {
       margin,
       totalCalls,
       schemaRescues,
-      thwartedAttacks
+      thwartedAttacks,
+      recentLogs
   };
 
   return (
