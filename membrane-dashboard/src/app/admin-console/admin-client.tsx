@@ -16,6 +16,15 @@ export function AdminClient({ stats }: { stats: any }) {
   const [glassBoxLogs, setGlassBoxLogs] = useState<string[]>([]);
   const [isSimulating, setIsSimulating] = useState(false);
 
+  const chartData = stats.benchmarks ? [...stats.benchmarks].reverse().map(b => ({
+      ...b,
+      latency: Number(b.average_latency_sec),
+      retail: Number(b.retail_cost),
+      cogs: Number(b.wholesale_cost),
+      time: new Date(b.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+  })) : [];
+
+
   const runGlassBox = async (e: any) => {
     e.preventDefault();
     if (!glassBoxPrompt.trim()) return;
@@ -239,30 +248,34 @@ export function AdminClient({ stats }: { stats: any }) {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700 h-[350px]">
                       <h4 className="text-slate-300 font-bold mb-4 flex items-center gap-2"><Activity className="w-4 h-4"/> Latency Trendline</h4>
-                      <ResponsiveContainer width="100%" height="80%">
-                        <LineChart data={[...stats.benchmarks].reverse()}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                          <XAxis dataKey={(val) => new Date(val.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} stroke="#94a3b8" fontSize={11} />
-                          <YAxis stroke="#94a3b8" fontSize={11} tickFormatter={(val) => `${val}s`} />
-                          <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px' }} />
-                          <Line type="monotone" dataKey="average_latency_sec" name="Avg Latency" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, fill: '#3b82f6' }} />
-                        </LineChart>
-                      </ResponsiveContainer>
+                      <div style={{ width: '100%', height: '250px' }}>
+                        <ResponsiveContainer>
+                          <LineChart data={chartData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                            <XAxis dataKey="time" stroke="#94a3b8" fontSize={11} />
+                            <YAxis stroke="#94a3b8" fontSize={11} tickFormatter={(val) => `${val}s`} domain={['auto', 'auto']} />
+                            <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px' }} />
+                            <Line type="monotone" dataKey="latency" name="Avg Latency" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, fill: '#3b82f6' }} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
                     </div>
                     
                     <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700 h-[350px]">
                       <h4 className="text-slate-300 font-bold mb-4 flex items-center gap-2"><DollarSign className="w-4 h-4"/> Cost Efficiency (Retail vs COGS)</h4>
-                      <ResponsiveContainer width="100%" height="80%">
-                        <LineChart data={[...stats.benchmarks].reverse()}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                          <XAxis dataKey={(val) => new Date(val.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} stroke="#94a3b8" fontSize={11} />
-                          <YAxis stroke="#94a3b8" fontSize={11} tickFormatter={(val) => `$${val}`} />
-                          <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px' }} />
-                          <Legend />
-                          <Line type="monotone" dataKey="retail_cost" name="Retail Value" stroke="#ef4444" strokeWidth={2} dot={{ r: 4 }} />
-                          <Line type="monotone" dataKey="wholesale_cost" name="Wholesale COGS" stroke="#10b981" strokeWidth={2} dot={{ r: 4 }} />
-                        </LineChart>
-                      </ResponsiveContainer>
+                      <div style={{ width: '100%', height: '250px' }}>
+                        <ResponsiveContainer>
+                          <LineChart data={chartData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                            <XAxis dataKey="time" stroke="#94a3b8" fontSize={11} />
+                            <YAxis stroke="#94a3b8" fontSize={11} tickFormatter={(val) => `$${val}`} domain={['auto', 'auto']} />
+                            <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px' }} />
+                            <Legend />
+                            <Line type="monotone" dataKey="retail" name="Retail Value" stroke="#ef4444" strokeWidth={2} dot={{ r: 4 }} />
+                            <Line type="monotone" dataKey="cogs" name="Wholesale COGS" stroke="#10b981" strokeWidth={2} dot={{ r: 4 }} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
                     </div>
                 </div>
 
