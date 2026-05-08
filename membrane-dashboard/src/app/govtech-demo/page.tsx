@@ -60,27 +60,29 @@ export default function GovTechDemo() {
     setIsProcessing(false);
   };
 
-      const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
       setIsProcessing(true);
       setResults([]);
       
-      setStatus(`Uploading ${file.name} to Render Backend...`);
+      setStatus(`Uploading ${file.name} directly to Render Backend...`);
       
       const formData = new FormData();
       formData.append('file', file);
       
       try {
-          setStatus(`Executing parallel Map-Reduce extraction against Membrane Swarm... This may take up to 60 seconds for large PDFs.`);
-          const res = await fetch('/api/swarm/extract', {
+          setStatus(`Executing parallel Map-Reduce extraction against Membrane Swarm... This may take up to 120 seconds for massive PDFs. Do not close the window.`);
+          
+          // BYPASS VERCEL 60s TIMEOUT: Hit the live Render server directly
+          const res = await fetch('https://contract-scanner-backend.onrender.com/api/govtech-swarm', {
               method: 'POST',
               body: formData
           });
           
           if (!res.ok) {
               const errText = await res.text();
-              throw new Error(`Swarm processing failed: ${errText}`);
+              throw new Error(`Swarm processing failed: ${res.status} ${errText}`);
           }
           
           setStatus(`Parsing JSON and enforcing strict integer math...`);
@@ -95,7 +97,7 @@ export default function GovTechDemo() {
       } catch (err: any) {
           console.error(err);
           setStatus(`Error: ${err.message}`);
-          setTimeout(() => setIsProcessing(false), 5000);
+          setTimeout(() => setIsProcessing(false), 8000);
           return;
       }
       
