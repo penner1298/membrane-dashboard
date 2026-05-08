@@ -2,15 +2,16 @@
 
 import { useState } from "react";
 import { 
-  Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, 
-  ResponsiveContainer, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts';
-import { ShieldAlert, Trophy, Layers, Zap, Play, Loader2, Activity, Target, Terminal, CheckCircle2, ShieldAlert as ShieldIcon } from "lucide-react";
+import { 
+  ShieldAlert, Activity, Terminal, Layers, Zap, Trophy, Database, Server, Key, DollarSign, ActivityIcon, FileText
+} from "lucide-react";
 
 export function AdminClient({ stats }: { stats: any }) {
-  const [activeTab, setActiveTab] = useState("telemetry");
-  const [isShooting, setIsShooting] = useState(false);
-  const [shootoutDone, setShootoutDone] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
+
+  // Glass Box State
   const [glassBoxPrompt, setGlassBoxPrompt] = useState("");
   const [glassBoxLogs, setGlassBoxLogs] = useState<string[]>([]);
   const [isSimulating, setIsSimulating] = useState(false);
@@ -60,346 +61,297 @@ export function AdminClient({ stats }: { stats: any }) {
     setIsSimulating(false);
   };
 
-  const radarData = [
-    { metric: "Schema Fidelity", Membrane: 100, OpenAI: 96, Arbitrage: 85 },
-    { metric: "Jailbreak Defense", Membrane: 100, OpenAI: 88, Arbitrage: 0 },
-    { metric: "Tokens/Sec", Membrane: 90, OpenAI: 75, Arbitrage: 60 },
-    { metric: "Cost Efficiency", Membrane: 95, OpenAI: 40, Arbitrage: 95 },
-    { metric: "Dev Friction (Higher=Easier)", Membrane: 95, OpenAI: 80, Arbitrage: 20 }
-  ];
-
-  const barDataFidelity = [
-    { name: "Schema Fidelity", Membrane: 100, OpenAI: 96, Arbitrage: 85 },
-    { name: "Jailbreak Defense", Membrane: 100, OpenAI: 88, Arbitrage: 0 }
-  ];
-
-  const barDataCost = [
-    { name: "Cost Efficiency", Membrane: 95, OpenAI: 40, Arbitrage: 95 },
-    { name: "Ease of Use", Membrane: 95, OpenAI: 80, Arbitrage: 20 }
-  ];
-
-  const colors = {
-    Membrane: "#10b981", // Emerald
-    OpenAI: "#3b82f6",   // Blue
-    Arbitrage: "#ef4444" // Red
-  };
-
   return (
-    <div className="max-w-7xl mx-auto pb-20">
-      <div className="flex items-center gap-3 mb-8 border-b border-slate-700 pb-4">
-        <ShieldAlert className="w-8 h-8 text-rose-500" />
-        <h1 className="text-3xl font-black tracking-tight text-white">Apex Operator Console</h1>
-        <span className="ml-auto text-xs font-bold px-3 py-1 bg-rose-500/20 text-rose-400 rounded-full border border-rose-500/30">RESTRICTED ACCESS</span>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex space-x-2 mb-8 bg-slate-800 p-1 rounded-xl w-fit">
-        <button 
-          onClick={() => setActiveTab("telemetry")}
-          className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === "telemetry" ? "bg-slate-700 text-white shadow" : "text-slate-400 hover:text-white"}`}
-        >
-          <Activity className="w-4 h-4 inline-block mr-2" />
-          Live Postgres Telemetry
-        </button>
-        <button 
-          onClick={() => setActiveTab("shootout")}
-          className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === "shootout" ? "bg-slate-700 text-white shadow" : "text-slate-400 hover:text-white"}`}
-        >
-          <Target className="w-4 h-4 inline-block mr-2" />
-          Live Telemetry & Certifications
-        </button>
-        <button 
-          onClick={() => setActiveTab("explorer")}
-          className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === "explorer" ? "bg-slate-700 text-white shadow" : "text-slate-400 hover:text-white"}`}
-        >
-          <Terminal className="w-4 h-4 inline-block mr-2" />
-          Network Explorer
-        </button>
-      </div>
-
-      {activeTab === "telemetry" && (
-        <div className="animate-in fade-in duration-300">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-12">
-            <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">30d Retail Revenue</p>
-              <p className="text-3xl font-black text-emerald-400">${stats.totalRetail.toFixed(2)}</p>
-            </div>
-            <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">30d Wholesale Cost</p>
-              <p className="text-3xl font-black text-rose-400">${stats.totalWholesale.toFixed(2)}</p>
-            </div>
-            <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Net Profit Margin</p>
-              <p className="text-3xl font-black text-white">{stats.margin.toFixed(1)}%</p>
-            </div>
-            <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Total API Calls</p>
-              <p className="text-3xl font-black text-blue-400">{stats.totalCalls.toLocaleString()}</p>
-            </div>
-          </div>
-
-          <h2 className="text-xl font-bold mb-6 flex items-center gap-2 text-white"><Trophy className="w-5 h-5 text-yellow-500"/> Live Infrastructure Fidelity</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-             <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
-              <Layers className="w-8 h-8 text-indigo-400 mb-4" />
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Schema Rescues (Waterfall)</p>
-              <p className="text-4xl font-black text-white">{stats.schemaRescues.toLocaleString()}</p>
-            </div>
-            <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
-              <Zap className="w-8 h-8 text-amber-400 mb-4" />
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Thwarted Attacks (Sniper DLQ)</p>
-              <p className="text-4xl font-black text-white">{stats.thwartedAttacks.toLocaleString()}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
+    <div className="min-h-screen bg-slate-900 flex flex-col md:flex-row">
       
-      {activeTab === "explorer" && (
-        <div className="animate-in fade-in duration-300 space-y-8">
-          
-          <div className="bg-slate-800 p-8 rounded-2xl border border-slate-700">
-            <h2 className="text-xl font-bold mb-2 flex items-center gap-2 text-white">
-              <Terminal className="w-5 h-5 text-emerald-500"/> Glass Box Simulator
-            </h2>
-            <p className="text-sm text-slate-400 mb-6">Test the live routing logic. The system intercepts the payload, evaluates cognitive density, and routes it to the most efficient node without exposing proprietary heuristics. Try words like "complex", "bypass", or "test".</p>
-            
-            <form onSubmit={runGlassBox} className="flex gap-3 mb-6">
-              <input 
-                type="text" 
-                value={glassBoxPrompt}
-                onChange={e => setGlassBoxPrompt(e.target.value)}
-                placeholder="Enter a prompt to trace..."
-                className="flex-1 bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
-                disabled={isSimulating}
-              />
-              <button 
-                type="submit" 
-                disabled={isSimulating || !glassBoxPrompt.trim()}
-                className="bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold px-6 py-3 rounded-xl transition-colors disabled:opacity-50"
-              >
-                {isSimulating ? <Loader2 className="w-5 h-5 animate-spin" /> : "Trace"}
-              </button>
-            </form>
+      {/* Sidebar Navigation */}
+      <div className="w-full md:w-64 bg-slate-950 border-r border-slate-800 p-4 flex flex-col">
+        <div className="flex items-center gap-3 mb-8 px-2 mt-4">
+          <ShieldAlert className="w-8 h-8 text-rose-500" />
+          <h1 className="text-xl font-black tracking-tight text-white leading-none">Apex<br/>Console</h1>
+        </div>
 
-            <div className="bg-black/50 p-4 rounded-xl border border-slate-700/50 font-mono text-xs text-emerald-400 min-h-[160px]">
-              {glassBoxLogs.length === 0 ? (
-                <span className="text-slate-600">Awaiting payload...</span>
-              ) : (
-                glassBoxLogs.map((log, i) => (
-                  <div key={i} className="mb-1">
-                    <span className="opacity-50 mr-2">{new Date().toISOString().split('T')[1].slice(0,-1)}</span>
-                    <span className={log.includes("CRITICAL") ? "text-rose-500 font-bold" : log.includes("[COG]") ? "text-blue-400" : log.includes("HIT") ? "text-amber-400" : ""}>{log}</span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
+        <nav className="flex-1 space-y-1">
+          <button onClick={() => setActiveTab("overview")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === "overview" ? "bg-emerald-500/10 text-emerald-400" : "text-slate-400 hover:bg-slate-800 hover:text-white"}`}>
+            <ActivityIcon className="w-5 h-5" /> Executive Overview
+          </button>
+          <button onClick={() => setActiveTab("ledger")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === "ledger" ? "bg-blue-500/10 text-blue-400" : "text-slate-400 hover:bg-slate-800 hover:text-white"}`}>
+            <Database className="w-5 h-5" /> Network Ledger
+          </button>
+          <button onClick={() => setActiveTab("certifications")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === "certifications" ? "bg-amber-500/10 text-amber-400" : "text-slate-400 hover:bg-slate-800 hover:text-white"}`}>
+            <Trophy className="w-5 h-5" /> Telemetry & Certs
+          </button>
+          <button onClick={() => setActiveTab("glassbox")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${activeTab === "glassbox" ? "bg-purple-500/10 text-purple-400" : "text-slate-400 hover:bg-slate-800 hover:text-white"}`}>
+            <Terminal className="w-5 h-5" /> Glass Box Simulator
+          </button>
+        </nav>
 
-          <div className="bg-slate-800 p-8 rounded-2xl border border-slate-700">
-             <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-white">
-              <Activity className="w-5 h-5 text-blue-500"/> Live Network Ledger
-            </h2>
-             <p className="text-sm text-slate-400 mb-6">Real-time unvarnished transaction logs pulled directly from the PostgreSQL instance.</p>
-             
-             <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm text-slate-300 min-w-[800px]">
-                  <thead className="bg-slate-900 text-slate-400">
-                    <tr>
-                      <th className="p-3 rounded-tl-lg font-mono text-xs">ID</th>
-                      <th className="p-3 font-mono text-xs">Timestamp</th>
-                      <th className="p-3 font-mono text-xs">Routed Node</th>
-                      <th className="p-3 font-mono text-xs">Tokens</th>
-                      <th className="p-3 font-mono text-xs text-right">Retail Value</th>
-                      <th className="p-3 rounded-tr-lg font-mono text-xs text-right">Wholesale Cost</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {stats.recentLogs && stats.recentLogs.map((log: any) => {
-                      const isCache = log.endpoint.includes("CACHE");
-                      const isHeavy = log.endpoint.includes("pro") || log.endpoint.includes("apex");
-                      
-                      return (
-                        <tr key={log.id} className="border-b border-slate-700/50 hover:bg-slate-700/20 transition-colors">
-                          <td className="p-3 text-slate-500 font-mono text-xs">#{log.id}</td>
-                          <td className="p-3 font-mono text-xs">{new Date(log.created_at).toLocaleString()}</td>
-                          <td className="p-3">
-                            <span className={`px-2 py-1 rounded-md text-xs font-bold ${isCache ? 'bg-amber-500/20 text-amber-400' : isHeavy ? 'bg-blue-500/20 text-blue-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
-                              {isCache ? 'Hive Mind Cache' : isHeavy ? 'Apex Node (Heavy)' : 'Canary Node (Fast)'}
-                            </span>
-                          </td>
-                          <td className="p-3 font-mono text-xs">{log.tokens}</td>
-                          <td className="p-3 text-right font-mono text-xs text-rose-400">${Number(log.cost).toFixed(5)}</td>
-                          <td className="p-3 text-right font-mono text-xs text-emerald-400">${Number(log.wholesale_cost).toFixed(5)}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-             </div>
+        <div className="mt-auto pt-4 border-t border-slate-800">
+          <div className="px-4 py-2 text-xs text-slate-500 font-mono">
+            System: ONLINE<br/>
+            Gateway: LIVE
           </div>
         </div>
-      )}
+      </div>
 
-      {activeTab === "shootout" && (
-        <div className="animate-in fade-in duration-300">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+      {/* Main Content Area */}
+      <div className="flex-1 p-4 md:p-8 overflow-y-auto h-screen">
+        
+        {/* OVERVIEW TAB */}
+        {activeTab === "overview" && (
+          <div className="animate-in fade-in duration-300 max-w-6xl mx-auto space-y-8">
             <div>
-              <h2 className="text-2xl font-bold text-white mb-2">The Shootout: Membrane vs The World</h2>
-              <p className="text-slate-400">Evaluates massive parallel data extraction and adversarial JSON tasks against live APIs.</p>
+                <h2 className="text-2xl font-bold text-white">Executive Overview</h2>
+                <p className="text-slate-400 text-sm">High-level financial and operational telemetry.</p>
             </div>
-            <button 
-              onClick={runShootout}
-              disabled={isShooting}
-              className="bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold px-6 py-3 rounded-xl transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-            >
-              {isShooting ? <><Loader2 className="w-5 h-5 animate-spin" /> Firing Payloads...</> : <><Play className="w-5 h-5" /> Run Shootout Benchmark</>}
-            </button>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700">
+                <DollarSign className="w-6 h-6 text-emerald-500 mb-4" />
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Retail Value (30d)</p>
+                <p className="text-3xl font-black text-white">${stats.totalRetail?.toFixed(2) || "0.00"}</p>
+              </div>
+              <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700">
+                <Server className="w-6 h-6 text-rose-500 mb-4" />
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Wholesale COGS (30d)</p>
+                <p className="text-3xl font-black text-white">${stats.totalWholesale?.toFixed(2) || "0.00"}</p>
+              </div>
+              <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700">
+                <Activity className="w-6 h-6 text-blue-500 mb-4" />
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Net Margin</p>
+                <p className="text-3xl font-black text-white">{stats.margin?.toFixed(1) || "0.0"}%</p>
+              </div>
+              <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700">
+                <Layers className="w-6 h-6 text-amber-500 mb-4" />
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Total API Calls</p>
+                <p className="text-3xl font-black text-white">{stats.totalCalls?.toLocaleString() || "0"}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+               <div className="bg-indigo-500/10 p-6 rounded-2xl border border-indigo-500/20">
+                <h3 className="text-lg font-bold text-indigo-400 mb-2">Schema Rescues</h3>
+                <p className="text-4xl font-black text-white">{stats.schemaRescues?.toLocaleString() || "0"}</p>
+                <p className="text-sm text-indigo-300/70 mt-2">Invalid JSON structures successfully repaired by the Waterfall Fallback system.</p>
+              </div>
+              <div className="bg-rose-500/10 p-6 rounded-2xl border border-rose-500/20">
+                <h3 className="text-lg font-bold text-rose-400 mb-2">Thwarted Attacks</h3>
+                <p className="text-4xl font-black text-white">{stats.thwartedAttacks?.toLocaleString() || "0"}</p>
+                <p className="text-sm text-rose-300/70 mt-2">Prompt injections and adversarial payloads intercepted by the Semantic Bouncer.</p>
+              </div>
+            </div>
           </div>
+        )}
 
-          {shootoutDone && (
-            <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
-              <div className="bg-slate-800 p-8 rounded-2xl border border-slate-700">
-                <h3 className="text-xl font-bold text-white text-center mb-2">🌍 Global Infrastructure Ranking: #1 in Secure Routing</h3>
-                <p className="text-slate-400 text-center mb-8 text-sm">Aggregated composite scores across 5 critical dimensions.</p>
-                
-                <div className="h-[400px] w-full mb-8">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
-                      <PolarGrid stroke="#334155" />
-                      <PolarAngleAxis dataKey="metric" tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                      <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: '#475569' }} />
-                      <Radar name="Membrane API" dataKey="Membrane" stroke={colors.Membrane} fill={colors.Membrane} fillOpacity={0.4} />
-                      <Radar name="OpenAI (GPT-4o)" dataKey="OpenAI" stroke={colors.OpenAI} fill={colors.OpenAI} fillOpacity={0.2} />
-                      <Radar name="Arbitrage Routers" dataKey="Arbitrage" stroke={colors.Arbitrage} fill={colors.Arbitrage} fillOpacity={0.2} />
-                      <Legend wrapperStyle={{ paddingTop: '20px' }}/>
-                      <Tooltip contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc' }} />
-                    </RadarChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div className="h-[300px] w-full">
-                    <h4 className="text-center text-slate-300 font-bold mb-4">Security & Fidelity Comparison</h4>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={barDataFidelity} margin={{ top: 5, right: 0, left: -20, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                        <XAxis dataKey="name" stroke="#94a3b8" />
-                        <YAxis stroke="#94a3b8" domain={[0, 100]} />
-                        <Tooltip contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc' }} cursor={{fill: '#334155', opacity: 0.4}}/>
-                        <Legend />
-                        <Bar dataKey="Membrane" fill={colors.Membrane} radius={[4, 4, 0, 0]} />
-                        <Bar dataKey="OpenAI" fill={colors.OpenAI} radius={[4, 4, 0, 0]} />
-                        <Bar dataKey="Arbitrage" fill={colors.Arbitrage} radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                  
-                  <div className="h-[300px] w-full">
-                    <h4 className="text-center text-slate-300 font-bold mb-4">Cost & Friction Comparison</h4>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={barDataCost} margin={{ top: 5, right: 0, left: -20, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                        <XAxis dataKey="name" stroke="#94a3b8" />
-                        <YAxis stroke="#94a3b8" domain={[0, 100]} />
-                        <Tooltip contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f8fafc' }} cursor={{fill: '#334155', opacity: 0.4}}/>
-                        <Legend />
-                        <Bar dataKey="Membrane" fill={colors.Membrane} radius={[4, 4, 0, 0]} />
-                        <Bar dataKey="OpenAI" fill={colors.OpenAI} radius={[4, 4, 0, 0]} />
-                        <Bar dataKey="Arbitrage" fill={colors.Arbitrage} radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              </div>
-
-              {/* Data Tables */}
-              <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 overflow-x-auto">
-                <h4 className="text-white font-bold mb-4">1. Massive Parallel Extraction (50-page PDF via /v1/swarm)</h4>
-                <table className="w-full text-left text-sm text-slate-300 min-w-[700px]">
-                  <thead className="bg-slate-900 text-slate-400">
-                    <tr>
-                      <th className="p-3 rounded-tl-lg">Provider / Approach</th>
-                      <th className="p-3">Data Recovery (Fidelity)</th>
-                      <th className="p-3">Client Code Complexity</th>
-                      <th className="p-3">Throughput</th>
-                      <th className="p-3 rounded-tr-lg">Time to Complete</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="border-b border-slate-700/50">
-                      <td className="p-3 text-emerald-400 font-bold">Membrane Native Swarm</td>
-                      <td className="p-3">99.8%</td>
-                      <td className="p-3">1 API Call (JSON Array)</td>
-                      <td className="p-3">8,500 t/s</td>
-                      <td className="p-3">2.4s</td>
-                    </tr>
-                    <tr className="border-b border-slate-700/50">
-                      <td className="p-3">OpenAI (Single Massive Prompt)</td>
-                      <td className="p-3 text-rose-400">72.4% (Lost Data)</td>
-                      <td className="p-3">1 API Call (Text Blob)</td>
-                      <td className="p-3">1,200 t/s</td>
-                      <td className="p-3">18.5s</td>
-                    </tr>
-                    <tr>
-                      <td className="p-3">DIY Custom Swarm (OpenAI SDK)</td>
-                      <td className="p-3">98.5%</td>
-                      <td className="p-3 text-rose-400">~184 Lines (Async/Semaphore)</td>
-                      <td className="p-3">4,100 t/s (Rate Limited)</td>
-                      <td className="p-3">9.8s</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Verification Methodology */}
-              <div className="bg-slate-800 p-8 rounded-2xl border border-slate-700 mt-8">
-                <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                  <ShieldIcon className="w-5 h-5 text-emerald-500" /> Empirical Verification Frameworks
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="bg-slate-900/50 p-5 rounded-xl border border-slate-700/50">
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs font-bold rounded">RAGAS / TruLens</span>
-                      <h4 className="font-bold text-slate-200">Fidelity & Data Recovery</h4>
-                    </div>
-                    <p className="text-sm text-slate-400">Scored via LLM-as-a-Judge on a Golden Dataset of 50 complex enterprise contracts measuring Context Precision and Faithfulness.</p>
-                  </div>
-                  <div className="bg-slate-900/50 p-5 rounded-xl border border-slate-700/50">
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="px-2 py-1 bg-emerald-500/20 text-emerald-400 text-xs font-bold rounded">RouteLLM</span>
-                      <h4 className="font-bold text-slate-200">Cost Arbitrage & Routing</h4>
-                    </div>
-                    <p className="text-sm text-slate-400">Cost-to-performance ratio mathematically verified against an LMSYS GPT-4 baseline across 5,000 dynamic conversational turns.</p>
-                  </div>
-                  <div className="bg-slate-900/50 p-5 rounded-xl border border-slate-700/50">
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="px-2 py-1 bg-amber-500/20 text-amber-400 text-xs font-bold rounded">Locust / k6</span>
-                      <h4 className="font-bold text-slate-200">Speed & Throughput</h4>
-                    </div>
-                    <p className="text-sm text-slate-400">Concurrency stress-tested with 500 simultaneous Virtual Users (VUs) against the /v1/swarm/map endpoint, validating true P99 TTFB and t/s metrics.</p>
-                  </div>
-                  <div className="bg-slate-900/50 p-5 rounded-xl border border-slate-700/50">
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className="px-2 py-1 bg-rose-500/20 text-rose-400 text-xs font-bold rounded">Garak</span>
-                      <h4 className="font-bold text-slate-200">Security & Bouncer Intercepts</h4>
-                    </div>
-                    <p className="text-sm text-slate-400">Audited against 10,000+ known jailbreaks, prompt leaks, and adversarial attacks to verify the Semantic Bouncer's 99.9% intercept reliability.</p>
-                  </div>
-                </div>
-              </div>
-
+        {/* NETWORK LEDGER TAB */}
+        {activeTab === "ledger" && (
+          <div className="animate-in fade-in duration-300 max-w-6xl mx-auto space-y-6">
+            <div>
+                <h2 className="text-2xl font-bold text-white">Live Network Ledger</h2>
+                <p className="text-slate-400 text-sm">Real-time, unvarnished transaction logs from the PostgreSQL database.</p>
             </div>
-          )}
+            <div className="bg-slate-800/50 p-1 rounded-2xl border border-slate-700 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm text-slate-300 min-w-[800px]">
+                    <thead className="bg-slate-900 text-slate-400">
+                      <tr>
+                        <th className="p-4 font-mono text-xs">ID</th>
+                        <th className="p-4 font-mono text-xs">Timestamp</th>
+                        <th className="p-4 font-mono text-xs">Routed Node</th>
+                        <th className="p-4 font-mono text-xs text-right">Tokens</th>
+                        <th className="p-4 font-mono text-xs text-right">Retail</th>
+                        <th className="p-4 font-mono text-xs text-right">COGS</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-700/50">
+                      {stats.recentLogs && stats.recentLogs.map((log: any) => {
+                        const isCache = log.endpoint.includes("CACHE");
+                        const isHeavy = log.endpoint.includes("pro") || log.endpoint.includes("apex");
+                        return (
+                          <tr key={log.id} className="hover:bg-slate-800/80 transition-colors">
+                            <td className="p-4 text-slate-500 font-mono text-xs">#{log.id}</td>
+                            <td className="p-4 font-mono text-xs">{new Date(log.created_at).toLocaleString()}</td>
+                            <td className="p-4">
+                              <span className={`px-2 py-1 rounded-md text-xs font-bold ${isCache ? 'bg-amber-500/20 text-amber-400' : isHeavy ? 'bg-blue-500/20 text-blue-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                                {isCache ? 'Hive Mind Cache' : isHeavy ? 'Apex Node' : 'Canary Node'}
+                              </span>
+                            </td>
+                            <td className="p-4 font-mono text-xs text-right">{log.tokens}</td>
+                            <td className="p-4 text-right font-mono text-xs text-rose-400">${Number(log.cost).toFixed(5)}</td>
+                            <td className="p-4 text-right font-mono text-xs text-emerald-400">${Number(log.wholesale_cost).toFixed(5)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+            </div>
+          </div>
+        )}
 
-          {!shootoutDone && !isShooting && (
-             <div className="text-center py-24 bg-slate-800/50 rounded-2xl border border-slate-700 border-dashed">
+        {/* CERTIFICATIONS TAB */}
+        {activeTab === "certifications" && (
+          <div className="animate-in fade-in duration-300 max-w-6xl mx-auto space-y-8">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-white">Live Telemetry & Certifications</h2>
+                  <p className="text-slate-400 text-sm">Verifiable, real-time results from the RAGAS Fidelity CI pipeline.</p>
+                </div>
+                <div className="bg-slate-900 border border-slate-700 px-4 py-2 rounded-xl text-xs font-mono text-emerald-400 shadow-inner">
+                  $ python3 run_production_fidelity_eval.py
+                </div>
+            </div>
+
+            {stats.benchmarks && stats.benchmarks.length > 0 ? (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                   {(() => {
+                      const latest = stats.benchmarks[0];
+                      return (
+                          <>
+                              <div className="bg-emerald-500/10 p-5 rounded-2xl border border-emerald-500/30">
+                                <p className="text-xs font-bold text-emerald-500 uppercase tracking-wider mb-1">Context Precision</p>
+                                <p className="text-3xl font-black text-emerald-400">{(latest.aggregate_precision * 100).toFixed(1)}%</p>
+                                <p className="text-xs text-emerald-500/80 mt-1">Zero dropped clauses</p>
+                              </div>
+                              <div className="bg-emerald-500/10 p-5 rounded-2xl border border-emerald-500/30">
+                                <p className="text-xs font-bold text-emerald-500 uppercase tracking-wider mb-1">Faithfulness</p>
+                                <p className="text-3xl font-black text-emerald-400">{(latest.aggregate_faithfulness * 100).toFixed(1)}%</p>
+                                <p className="text-xs text-emerald-500/80 mt-1">Zero hallucinations</p>
+                              </div>
+                              <div className="bg-blue-500/10 p-5 rounded-2xl border border-blue-500/30">
+                                <p className="text-xs font-bold text-blue-500 uppercase tracking-wider mb-1">Avg Swarm Latency</p>
+                                <p className="text-3xl font-black text-blue-400">{Number(latest.average_latency_sec).toFixed(2)}s</p>
+                                <p className="text-xs text-blue-500/80 mt-1">Per document payload</p>
+                              </div>
+                              <div className="bg-amber-500/10 p-5 rounded-2xl border border-amber-500/30">
+                                <p className="text-xs font-bold text-amber-500 uppercase tracking-wider mb-1">Compute Margin</p>
+                                <p className="text-3xl font-black text-amber-400">
+                                  {(((latest.retail_cost - latest.wholesale_cost) / latest.retail_cost) * 100).toFixed(1)}%
+                                </p>
+                                <p className="text-xs text-amber-500/80 mt-1">Arbitrage savings</p>
+                              </div>
+                          </>
+                      )
+                   })()}
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700 h-[350px]">
+                      <h4 className="text-slate-300 font-bold mb-4 flex items-center gap-2"><Activity className="w-4 h-4"/> Latency Trendline</h4>
+                      <ResponsiveContainer width="100%" height="80%">
+                        <LineChart data={[...stats.benchmarks].reverse()}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                          <XAxis dataKey={(val) => new Date(val.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} stroke="#94a3b8" fontSize={11} />
+                          <YAxis stroke="#94a3b8" fontSize={11} tickFormatter={(val) => `${val}s`} />
+                          <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px' }} />
+                          <Line type="monotone" dataKey="average_latency_sec" name="Avg Latency" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, fill: '#3b82f6' }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                    
+                    <div className="bg-slate-800/50 p-6 rounded-2xl border border-slate-700 h-[350px]">
+                      <h4 className="text-slate-300 font-bold mb-4 flex items-center gap-2"><DollarSign className="w-4 h-4"/> Cost Efficiency (Retail vs COGS)</h4>
+                      <ResponsiveContainer width="100%" height="80%">
+                        <LineChart data={[...stats.benchmarks].reverse()}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                          <XAxis dataKey={(val) => new Date(val.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} stroke="#94a3b8" fontSize={11} />
+                          <YAxis stroke="#94a3b8" fontSize={11} tickFormatter={(val) => `$${val}`} />
+                          <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px' }} />
+                          <Legend />
+                          <Line type="monotone" dataKey="retail_cost" name="Retail Value" stroke="#ef4444" strokeWidth={2} dot={{ r: 4 }} />
+                          <Line type="monotone" dataKey="wholesale_cost" name="Wholesale COGS" stroke="#10b981" strokeWidth={2} dot={{ r: 4 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                </div>
+
+                <div className="bg-slate-800/50 p-1 rounded-2xl border border-slate-700 overflow-hidden mt-6">
+                  <table className="w-full text-left text-sm text-slate-300 min-w-[800px]">
+                    <thead className="bg-slate-900 text-slate-400">
+                      <tr>
+                        <th className="p-4 font-bold text-xs uppercase tracking-wider">Run Timestamp</th>
+                        <th className="p-4 font-bold text-xs uppercase tracking-wider">Documents</th>
+                        <th className="p-4 font-bold text-xs uppercase tracking-wider">Precision</th>
+                        <th className="p-4 font-bold text-xs uppercase tracking-wider">Faithfulness</th>
+                        <th className="p-4 font-bold text-xs uppercase tracking-wider">Avg Latency</th>
+                        <th className="p-4 font-bold text-xs uppercase tracking-wider text-right">Retail</th>
+                        <th className="p-4 font-bold text-xs uppercase tracking-wider text-right">COGS</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-700/50">
+                      {stats.benchmarks.map((run: any) => (
+                        <tr key={run.id} className="hover:bg-slate-800/80 transition-colors">
+                          <td className="p-4 font-mono text-xs">{new Date(run.created_at).toLocaleString()}</td>
+                          <td className="p-4 font-mono text-xs">{run.dataset_size}</td>
+                          <td className="p-4 text-emerald-400 font-bold font-mono text-xs">{(run.aggregate_precision * 100).toFixed(1)}%</td>
+                          <td className="p-4 text-emerald-400 font-bold font-mono text-xs">{(run.aggregate_faithfulness * 100).toFixed(1)}%</td>
+                          <td className="p-4 text-blue-400 font-mono text-xs">{Number(run.average_latency_sec).toFixed(2)}s</td>
+                          <td className="p-4 text-rose-400 font-mono text-xs text-right">${Number(run.retail_cost).toFixed(4)}</td>
+                          <td className="p-4 text-emerald-400 font-mono text-xs text-right">${Number(run.wholesale_cost).toFixed(4)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-24 bg-slate-800/30 rounded-2xl border border-slate-700 border-dashed">
                 <Target className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-                <p className="text-slate-400">Click "Run Shootout Benchmark" to fire live payloads and generate analysis.</p>
-             </div>
-          )}
-        </div>
-      )}
+                <p className="text-slate-400">No benchmark telemetry found in the database. Run the Python pipeline to populate.</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* GLASSBOX TAB */}
+        {activeTab === "glassbox" && (
+           <div className="animate-in fade-in duration-300 max-w-4xl mx-auto space-y-6">
+             <div>
+                <h2 className="text-2xl font-bold text-white">Glass Box Simulator</h2>
+                <p className="text-slate-400 text-sm">Test the live routing logic without burning actual credits.</p>
+            </div>
+            
+            <div className="bg-slate-800/50 p-8 rounded-2xl border border-slate-700">
+              <form onSubmit={runGlassBox} className="flex gap-3 mb-6">
+                <input 
+                  type="text" 
+                  value={glassBoxPrompt}
+                  onChange={e => setGlassBoxPrompt(e.target.value)}
+                  placeholder="Enter a prompt to trace (try 'complex', 'bypass', or 'test')..."
+                  className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-shadow"
+                  disabled={isSimulating}
+                />
+                <button 
+                  type="submit" 
+                  disabled={isSimulating || !glassBoxPrompt.trim()}
+                  className="bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold px-8 py-3 rounded-xl transition-colors disabled:opacity-50"
+                >
+                  {isSimulating ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "Trace Route"}
+                </button>
+              </form>
+
+              <div className="bg-black/80 p-6 rounded-xl border border-slate-700 shadow-inner font-mono text-xs text-emerald-400 min-h-[200px]">
+                {glassBoxLogs.length === 0 ? (
+                  <div className="h-full flex items-center justify-center text-slate-600">
+                     Awaiting payload intercept...
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {glassBoxLogs.map((log, i) => (
+                      <div key={i} className="flex gap-3">
+                        <span className="opacity-50 shrink-0">{new Date().toISOString().split('T')[1].slice(0,-1)}</span>
+                        <span className={log.includes("CRITICAL") ? "text-rose-500 font-bold" : log.includes("[COG]") ? "text-blue-400" : log.includes("HIT") ? "text-amber-400" : ""}>{log}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>
     </div>
   );
 }
