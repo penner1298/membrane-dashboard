@@ -60,39 +60,43 @@ export default function GovTechDemo() {
     setIsProcessing(false);
   };
 
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
       setIsProcessing(true);
       setResults([]);
       
-      setStatus(`Uploading ${file.name}...`);
+      setStatus(`Uploading ${file.name} to Render Backend...`);
       
       const formData = new FormData();
       formData.append('file', file);
       
       try {
-          setStatus(`Executing parallel Map-Reduce extraction against Membrane Swarm...`);
+          setStatus(`Executing parallel Map-Reduce extraction against Membrane Swarm... This may take up to 60 seconds for large PDFs.`);
           const res = await fetch('/api/swarm/extract', {
               method: 'POST',
               body: formData
           });
           
-          if (!res.ok) throw new Error("Swarm processing failed");
+          if (!res.ok) {
+              const errText = await res.text();
+              throw new Error(`Swarm processing failed: ${errText}`);
+          }
           
           setStatus(`Parsing JSON and enforcing strict integer math...`);
           const data = await res.json();
           
-          if (data.results) {
+          if (data.results && Array.isArray(data.results)) {
               setResults(data.results.filter((item: any) => item.agency_or_department_name));
           } else {
-              throw new Error("No results returned");
+              throw new Error("Invalid results format returned from backend.");
           }
           
-      } catch (err) {
+      } catch (err: any) {
           console.error(err);
-          setStatus("Error during Swarm Execution.");
-          setTimeout(() => setIsProcessing(false), 2000);
+          setStatus(`Error: ${err.message}`);
+          setTimeout(() => setIsProcessing(false), 5000);
+          return;
       }
       
       setIsProcessing(false);
