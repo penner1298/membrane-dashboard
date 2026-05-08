@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { 
   Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, 
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend 
+  ResponsiveContainer, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend 
 } from 'recharts';
 import { ShieldAlert, Trophy, Layers, Zap, Play, Loader2, Activity, Target, Terminal, CheckCircle2, ShieldAlert as ShieldIcon } from "lucide-react";
 
@@ -106,7 +106,7 @@ export function AdminClient({ stats }: { stats: any }) {
           className={`px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === "shootout" ? "bg-slate-700 text-white shadow" : "text-slate-400 hover:text-white"}`}
         >
           <Target className="w-4 h-4 inline-block mr-2" />
-          The Shootout (Benchmarks)
+          Live Telemetry & Certifications
         </button>
         <button 
           onClick={() => setActiveTab("explorer")}

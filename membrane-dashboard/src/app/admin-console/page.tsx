@@ -21,6 +21,7 @@ export default async function AdminConsolePage() {
   let thwartedAttacks = 0;
   let totalCalls = 0;
   let recentLogs: any[] = [];
+  let benchmarks: any[] = [];
   
   try {
       const statsResult = await pool.query(`
@@ -64,7 +65,8 @@ export default async function AdminConsolePage() {
       totalCalls,
       schemaRescues,
       thwartedAttacks,
-      recentLogs
+      recentLogs,
+      benchmarks
   };
 
   return (
