@@ -1,5 +1,3 @@
-export const revalidate = 86400;
-
 import { MetadataRoute } from 'next';
 import fs from 'fs';
 import path from 'path';
@@ -42,15 +40,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
            }
         } catch {}
 
-        // Only include in sitemap if the publish_date is today or in the past
-        if (lastModified <= new Date()) {
-          routes.push({
+        // Tenant Pulse A/B Test: Dump everything immediately regardless of date
+        routes.push({
           url: `${baseUrl}/clause/${keyword}`,
           lastModified,
           changeFrequency: 'monthly',
           priority: 0.6,
-          });
-        }
+        });
       });
     }
   } catch (error) {
