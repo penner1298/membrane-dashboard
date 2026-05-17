@@ -35,6 +35,8 @@ export default function ClauseClient({ titleWord, seoData }: { titleWord: string
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const trackTelemetry = (event: string, metadata?: any) => {
     sendGAEvent('event', event, metadata);
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://lease-scanner-backend.onrender.com";
+    fetch(`${apiUrl}/api/telemetry`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event, metadata, project: 'Tenant Pulse' }), keepalive: true }).catch(() => {});
   };
 
   const handleUpload = async (selectedFile?: File) => {

@@ -159,6 +159,8 @@ export default function TenantPulse() {
 
   const handleUpload = async (selectedFile?: File) => {
     sendGAEvent("event", "Scan_Lease_Clicked", { keyword: "homepage", persona });
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://lease-scanner-backend.onrender.com";
+    fetch(`${apiUrl}/api/telemetry`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: "Scan_Lease_Clicked", metadata: { keyword: "homepage", persona }, project: 'Tenant Pulse' }), keepalive: true }).catch(() => {});
     const fileToScan = selectedFile || file;
     if (!fileToScan) return;
     setLoading(true);
@@ -170,6 +172,7 @@ export default function TenantPulse() {
     setLoading(false);
     setShowWaitlistModal(true);
     sendGAEvent("event", "Waitlist_Modal_Opened");
+    fetch(`${apiUrl}/api/telemetry`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: "Waitlist_Modal_Opened", metadata: { keyword: "homepage", persona }, project: 'Tenant Pulse' }), keepalive: true }).catch(() => {});
   };
 
   const handleCheckout = async (plan: 'payg' | 'pro' = 'payg') => {
@@ -875,6 +878,8 @@ export default function TenantPulse() {
                     e.preventDefault();
                     setWaitlistSubmitted(true);
                     sendGAEvent("event", "Waitlist_Email_Submitted", { email: waitlistEmail });
+                    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://lease-scanner-backend.onrender.com";
+                    fetch(`${apiUrl}/api/telemetry`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event: "Waitlist_Email_Submitted", metadata: { email: waitlistEmail }, project: 'Tenant Pulse' }), keepalive: true }).catch(() => {});
                   }}
                   className="space-y-4"
                 >

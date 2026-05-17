@@ -14,6 +14,7 @@ This workspace is the control center for the Apex Node.
 - **Delegation by Default:** The APEX Node must process data directly while in Safe Mode.
 - **Context Protection:** Avoid operational silt. Focus on the executive brief and strategic decision-making.
 - **Resilience:** Use native macOS tools (AppleScript/osascript) for high-reliability automation when Python environments fail.
+- **The Design Protocol:** Before any subagent or process attempts to write HTML, CSS, or build any frontend UI, they MUST first read and apply the standards defined in `design.md`. Flat, cookie-cutter "AI Slop" is strictly forbidden.
 - **The Acumen Loop:** Before starting any new task, the Apex Node must read CATALOGUE.md for existing blueprints. After completing a task, the Apex Node must spawn Adrienne to write the successful methodology into CATALOGUE.md.
 - **The SME Protocol:** This is vestigial and should be removed.
 
