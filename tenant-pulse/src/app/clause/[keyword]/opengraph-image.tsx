@@ -1,6 +1,4 @@
 import { ImageResponse } from 'next/og';
-import fs from 'fs';
-import path from 'path';
 
 export const alt = 'Tenant Pulse Legal Risk Analysis';
 export const size = { width: 1200, height: 630 };
@@ -11,13 +9,12 @@ export default async function Image({ params }: { params: { keyword: string } })
   displayWord = displayWord.charAt(0).toUpperCase() + displayWord.slice(1);
 
   try {
-    const filePath = path.join(process.cwd(), 'src', 'content', 'clauses', `${params.keyword.toLowerCase()}.json`);
-    if (fs.existsSync(filePath)) {
-      const fileContents = fs.readFileSync(filePath, 'utf8');
-      const seoData = JSON.parse(fileContents);
-      if (seoData.clause) {
-        displayWord = seoData.clause;
-      }
+    // Webpack statically analyzes this and bundles the entire clauses folder
+    const seoData = await import(`../../../content/clauses/${params.keyword.toLowerCase()}.json`);
+    if (seoData && seoData.default && seoData.default.clause) {
+      displayWord = seoData.default.clause;
+    } else if (seoData && seoData.clause) {
+      displayWord = seoData.clause;
     }
   } catch (e) {
     console.error("Error reading SEO JSON for OG image:", e);
@@ -75,14 +72,11 @@ export default async function Image({ params }: { params: { keyword: string } })
             marginBottom: '40px',
           }}
         >
-          <div style={{ fontSize: '24px', fontWeight: 900, color: '#10B981', textTransform: 'uppercase', letterSpacing: '0.15em', marginBottom: '20px' }}>
+          <div style={{ fontSize: '24px', fontWeight: 900, color: '#10B981', textTransform: 'uppercase', letterSpacing: '0.15em', margin: 0, padding: 0, paddingBottom: '20px' }}>
             AI Legal Risk Scanner
           </div>
-          <h1 style={{ fontSize: '64px', fontWeight: 900, color: 'white', lineHeight: 1.1, margin: 0, padding: 0 }}>
-            Predatory <span style={{ color: '#10B981' }}>{displayWord}</span>
-          </h1>
-          <h1 style={{ fontSize: '64px', fontWeight: 900, color: 'white', lineHeight: 1.1, margin: 0, padding: 0, marginTop: '8px' }}>
-            Clauses Exposed
+          <h1 style={{ fontSize: '64px', fontWeight: 900, color: 'white', lineHeight: 1.1, margin: 0, padding: 0, display: 'flex', flexWrap: 'wrap', justifyContent: 'center' }}>
+            Predatory <span style={{ color: '#10B981', marginLeft: '16px', marginRight: '16px' }}>{displayWord}</span> Clauses Exposed
           </h1>
         </div>
 
