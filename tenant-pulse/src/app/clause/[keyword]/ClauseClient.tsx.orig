@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { sendGAEvent } from "@next/third-parties/google";
+import { track } from "@vercel/analytics";
 import { Source_Serif_4 } from "next/font/google";
 import { ShieldAlert, Zap, FileText, Loader2, Lock, ChevronLeft, CheckCircle } from "lucide-react";
 import Link from "next/link";
@@ -31,14 +31,8 @@ export default function ClauseClient({ titleWord, seoData }: { titleWord: string
   const [waitlistEmail, setWaitlistEmail] = useState("");
   const [waitlistSubmitted, setWaitlistSubmitted] = useState(false);
 
-  // Custom Telemetry wrapper
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const trackTelemetry = (event: string, metadata?: any) => {
-    sendGAEvent('event', event, metadata);
-  };
-
   const handleUpload = async (selectedFile?: File) => {
-    trackTelemetry("Scan_lease_Clicked", { keyword: titleWord, persona });
+    track("Scan_lease_Clicked", { keyword: titleWord, persona });
     const fileToScan = selectedFile || file;
     if (!fileToScan) return;
     setLoading(true);
@@ -48,7 +42,7 @@ export default function ClauseClient({ titleWord, seoData }: { titleWord: string
     
     setLoading(false);
     setShowWaitlistModal(true);
-    trackTelemetry("Waitlist_Modal_Opened", { keyword: titleWord, persona });
+    track("Waitlist_Modal_Opened");
   };
 
   const htmlContent = seoData.deep_dive_html || seoData.deep_slide_html || "<p>Analysis unavailable.</p>";
@@ -319,7 +313,7 @@ export default function ClauseClient({ titleWord, seoData }: { titleWord: string
                   onSubmit={(e) => {
                     e.preventDefault();
                     setWaitlistSubmitted(true);
-                    trackTelemetry("Waitlist_Email_Submitted", { email: waitlistEmail, keyword: titleWord, persona });
+                    track("Waitlist_Email_Submitted", { email: waitlistEmail });
                   }}
                   className="space-y-4"
                 >

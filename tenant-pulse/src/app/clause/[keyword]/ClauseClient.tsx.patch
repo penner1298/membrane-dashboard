@@ -1,0 +1,46 @@
+--- src/app/clause/[keyword]/ClauseClient.tsx
++++ src/app/clause/[keyword]/ClauseClient.tsx
+@@ -23,6 +23,17 @@
+   const [isModalOpen, setIsModalOpen] = useState(false);
+   const [waitlistEmail, setWaitlistEmail] = useState("");
+ 
++  // Custom Telemetry wrapper
++  const trackTelemetry = (event: string, metadata?: any) => {
++    track(event, metadata);
++    fetch('/api/telemetry', {
++      method: 'POST',
++      headers: { 'Content-Type': 'application/json' },
++      body: JSON.stringify({ event, metadata, project: 'Tenant Pulse' }),
++      keepalive: true
++    }).catch(() => {});
++  };
++
+   const handleScanClick = () => {
+     if (!persona) {
+       alert("Please select a persona to tune the AI analysis.");
+@@ -32,7 +43,7 @@
+     
+     // 1. Fire Web Analytics Event
+-    track("Scan_lease_Clicked", { keyword: titleWord, persona });
++    trackTelemetry("Scan_lease_Clicked", { keyword: titleWord, persona });
+ 
+     setIsScanning(true);
+ 
+     // Simulate an AI scan delay for auth illusion
+@@ -42,7 +53,7 @@
+       
+       // 2. Open Waitlist Modal instead of redirect
+       setIsModalOpen(true);
+-      track("Waitlist_Modal_Opened");
++      trackTelemetry("Waitlist_Modal_Opened", { keyword: titleWord, persona });
+     }, 1500);
+   };
+ 
+@@ -313,7 +324,7 @@
+                     e.preventDefault();
+                     // In a real app, send waitlistEmail to your backend here
+-                    track("Waitlist_Email_Submitted", { email: waitlistEmail });
++                    trackTelemetry("Waitlist_Email_Submitted", { email: waitlistEmail, keyword: titleWord, persona });
+                     alert("You're on the list! We'll notify you when capacity opens.");
+                     setIsModalOpen(false);
+                     setWaitlistEmail("");
