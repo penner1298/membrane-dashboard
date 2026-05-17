@@ -31,8 +31,19 @@ export default function ClauseClient({ titleWord, seoData }: { titleWord: string
   const [waitlistEmail, setWaitlistEmail] = useState("");
   const [waitlistSubmitted, setWaitlistSubmitted] = useState(false);
 
+  // Custom Telemetry wrapper
+  const trackTelemetry = (event: string, metadata?: any) => {
+    track(event, metadata);
+    fetch('/api/telemetry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event, metadata, project: 'Tenant Pulse' }),
+      keepalive: true
+    }).catch(() => {});
+  };
+
   const handleUpload = async (selectedFile?: File) => {
-    track("Scan_lease_Clicked", { keyword: titleWord, persona });
+    trackTelemetry("Scan_lease_Clicked", { keyword: titleWord, persona });
     const fileToScan = selectedFile || file;
     if (!fileToScan) return;
     setLoading(true);
@@ -42,7 +53,7 @@ export default function ClauseClient({ titleWord, seoData }: { titleWord: string
     
     setLoading(false);
     setShowWaitlistModal(true);
-    track("Waitlist_Modal_Opened");
+    trackTelemetry("Waitlist_Modal_Opened", { keyword: titleWord, persona });
   };
 
   const htmlContent = seoData.deep_dive_html || seoData.deep_slide_html || "<p>Analysis unavailable.</p>";
@@ -313,7 +324,7 @@ export default function ClauseClient({ titleWord, seoData }: { titleWord: string
                   onSubmit={(e) => {
                     e.preventDefault();
                     setWaitlistSubmitted(true);
-                    track("Waitlist_Email_Submitted", { email: waitlistEmail });
+                    trackTelemetry("Waitlist_Email_Submitted", { email: waitlistEmail, keyword: titleWord, persona });
                   }}
                   className="space-y-4"
                 >
