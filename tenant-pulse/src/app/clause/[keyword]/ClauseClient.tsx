@@ -10,7 +10,7 @@ import Link from "next/link";
 const sourceSerif = Source_Serif_4({ subsets: ["latin"], weight: ["400", "600", "700"] });
 
 interface SeoData {
-  title?: string;
+  title?: string; clause?: string;
   gotcha_title: string;
   gotcha_text: string;
   fix_title: string;
