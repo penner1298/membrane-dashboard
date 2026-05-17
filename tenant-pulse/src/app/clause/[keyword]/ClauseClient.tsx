@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { sendGAEvent } from "@next/third-parties/google";
 import { Source_Serif_4 } from "next/font/google";
 import { ShieldAlert, Zap, FileText, Loader2, Lock, ChevronLeft, CheckCircle } from "lucide-react";
@@ -38,6 +38,21 @@ export default function ClauseClient({ titleWord, seoData }: { titleWord: string
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://lease-scanner-backend.onrender.com";
     fetch(`${apiUrl}/api/telemetry`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ event, metadata, project: 'Tenant Pulse' }), keepalive: true }).catch(() => {});
   };
+
+  useEffect(() => {
+    // Custom Pageview tracking
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://lease-scanner-backend.onrender.com";
+    fetch(`${apiUrl}/api/telemetry`, { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' }, 
+      body: JSON.stringify({ 
+        event: "Pageview", 
+        metadata: { path: window.location.pathname, search: window.location.search }, 
+        project: 'Tenant Pulse' 
+      }), 
+      keepalive: true 
+    }).catch(() => {});
+  }, []);
 
   const handleUpload = async (selectedFile?: File) => {
     trackTelemetry("Scan_lease_Clicked", { keyword: titleWord, persona });

@@ -124,6 +124,19 @@ export default function TenantPulse() {
          }
        }
     }
+
+    // Custom Pageview tracking
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://lease-scanner-backend.onrender.com";
+    fetch(`${apiUrl}/api/telemetry`, { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' }, 
+      body: JSON.stringify({ 
+        event: "Pageview", 
+        metadata: { path: window.location.pathname, search: window.location.search }, 
+        project: 'Tenant Pulse' 
+      }), 
+      keepalive: true 
+    }).catch(() => {});
   }, [isPro]);
 
   useEffect(() => {
