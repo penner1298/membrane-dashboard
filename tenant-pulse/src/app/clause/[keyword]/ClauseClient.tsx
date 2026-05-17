@@ -32,7 +32,8 @@ export default function ClauseClient({ titleWord, seoData }: { titleWord: string
   const [waitlistSubmitted, setWaitlistSubmitted] = useState(false);
 
   // Custom Telemetry wrapper
-  const trackTelemetry = (event: string, metadata?: Record<string, unknown>) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const trackTelemetry = (event: string, metadata?: any) => {
     track(event, metadata);
     fetch('/api/telemetry', {
       method: 'POST',
