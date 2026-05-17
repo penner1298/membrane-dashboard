@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/sitemap.xml",
+      "schedule": "10 8 * * *"
+    }
+  ]
+}
