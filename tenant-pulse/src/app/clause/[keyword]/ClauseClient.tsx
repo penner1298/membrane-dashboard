@@ -32,7 +32,7 @@ export default function ClauseClient({ titleWord, seoData }: { titleWord: string
   const [waitlistSubmitted, setWaitlistSubmitted] = useState(false);
 
   // Custom Telemetry wrapper
-  const trackTelemetry = (event: string, metadata?: any) => {
+  const trackTelemetry = (event: string, metadata?: Record<string, unknown>) => {
     track(event, metadata);
     fetch('/api/telemetry', {
       method: 'POST',
