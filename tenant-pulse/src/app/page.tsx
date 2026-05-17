@@ -132,7 +132,7 @@ export default function TenantPulse() {
       headers: { 'Content-Type': 'application/json' }, 
       body: JSON.stringify({ 
         event: "Pageview", 
-        metadata: { path: window.location.pathname, search: window.location.search }, 
+        metadata: { path: window.location.pathname, search: window.location.search, referrer: document.referrer }, 
         project: 'Tenant Pulse' 
       }), 
       keepalive: true 
