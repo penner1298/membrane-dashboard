@@ -3,6 +3,10 @@
     {
       "path": "/sitemap.xml",
       "schedule": "10 8 * * *"
+    },
+    {
+      "path": "/api/cron/telemetry",
+      "schedule": "0 8 * * *"
     }
   ]
 }
