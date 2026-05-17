@@ -128,8 +128,7 @@ export default function ClauseClient({ titleWord, seoData }: { titleWord: string
                 <h1 className="font-black text-[52px] md:text-[64px] leading-[1.05] tracking-[-0.04em] mb-8 text-[#0F172A]">
                     {seoData.clause ? (
                       <>
-                        Predatory
-                        <span className="text-emerald-500">{seoData.clause}</span> Clauses Exposed
+                        Predatory <span className="text-emerald-500">{seoData.clause}</span> Clauses Exposed
                       </>
                     ) : (
                       <>Instantly expose predatory <span className="text-emerald-500">{titleWord}</span> clauses.</>
