@@ -1,6 +1,9 @@
 import { notFound } from 'next/navigation';
 import fs from 'fs';
 import path from 'path';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import AccountabilityMatrix from './AccountabilityMatrix';
 
 export async function generateStaticParams() {
   const issuesPath = path.join(process.cwd(), 'src', 'data', 'issues.json');
@@ -32,10 +35,6 @@ export default async function IssuePage({ params }: { params: Promise<{ slug: st
   if (!issue) return notFound();
 
   let relatedIssues = issues.filter((i: any) => i.slug !== issue.slug).slice(0, 2);
-
-  // Split paragraphs and determine where to inject the image (roughly halfway)
-  const paragraphs = issue.content ? issue.content.split('\n\n') : [];
-  const midPoint = Math.floor(paragraphs.length / 2);
 
   return (
     <>
@@ -111,51 +110,31 @@ export default async function IssuePage({ params }: { params: Promise<{ slug: st
 
           {/* The "Fallout" Narrative */}
           <div className="prose prose-lg md:prose-xl prose-slate max-w-none font-display mb-20 leading-relaxed text-slate-700">
-              {paragraphs.map((paragraph: string, idx: number) => {
-                  
-                  // Render the paragraph or header
-                  let content;
-                  if (paragraph.startsWith('### ')) {
-                      content = (
-                          <h3 key={idx} className="font-serif text-3xl md:text-4xl font-black text-brand-navy mt-16 mb-6 tracking-tight leading-tight flex items-center gap-4">
-                              <span className="w-8 h-1 bg-brand-gold rounded-full flex-shrink-0"></span>
-                              {paragraph.replace('### ', '')}
-                          </h3>
-                      );
-                  } else if (paragraph.startsWith('## ')) {
-                      content = (
-                          <h2 key={idx} className="font-serif text-3xl md:text-4xl font-black text-brand-navy mt-16 mb-6 tracking-tight leading-tight flex items-center gap-4">
-                              {paragraph.replace('## ', '')}
-                          </h2>
-                      );
-                  } else {
-                      // Basic markdown parser for bold and links so the text renders correctly
-                      let html = paragraph;
-                      html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-                      html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" className="text-brand-red font-bold hover:underline">$1</a>');
-                      html = html.replace(/\*([^\*]+)\*/g, '<em>$1</em>');
-                      // Strip any remaining # headers if they leak through
-                      html = html.replace(/^#+\s/g, '');
-                      content = (
-                          <p key={idx} className="mb-6" dangerouslySetInnerHTML={{ __html: html }} />
-                      );
-                  }
+              <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                      h2: ({node, ...props}) => <h2 className="font-serif text-3xl md:text-4xl font-black text-brand-navy mt-16 mb-6 tracking-tight leading-tight flex items-center gap-4" {...props} />,
+                      h3: ({node, ...props}) => <h3 className="font-serif text-3xl md:text-4xl font-black text-brand-navy mt-16 mb-6 tracking-tight leading-tight flex items-center gap-4"><span className="w-8 h-1 bg-brand-gold rounded-full flex-shrink-0"></span>{props.children}</h3>,
+                      p: ({node, ...props}) => <p className="mb-6" {...props} />,
+                      a: ({node, ...props}) => <a className="text-brand-red font-bold hover:underline break-words" target="_blank" rel="noopener noreferrer" {...props} />,
+                      strong: ({node, ...props}) => <strong className="font-bold text-slate-900" {...props} />,
+                      blockquote: ({node, ...props}) => (
+                          <blockquote className="my-8 border-l-4 border-brand-gold pl-6 py-2 bg-slate-50 italic text-brand-navy rounded-r-lg font-serif">
+                              {props.children}
+                          </blockquote>
+                      ),
+                  }}
+              >
+                  {issue.content}
+              </ReactMarkdown>
 
-                  // If this is the mid-point, inject the secondary image directly below this paragraph
-                  if (idx === midPoint && issue.inline_image_url) {
-                      return (
-                          <div key={`wrapper-${idx}`}>
-                              {content}
-                              <div className="my-16 w-full rounded-[2rem] overflow-hidden shadow-skeuo-card border-[6px] border-white relative tilt-card">
-                                  <div className="absolute inset-0 bg-brand-navy/10 mix-blend-multiply z-10 pointer-events-none"></div>
-                                  <img src={issue.inline_image_url} alt="Legislative Work" className="w-full h-auto max-h-[500px] object-cover object-center relative z-0" />
-                              </div>
-                          </div>
-                      );
-                  }
-
-                  return content;
-              })}
+              {/* Inline image if available */}
+              {issue.inline_image_url && (
+                  <div className="my-16 w-full rounded-[2rem] overflow-hidden shadow-skeuo-card border-[6px] border-white relative tilt-card">
+                      <div className="absolute inset-0 bg-brand-navy/10 mix-blend-multiply z-10 pointer-events-none"></div>
+                      <img src={issue.inline_image_url} alt="Legislative Work" className="w-full h-auto max-h-[500px] object-cover object-center relative z-0" />
+                  </div>
+              )}
           </div>
 
           {/* The Micro-Targeted Hard Catch (Donation) */}
@@ -205,6 +184,9 @@ export default async function IssuePage({ params }: { params: Promise<{ slug: st
             </div>
         </section>
       )}
+
+      {/* Accountability Matrix Injection */}
+      <AccountabilityMatrix />
 
       {/* Embedded Newsletter Opt-In (From Index) */}
       <section className="px-6 py-24 relative z-10 bg-brand-navy/5 border-t border-brand-navy/10">
