@@ -1,0 +1,115 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
+  --font-display: var(--font-display);
+
+  --color-brand-navy: #1B365D;
+  --color-brand-red: #C1332E;
+  --color-brand-gold: #B58E3F;
+  --color-brand-mist: #F4F7F6;
+
+  --shadow-skeuo-btn: inset 0 1px 1px rgba(255, 255, 255, 0.4), inset 0 -2px 4px rgba(0, 0, 0, 0.2), 0 10px 20px -5px rgba(27, 54, 93, 0.3);
+  --shadow-skeuo-btn-hover: inset 0 1px 1px rgba(255, 255, 255, 0.6), inset 0 -2px 4px rgba(0, 0, 0, 0.1), 0 15px 25px -5px rgba(27, 54, 93, 0.4);
+  --shadow-skeuo-card: inset 0 1px 1px rgba(255,255,255,0.7), 0 20px 40px -15px rgba(27, 54, 93, 0.15);
+  --shadow-glow-gold: 0 0 25px rgba(181, 142, 63, 0.5);
+  --shadow-glow-navy: 0 15px 35px rgba(27, 54, 93, 0.4);
+  --shadow-glow-red: 0 15px 35px rgba(193, 51, 46, 0.4);
+}
+
+body {
+    background-color: #F4F7F6;
+    background-image: radial-gradient(circle at 0% 0%, rgba(27, 54, 93, 0.05), transparent 60%),
+                      radial-gradient(circle at 100% 100%, rgba(193, 51, 46, 0.04), transparent 60%);
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Ambient Noise for texture */
+.noise-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    pointer-events: none; z-index: 9999; opacity: 0.03;
+    background-image: url('data:image/svg+xml,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noiseFilter"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23noiseFilter)"/%3E%3C/svg%3E');
+}
+
+/* High-end Frosted Glassmorphism */
+.glass-nav {
+    background-color: rgba(244, 247, 246, 0.7);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.02);
+}
+
+.glass-panel {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.4) 100%);
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    border-radius: 2rem;
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.8), 0 30px 60px -20px rgba(27, 54, 93, 0.15);
+}
+
+/* 3D Tilt Hover States */
+.tilt-card {
+    transition: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transform-style: preserve-3d;
+    transform: perspective(1000px) rotateX(0) rotateY(0) scale(1);
+}
+.tilt-card:hover {
+    transform: perspective(1000px) rotateX(4deg) rotateY(-4deg) scale(1.02);
+    box-shadow: inset 0 1px 1px rgba(255,255,255,0.9), 0 40px 80px -20px rgba(27, 54, 93, 0.25);
+    border-color: rgba(255, 255, 255, 1);
+}
+
+.tilt-btn {
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transform-style: preserve-3d;
+}
+.tilt-btn:hover {
+    transform: perspective(800px) translateY(-3px) rotateX(5deg);
+}
+
+/* Tactile Skeuomorphic Gradients */
+.btn-skeuo-navy {
+    background: linear-gradient(135deg, #2A4A7A 0%, #1B365D 100%);
+    text-shadow: 0 -1px 1px rgba(0,0,0,0.4);
+}
+.btn-skeuo-red {
+    background: linear-gradient(135deg, #D64540 0%, #C1332E 100%);
+    text-shadow: 0 -1px 1px rgba(0,0,0,0.4);
+}
+.btn-skeuo-gold {
+    background: linear-gradient(135deg, #CBA458 0%, #B58E3F 100%);
+    text-shadow: 0 1px 1px rgba(255,255,255,0.3);
+    color: #1B365D !important;
+}
+
+/* Breaking the Grid: Geometric shapes & offsets */
+.bg-shape-1 {
+    position: absolute; width: 600px; height: 600px;
+    background: linear-gradient(135deg, rgba(181, 142, 63, 0.1) 0%, transparent 100%);
+    border-radius: 50%; top: -200px; right: -100px; filter: blur(60px); z-index: -1;
+}
+.bg-shape-2 {
+    position: absolute; width: 800px; height: 800px;
+    background: linear-gradient(135deg, rgba(27, 54, 93, 0.05) 0%, transparent 100%);
+    border-radius: 50%; bottom: -300px; left: -200px; filter: blur(80px); z-index: -1;
+}
+
+.overlap-up {
+    margin-top: -120px;
+    position: relative;
+    z-index: 20;
+}
+
+.sign-logo-container {
+    display: flex; flex-direction: column; align-items: flex-start;
+}
+.sign-line {
+    width: 100%; height: 2px; background: linear-gradient(90deg, #B58E3F, #d4a953); margin: 4px 0; border-radius: 2px;
+}
