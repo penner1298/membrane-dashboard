@@ -181,7 +181,7 @@ export default async function IssuePage({ params }: { params: Promise<{ slug: st
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {relatedIssues.map((relIssue, idx) => (
+                    {relatedIssues.map((relIssue: any, idx: number) => (
                         <a 
                             key={idx} 
                             href={`/issues/${relIssue.slug}`} 
