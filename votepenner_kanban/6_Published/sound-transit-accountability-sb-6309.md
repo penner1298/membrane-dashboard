@@ -1,6 +1,6 @@
 **Intended Video:** https://www.youtube.com/watch?v=hy74_BSegoU
 **Intended Hero Image:** /images/leg_photos/joshua_speaking_into_microphone.jpg
-**Inline Image:** /images/leg_photos/joshua_at_desk_papers.jpg
+**Inline Image:** /images/leg_photos/joshua_conferring_at_desk.jpg
 **Anchor Quote:** > This is government for the government, by the government.
 **Matrix Pillar:** Sound Transit Accountability
 **Timeline:** Already Published
