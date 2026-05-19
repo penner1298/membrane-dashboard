@@ -1,5 +1,5 @@
 **Intended Video:** https://www.youtube.com/watch?v=fqG-Y6USxg4
-**Intended Hero Image:** /images/leg_photos/joshua_reviewing_papers_legislature.jpg
+**Intended Hero Image:** /images/leg_photos/joshua_reviewing_papers_w-travis-legislature.jpg
 **Inline Image:** /images/leg_photos/joshua_speaking_into_microphone.jpg
 **Anchor Quote:** > There has been some conversation about whether 50 children died in the last year or 90 children died. It doesn't matter if it's 50 or 90. We should be crawling out of our skin if it's one.
 **Matrix Pillar:** Infant Fentanyl Crisis & Safety

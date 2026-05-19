@@ -1,5 +1,5 @@
 **Intended Video:** https://www.youtube.com/watch?v=MpKqOdHDUw4
-**Intended Hero Image:** /images/leg_photos/joshua_reviewing_papers_legislature.jpg
+**Intended Hero Image:** /images/leg_photos/joshua_reviewing_papers_w-travis-legislature.jpg
 **Inline Image:** /images/leg_photos/joshua_group_photo.jpg
 **Anchor Quote:** > Mr. Speaker, hot air, like tyranny, will expand to the container it fills.
 **Matrix Pillar:** Stopping Executive Overreach

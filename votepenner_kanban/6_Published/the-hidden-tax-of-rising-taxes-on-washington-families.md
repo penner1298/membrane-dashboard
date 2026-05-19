@@ -1,5 +1,4 @@
-**Intended Video:** 
-https://www.youtube.com/watch?v=OhTLHzT3u_A
+**Intended Video:** https://www.youtube.com/watch?v=OhTLHzT3u_A
 **Intended Hero Image:** /images/leg_photos/joshua_penner_speaking_chamber.jpg
 **Inline Image:** /images/leg_photos/joshua_penner_speaking_chamber.jpg
 **Anchor Quote:** > We are not doing more for less. This state does less for more, and that scares me.
