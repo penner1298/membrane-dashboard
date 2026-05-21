@@ -1,0 +1,26 @@
+# Ignore personal workspace directories
+votepenner.com/
+votepenner_kanban/
+tenant-pulse/
+inputs/
+weaver/
+
+# Ignore personal agent configurations
+AGENTS.md
+IDENTITY.md
+LESSONS.md
+SOUL.md
+TACTICS.md
+BOOTSTRAP.md
+
+# Ignore large DBs and uncompiled data
+*.db
+*.sqlite
+*.log
+*.csv
+
+# Ignore local environment
+.env
+__pycache__/
+node_modules/
+.next/
