@@ -5,7 +5,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts';
 import { 
-  ShieldAlert, Activity, Terminal, Layers, Zap, Trophy, Database, Server, Key, DollarSign, ActivityIcon, FileText
+  ShieldAlert, Activity, Terminal, Layers, Zap, Trophy, Database, Server, Key, DollarSign, ActivityIcon, FileText, Loader2, Target
 } from "lucide-react";
 
 export function AdminClient({ stats }: { stats: any }) {

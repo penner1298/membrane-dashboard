@@ -3,57 +3,44 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
-import { SignUpButton, useAuth } from "@clerk/nextjs";
 
 export function FinalCTASection() {
-  const { isSignedIn } = useAuth();
-
   return (
-    <section className="py-24 border-t border-gray-200 bg-gray-50/50">
+    <section className="py-24 border-t border-slate-800 bg-slate-900 text-white">
       <div className="max-w-4xl px-6 mx-auto text-center">
-        <h2 className="mb-6 text-4xl font-bold tracking-tight text-gray-900 md:text-5xl">
-          Ready to scale your AI?
+        <h2 className="mb-6 text-4xl font-bold tracking-tight text-white md:text-5xl">
+          Scale Your Autonomous Swarms Today
         </h2>
-        <p className="mb-10 text-lg text-gray-500">
-          Join hundreds of developers building faster, cheaper, and more reliable AI agents.
+        <p className="mb-10 text-lg text-slate-400">
+          Deploy the Membrane local container or orchestrate your staging environment in under 5 minutes.
         </p>
         
         <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
+          <Button size="lg" className="w-full bg-emerald-600 hover:bg-emerald-500 text-white sm:w-auto h-12 px-8" asChild>
+            <Link href="/dashboard" className="flex items-center justify-center">
+              Launch Sandbox Console <ArrowRight className="w-4 h-4 ml-2" />
+            </Link>
+          </Button>
           
-          {!isSignedIn ? (
-            <SignUpButton forceRedirectUrl="/dashboard" asChild>
-              <Button size="lg" className="w-full bg-green-600 text-white hover:bg-green-700 sm:w-auto h-12 px-8">
-                {/* 👇 The protective span saves the app from crashing! */}
-                <span className="flex items-center justify-center">
-                  Get Started <ArrowRight className="w-4 h-4 ml-2" />
-                </span>
-              </Button>
-            </SignUpButton>
-          ) : (
-            <Button size="lg" className="w-full bg-green-600 text-white hover:bg-green-700 sm:w-auto h-12 px-8" asChild>
-              <Link href="/dashboard" className="flex items-center justify-center">
-                Go to Dashboard <ArrowRight className="w-4 h-4 ml-2" />
-              </Link>
-            </Button>
-          )}
-          
-          <Button size="lg" variant="outline" className="w-full sm:w-auto h-12 px-8" asChild>
-            <Link href="/docs">View Documentation</Link>
+          <Button size="lg" variant="outline" className="w-full sm:w-auto h-12 px-8 border-slate-700 bg-slate-800 hover:bg-slate-700 text-white" asChild>
+            <a href="https://polar.sh/penner1298" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2">
+              Sponsor on Polar <span className="text-emerald-400">★</span>
+            </a>
           </Button>
         </div>
 
-        <div className="flex flex-col items-center justify-center gap-6 mt-10 sm:flex-row text-sm text-gray-500">
+        <div className="flex flex-col items-center justify-center gap-6 mt-12 sm:flex-row text-sm text-slate-400">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-green-600" />
-            <span>$50 credit included</span>
+            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+            <span>Zero-dependency local setup</span>
           </div>
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-green-600" />
-            <span>5-minute setup</span>
+            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+            <span>Cryptographic handoff enforcer</span>
           </div>
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-green-600" />
-            <span>Cancel anytime</span>
+            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+            <span>Developer-first sponsorware model</span>
           </div>
         </div>
       </div>

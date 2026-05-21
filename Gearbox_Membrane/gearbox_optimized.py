@@ -11,7 +11,7 @@ import subprocess
 import tempfile
 import shutil
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Security, Query, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Security, Query, BackgroundTasks, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
@@ -61,6 +61,7 @@ async def lifespan(app: FastAPI):
                     await conn.execute("CREATE EXTENSION IF NOT EXISTS vector;")
                 except Exception as e:
                     print(f"⚠️ Warning: Could not create pgvector extension: {e}")
+
 
                 await conn.execute("""
                 CREATE TABLE IF NOT EXISTS tenants (

@@ -1,105 +1,75 @@
-# Membrane API: The Self-Correcting LLM Router
+# Membrane Guard: Open-Source Inter-Agent Protocol
 
-Membrane is a high-speed, agent-agnostic routing layer that sits between your application and frontier AI models. 
+Membrane Guard is a high-speed, self-healing routing layer that sits between your application and frontier AI models. Designed as a **Lossless Inter-Agent Protocol**, it acts as the "Cloudflare for AI Swarms" by stripping conversational hallucination bloat and strictly enforcing JSON schema compliance at sub-2ms cache latencies.
 
-By dropping in our Base URL, you instantly cut your API costs by up to 99% via our Semantic Caching engine, while our proprietary execution loop guarantees your chatbots stay reliable and hallucination-free.
+We have officially transitioned from a closed-source SaaS to a fully **Open-Source / Sponsorware** model. You can now deploy Membrane locally, or host your own edge proxy, while supporting development through our Polar.sh tiers.
 
 ---
 
-## ⚡️ Quick Start: The Standard API Drop-In
+## ⚡️ Quick Start: Deploying Your Local Sandbox
 
-Membrane utilizes the industry-standard JSON chat schema (often referred to as the OpenAI format). Integration takes seconds—just point your existing code to our endpoint.
+Membrane is designed to run locally right alongside your AI swarm or Next.js applications.
 
-*   **Base URL:** `https://membrane-api.com/v1`
-*   **Authentication:** `Authorization: Bearer [Your_Membrane_API_Key]`
-*   **Model:** Leave blank, or pass any string. *(Membrane intercepts all requests and dynamically routes them through our internal infrastructure to guarantee performance and cost-efficiency. Requested model names are ignored.)*
+### 1. Start the Proxy Server
+The fastest way to spin up Membrane Guard is using our portable, self-healing container:
+
+```bash
+docker run -d -p 8000:8000 penner1298/membrane-guard
+```
+
+Or, run the flagship core server directly via Python:
+
+```bash
+pip install -r requirements.txt
+python3 gearbox_optimized.py
+```
+
+Membrane will automatically self-heal and provision local database structures or fall back to high-fidelity mock telemetry if a database isn't present, guaranteeing a zero-friction developer experience.
+
+### 2. Point Your Agents to Localhost
+Membrane utilizes the industry-standard JSON chat schema (OpenAI format). Integration takes seconds—just point your existing code to your local endpoint.
+
+*   **Base URL:** `http://localhost:8000/v1`
+*   **Authentication:** `Authorization: Bearer [Any_String_To_Track_Tenant]`
+*   **Model:** `membrane-engagement-layer` (Or any string; Membrane routes dynamically)
 
 **Example (Python):**
-
 ```python
 import os
 from openai import OpenAI
 
 client = OpenAI(
-    base_url="https://membrane-api.com/v1",
-    api_key=os.environ.get("MEMBRANE_API_KEY"),
+    base_url="http://localhost:8000/v1",
+    api_key="tenant_local_dev_1",
 )
 
 chat_completion = client.chat.completions.create(
-    messages=[
-        {
-            "role": "user",
-            "content": "Generate a Python script for programmatic SEO.",
-        }
-    ],
+    messages=[{"role": "user", "content": "Generate a Python script."}],
     model="membrane-engagement-layer",
 )
-
-# Access your real-time savings data injected by Membrane
-metadata = chat_completion.model_dump().get("membrane_metadata", {})
-print(f"Billed: ${metadata.get('billed_amount')} | Saved: {metadata.get('savings_percent')}%")
 ```
 
 ---
 
-## 🛡️ Core Features: Why Membrane is Different
+## 💎 Sponsorware & Community Support
 
-Membrane isn't just a dumb pipe or a basic cache. It is an active cognitive firewall for your application.
+Membrane Guard is free and open-source. If you are building high-growth production systems or simply want to support the protocol, please consider funding development via our **Polar.sh Sponsor Tiers**:
+
+*   **Community ($15/mo):** Perfect for solo devs. Earn a sponsor badge on GitHub and access our private Discord.
+*   **Pro / Startup ($99/mo):** Designed for high-growth teams. Priority issue triage, custom multi-tenant proxy templates, and monthly swarm calls.
+*   **Enterprise ($999/mo):** For production systems. Guaranteed 24h SLAs, custom threat firewall rules, and a dedicated engineer Slack channel.
+
+👉 **[Sponsor Membrane on Polar.sh](https://polar.sh/penner1298)**
+
+---
+
+## 🛡️ Core Architecture
 
 ### 1. The Zero-Shot Isolation Protocol (Anti-Hallucination)
-Most AI platforms suffer from "cascading hallucinations" where a model gets confused by a long, messy chat history. Membrane solves this by acting as a precise semantic filter: it strictly preserves your Agent DNA (system rules) while ruthlessly destroying Conversational Memory (history bloat). When you send a standard `messages` array through the `/v1` endpoint, Membrane extracts your `system` instructions, fuses them with the final `user` intent, and executes a clean, zero-shot generation. Your bots always wake up knowing exactly who they are and what rules to follow, but operate in a stateless vacuum to guarantee high-fidelity outputs.
+Membrane solves "cascading hallucinations" by acting as a precise semantic filter: it strictly preserves your Agent DNA (system rules) while ruthlessly destroying Conversational Memory (history bloat). When you send a standard `messages` array, Membrane extracts your instructions, fuses them with the final intent, and executes a clean, zero-shot generation. 
 
-### 2. Self-Correcting Execution
-If an underlying model generates a refusal (e.g., "As an AI, I cannot..."), hallucinates a schema, or misses requested code blocks, Membrane intercepts the failure in milliseconds. Our heuristic engine learns from the failure and automatically escalates the request to a more capable reasoning model, ensuring your users never see a broken response. 
+### 2. Sub-2ms Semantic Edge Caching
+Membrane features a high-performance vector caching engine (powered by `pgvector`). If a swarm agent asks a semantically identical or exact-match question, Membrane bypasses LLM reasoning entirely, returning the answer in roughly 1.24ms. 
 
-### 3. Dynamic Arbitrage Pricing
-Membrane doesn't charge a flat subscription. We price dynamically based on computational load. 
-*   If your request hits our cache, you pay fractions of a cent. 
-*   If your request requires full frontier reasoning, our dynamic arbitrage engine ensures you **never pay more** than the standard wholesale cost of top-tier models. 
-*   *You only ever access discounts.* Your savings are injected directly into every API response payload via the `membrane_metadata` object.
-
----
-
-## 🧠 The Cache Engine: Privacy by Default
-
-Membrane features a dual-tier semantic caching engine.
-
-### L2 Silo Cache (Absolute Privacy - Default)
-*   All requests routed through the standard `/v1/chat/completions` drop-in default to your private L2 Cache. 
-*   If a user asks a question semantically similar to one *you* have asked before, Membrane retrieves it instantly. Your data never leaves your private namespace.
-
-### L1 Global Cache (The Hive-Mind - Opt-In)
-*   For massive savings, you can opt-in to the public L1 Global Cache. 
-*   ⚠️ **SECURITY WARNING:** Never opt-in to the Global Cache when processing PII or proprietary code.
-*   *Note: Opting into the Global Cache requires using the Native Membrane API.*
-
----
-
-## 🛠️ Advanced: The Native Membrane API
-
-If you need programmatic control over caching behavior or require strict JSON schema enforcement, use our Native API endpoint.
-
-**Endpoint:**
-`POST https://membrane-api.com/api/chat`
-
-**Headers:**
-`Authorization: Bearer [Your_Membrane_API_Key]`
-
-**JSON Payload Schema:**
-
-| Parameter | Type | Description |
-| :--- | :--- | :--- |
-| `prompt` | string | **(Required)** The core instruction you want processed. |
-| `use_global_cache` | boolean | **Defaults to `false`.** Set to `true` to access the subsidized L1 Global Cache. |
-| `response_format` | JSON object| **(Optional)** Provide a strict JSON Schema to force structured data output. |
-
-**Success Response (200 OK):**
-```json
-{
-  "receipt_id": "md5_hash_string",
-  "answer": "Silicon paths glow...",
-  "status": "L1_GLOBAL_CACHE",
-  "billed_amount": 0.0001,
-  "savings_percent": 99.8
-}
-```
+### 3. Strict Schema Enforcement (React Components)
+Membrane features a built-in Typescript AST compiler task runner. When agents generate React or Next.js components, Membrane will automatically verify compilation syntax in a secure local sandbox before letting the response hit your main frontend application. 

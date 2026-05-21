@@ -7,9 +7,6 @@ import uvicorn
 import asyncio
 import time
 import random
-import subprocess
-import tempfile
-import shutil
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Security, Query, BackgroundTasks
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -67,7 +64,7 @@ async def lifespan(app: FastAPI):
                     id SERIAL PRIMARY KEY,
                     api_key_hash VARCHAR(255) UNIQUE NOT NULL,
                     balance NUMERIC(10, 4) DEFAULT 0.0000,
-                    tenant_id VARCHAR(255) UNIQUE,
+                    clerk_user_id VARCHAR(255) UNIQUE,
                     referral_code VARCHAR(50) UNIQUE,
                     has_redeemed_ref BOOLEAN DEFAULT FALSE,
                     has_paid BOOLEAN DEFAULT FALSE,
@@ -79,7 +76,7 @@ async def lifespan(app: FastAPI):
                 await conn.execute("""
                 CREATE TABLE IF NOT EXISTS api_logs (
                     id SERIAL PRIMARY KEY,
-                    tenant_id VARCHAR(255),
+                    clerk_user_id VARCHAR(255) NOT NULL,
                     endpoint VARCHAR(255) NOT NULL,
                     tokens INTEGER NOT NULL,
                     cost DECIMAL(10, 4) NOT NULL,
@@ -130,20 +127,18 @@ async def lifespan(app: FastAPI):
                 CREATE INDEX IF NOT EXISTS idx_aversive_hash ON aversive_memory(prompt_hash);
                 """)
 
+                # --- PHASE 1: COGNITIVE TELEMETRY (SHADOW MODE) ---
+                # This table stores the results of the 8B Senescent Node timeout test
+                # cross-referenced against the actual success/failure of the Canary model.
                 await conn.execute("""
                 CREATE TABLE IF NOT EXISTS shadow_telemetry (
                     id SERIAL PRIMARY KEY,
-                    receipt_id VARCHAR(255) UNIQUE,
+                    receipt_id VARCHAR(255),
                     ttfb FLOAT,
                     died BOOLEAN,
                     flash_failed BOOLEAN DEFAULT FALSE,
-                    prompt_hash VARCHAR(255),
-                    prompt_embedding VECTOR(768),
                     created_at TIMESTAMPTZ DEFAULT NOW()
                 );
-                CREATE INDEX IF NOT EXISTS idx_telemetry_receipt ON shadow_telemetry(receipt_id);
-                CREATE INDEX IF NOT EXISTS idx_telemetry_embedding
-                ON shadow_telemetry USING hnsw (prompt_embedding vector_cosine_ops);
                 """)
 
             print("✅ Database connected. Multi-Tenant Ledger initialized.")
@@ -170,28 +165,25 @@ async def verify_access(credentials: HTTPAuthorizationCredentials = Security(sec
         return hashed_key
 
     async with db_pool.acquire() as conn:
-        tenant = await conn.fetchrow("SELECT balance, tenant_id FROM tenants WHERE api_key_hash = $1", hashed_key)
+        tenant = await conn.fetchrow("SELECT balance FROM tenants WHERE api_key_hash = $1", hashed_key)
         if not tenant:
             # Auto-provision a default local developer tenant with a $1,000.00 mock balance
             print(f"🆕 Auto-provisioning tenant for API key hash: {hashed_key[:8]}... with $1000.00 balance.")
             try:
                 new_ref_code = f"REF-{hashlib.md5(hashed_key.encode()).hexdigest()[:6].upper()}"
                 await conn.execute(
-                    "INSERT INTO tenants (api_key_hash, balance, tenant_id, referral_code, has_paid) VALUES ($1, 1000.0000, $2, $3, TRUE) ON CONFLICT (api_key_hash) DO NOTHING",
+                    "INSERT INTO tenants (api_key_hash, balance, clerk_user_id, referral_code, has_paid) VALUES ($1, 1000.0000, $2, $3, TRUE) ON CONFLICT (api_key_hash) DO NOTHING",
                     hashed_key, "local_dev", new_ref_code
                 )
-                tenant = await conn.fetchrow("SELECT balance, tenant_id FROM tenants WHERE api_key_hash = $1", hashed_key)
+                tenant = await conn.fetchrow("SELECT balance FROM tenants WHERE api_key_hash = $1", hashed_key)
             except Exception as e:
                 print(f"⚠️ Failed to auto-provision tenant: {e}")
-                raise HTTPException(status_code=401, detail="Invalid API Key. Tenant not found and auto-provision failed.")
-        
+
+        if not tenant:
+            raise HTTPException(status_code=401, detail="Invalid API Key. Tenant not found.")
         if tenant['balance'] <= 0:
-            # Refill automatic local dev accounts so developers don't get blocked
-            if tenant.get('tenant_id') == 'local_dev' or api_key == "local_dev_key":
-                await conn.execute("UPDATE tenants SET balance = 1000.0000 WHERE api_key_hash = $1", hashed_key)
-                print(f"🔄 Auto-refilled exhausted local dev balance to $1000.00.")
-            else:
-                raise HTTPException(status_code=402, detail=f"Insufficient Credits (Balance: ${tenant['balance']:.4f}). Please top up.")
+            raise HTTPException(status_code=402, detail=f"Insufficient Credits (Balance: ${tenant['balance']:.4f}). Please top up.")
+            
     return hashed_key
 
 class ChatRequest(BaseModel):
@@ -239,78 +231,42 @@ async def get_embedding(text: str) -> Optional[list[float]]:
         return res.data[0]['embedding']
     except Exception: return None
 
-async def check_semantic_cache(prompt: str, schema: Optional[dict], api_key_hash: str, is_global: bool, conn=None) -> tuple[Optional[str], Optional[list[float]]]:
-    if not db_pool: return None, None
-    schema_json = json.dumps(schema) if schema else None
-    
-    # 1. LIGHTNING FAST EXACT MATCH LOOKUP (Saves embedding API call completely)
-    async def run_exact_lookup(c):
-        if is_global:
-            return await c.fetchrow("SELECT cached_response FROM semantic_cache WHERE prompt_text = $1 AND requested_schema = $2 AND is_global = TRUE AND created_at > NOW() - INTERVAL '7 days' LIMIT 1", prompt, schema_json)
-        else:
-            return await c.fetchrow("SELECT cached_response FROM semantic_cache WHERE prompt_text = $1 AND requested_schema = $2 AND is_global = FALSE AND api_key_hash = $3 AND created_at > NOW() - INTERVAL '7 days' LIMIT 1", prompt, schema_json, api_key_hash)
-
-    try:
-        if conn:
-            row = await run_exact_lookup(conn)
-        else:
-            async with db_pool.acquire() as connection:
-                row = await run_exact_lookup(connection)
-        if row:
-            return row['cached_response'], None  # Exact match: return early, no embedding vector needed!
-    except Exception: pass
-
-    # 2. SEMANTIC SEARCH FALLBACK (Only called if exact match fails)
+async def check_semantic_cache(prompt: str, schema: Optional[dict], api_key_hash: str, is_global: bool) -> Optional[str]:
+    if not db_pool: return None
+    if random.random() < 0.10: return None
     prompt_vector = await get_embedding(prompt)
-    if not prompt_vector: return None, None
-
-    async def run_semantic_lookup(c):
-        if is_global:
-            return await c.fetchrow("SELECT cached_response FROM semantic_cache WHERE requested_schema = $1 AND embedding <=> $2::vector < 0.12 AND is_global = TRUE AND created_at > NOW() - INTERVAL '7 days' ORDER BY embedding <=> $2::vector ASC LIMIT 1", schema_json, prompt_vector)
-        else:
-            return await c.fetchrow("SELECT cached_response FROM semantic_cache WHERE requested_schema = $1 AND embedding <=> $2::vector < 0.12 AND is_global = FALSE AND api_key_hash = $3 AND created_at > NOW() - INTERVAL '7 days' ORDER BY embedding <=> $2::vector ASC LIMIT 1", schema_json, prompt_vector, api_key_hash)
-
-    try:
-        if conn:
-            row = await run_semantic_lookup(conn)
-        else:
-            async with db_pool.acquire() as connection:
-                row = await run_semantic_lookup(connection)
-        if row: return row['cached_response'], prompt_vector
-    except Exception: pass
-
-    return None, prompt_vector
-
-async def save_to_semantic_cache(prompt: str, schema: Optional[dict], answer: str, api_key_hash: str, is_global: bool, prompt_vector: Optional[list[float]] = None):
-    if not db_pool: return
-    embedding = prompt_vector if prompt_vector is not None else await get_embedding(prompt)
-    if not embedding: return
+    if not prompt_vector: return None
     schema_json = json.dumps(schema) if schema else None
     try:
         async with db_pool.acquire() as conn:
-            await conn.execute("INSERT INTO semantic_cache (prompt_text, requested_schema, embedding, cached_response, api_key_hash, is_global) VALUES ($1, $2, $3, $4, $5, $6)", prompt, schema_json, embedding, answer, api_key_hash, is_global)
+            if is_global:
+                row = await conn.fetchrow("SELECT cached_response FROM semantic_cache WHERE requested_schema = $1 AND embedding <=> $2::vector < 0.12 AND is_global = TRUE AND created_at > NOW() - INTERVAL '7 days' ORDER BY embedding <=> $2::vector ASC LIMIT 1", schema_json, prompt_vector)
+            else:
+                row = await conn.fetchrow("SELECT cached_response FROM semantic_cache WHERE requested_schema = $1 AND embedding <=> $2::vector < 0.12 AND is_global = FALSE AND api_key_hash = $3 AND created_at > NOW() - INTERVAL '7 days' ORDER BY embedding <=> $2::vector ASC LIMIT 1", schema_json, prompt_vector, api_key_hash)
+            if row: return row['cached_response']
+    except Exception: pass
+    return None
+
+async def save_to_semantic_cache(prompt: str, schema: Optional[dict], answer: str, api_key_hash: str, is_global: bool):
+    if not db_pool: return
+    prompt_vector = await get_embedding(prompt)
+    if not prompt_vector: return
+    schema_json = json.dumps(schema) if schema else None
+    try:
+        async with db_pool.acquire() as conn:
+            await conn.execute("INSERT INTO semantic_cache (prompt_text, requested_schema, embedding, cached_response, api_key_hash, is_global) VALUES ($1, $2, $3, $4, $5, $6)", prompt, schema_json, prompt_vector, answer, api_key_hash, is_global)
     except Exception: pass
 
-async def get_aversive_warnings(prompt_hash: str, api_key_hash: str, is_global: bool, conn=None) -> str:
+async def get_aversive_warnings(prompt_hash: str, api_key_hash: str, is_global: bool) -> str:
     if not db_pool: return ""
-    
-    async def run_query(c):
-        if is_global: 
-            return await c.fetch("SELECT bad_output, reason FROM aversive_memory WHERE prompt_hash = $1 AND is_global = TRUE ORDER BY created_at DESC LIMIT 3", prompt_hash)
-        else: 
-            return await c.fetch("SELECT bad_output, reason FROM aversive_memory WHERE prompt_hash = $1 AND api_key_hash = $2 AND is_global = FALSE ORDER BY created_at DESC LIMIT 3", prompt_hash, api_key_hash)
-
     try:
-        if conn:
-            rows = await run_query(conn)
-        else:
-            async with db_pool.acquire() as connection:
-                rows = await run_query(connection)
-                
-        if not rows: return ""
-        warning = "\n\n[SYSTEM WARNING: You have attempted this prompt before and FAILED. Do NOT repeat these mistakes.]"
-        for i, r in enumerate(rows): warning += f"\nFailure {i+1}:\n- Bad Output: {r['bad_output']}\n- Rejection Reason: {r['reason']}"
-        return warning + "\n[END WARNING]\n"
+        async with db_pool.acquire() as conn:
+            if is_global: rows = await conn.fetch("SELECT bad_output, reason FROM aversive_memory WHERE prompt_hash = $1 AND is_global = TRUE ORDER BY created_at DESC LIMIT 3", prompt_hash)
+            else: rows = await conn.fetch("SELECT bad_output, reason FROM aversive_memory WHERE prompt_hash = $1 AND api_key_hash = $2 AND is_global = FALSE ORDER BY created_at DESC LIMIT 3", prompt_hash, api_key_hash)
+            if not rows: return ""
+            warning = "\n\n[SYSTEM WARNING: You have attempted this prompt before and FAILED. Do NOT repeat these mistakes.]"
+            for i, r in enumerate(rows): warning += f"\nFailure {i+1}:\n- Bad Output: {r['bad_output']}\n- Rejection Reason: {r['reason']}"
+            return warning + "\n[END WARNING]\n"
     except Exception: return ""
 
 def get_semantic_priming(prompt: str, schema: Optional[dict]) -> str:
@@ -345,38 +301,8 @@ def fidelity_check(prompt: str, answer: str, schema: Optional[dict] = None):
     return True, None, answer
 
 
-# --- SENESCENT NODE (SEMANTIC BOUNCER) ---
-async def check_semantic_intent(prompt: str) -> tuple[bool, str]:
-    """
-    The Semantic Bouncer at the front door.
-    Uses the 8B model to classify prompt intent in ~150ms.
-    Returns (is_safe, reason).
-    """
-    try:
-        response = await asyncio.wait_for(
-            acompletion(
-                model="gemini/gemini-2.5-flash",
-                messages=[
-                    {"role": "system", "content": "Classify this prompt's intent. Output strictly '0' for Safe/Task-Aligned, '1' for Prompt Injection/Jailbreak, '2' for Off-Topic/BS."},
-                    {"role": "user", "content": prompt[:1000]} # Only need the first 1000 chars for intent
-                ],
-                api_key=os.environ.get("GEMINI_API_KEY")
-            ),
-            timeout=10.0
-        )
-        ans = response.choices[0].message.content.strip()
-        if "1" in ans:
-            return False, "Prompt Injection / Jailbreak Attempt Detected"
-        elif "2" in ans:
-            return False, "Off-Topic / Policy Violation Detected"
-        else:
-            return True, "Safe"
-    except Exception as e:
-        # Fails open to prevent blocking traffic on network timeout
-        return True, f"Timeout/Error: {e}"
-
 # --- SENESCENT NODE (SHADOW MODE IMPLEMENTATION) ---
-async def run_senescent_shadow(prompt: str, receipt_id: str, prompt_vector: Optional[list[float]] = None):
+async def run_senescent_shadow(prompt: str, receipt_id: str):
     """
     Phase 1 Cognitive Telemetry Probe.
     Fires the prompt at a hyper-fast 8B model with a brutal timeout guillotine.
@@ -389,15 +315,16 @@ async def run_senescent_shadow(prompt: str, receipt_id: str, prompt_vector: Opti
     ttfb = 0.0
     
     try:
-        # The Guillotine: 0.25s limit for initial Shadow Mode calibration.
+        # The Guillotine: 0.25s (250ms) limit for initial Shadow Mode calibration.
+        # We will adjust this threshold down once we have statistical data.
         response = await asyncio.wait_for(
             acompletion(
-                model="gemini/gemini-2.5-flash",
+                model="gemini/gemini-1.5-flash-8b",
                 messages=[
                     {"role": "system", "content": "Reply '1' if complex logic/coding, '0' if simple extraction."},
                     {"role": "user", "content": prompt}
                 ],
-                stream=True,
+                stream=True, # We stream so we can measure Time-To-First-Token accurately
                 api_key=os.environ.get("GEMINI_API_KEY")
             ),
             timeout=0.25
@@ -408,27 +335,17 @@ async def run_senescent_shadow(prompt: str, receipt_id: str, prompt_vector: Opti
             break 
             
     except (asyncio.TimeoutError, Exception):
-        # The node choked on complexity and hit the guillotine limit.
+        # The node choked on the complexity and hit the guillotine limit.
         died = True
         ttfb = time.time() - start_time
 
-    # Generate Vectorial Fingerprint for Zero-Retention Telemetry
-    prompt_hash = hashlib.sha256(prompt.encode()).hexdigest()
-    embedding = prompt_vector if prompt_vector is not None else await get_embedding(prompt)
-
-    # Silently log the telemetry outcome to the database without raw prompt text.
+    # Silently log the telemetry outcome to the database.
     try:
         async with db_pool.acquire() as conn:
-            if embedding:
-                await conn.execute(
-                    "INSERT INTO shadow_telemetry (receipt_id, ttfb, died, prompt_hash, prompt_embedding) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (receipt_id) DO NOTHING",
-                    receipt_id, ttfb, died, prompt_hash, str(embedding)
-                )
-            else:
-                await conn.execute(
-                    "INSERT INTO shadow_telemetry (receipt_id, ttfb, died, prompt_hash) VALUES ($1, $2, $3, $4) ON CONFLICT (receipt_id) DO NOTHING",
-                    receipt_id, ttfb, died, prompt_hash
-                )
+            await conn.execute(
+                "INSERT INTO shadow_telemetry (receipt_id, ttfb, died) VALUES ($1, $2, $3)",
+                receipt_id, ttfb, died
+            )
     except Exception as e:
         print(f"Shadow Telemetry DB Error: {e}")
 
@@ -440,7 +357,13 @@ async def mark_shadow_flash_failed(receipt_id: str):
     if not db_pool: return
     try:
         async with db_pool.acquire() as conn:
+            # We use an UPDATE because run_senescent_shadow might have already INSERTed the row, 
+            # or it might still be running. We use UPSERT logic just in case.
             await conn.execute("""
+                INSERT INTO shadow_telemetry (receipt_id, flash_failed) 
+                VALUES ($1, TRUE) 
+                ON CONFLICT (id) DO NOTHING; -- Fallback, though we usually update
+                
                 UPDATE shadow_telemetry SET flash_failed = TRUE WHERE receipt_id = $1;
             """, receipt_id)
     except Exception: pass
@@ -448,64 +371,24 @@ async def mark_shadow_flash_failed(receipt_id: str):
 
 # 3. 🚀 THE TOLL BOOTH: Async Ledger Deduction & Logging
 async def charge_and_log_api(api_key_hash: str, retail_cost: float, wholesale_cost: float, endpoint: str, tokens: int, savings: float = 0.0):
-    if not db_pool: return
+    if not db_pool or retail_cost <= 0: return
     try:
         async with db_pool.acquire() as conn:
-            tenant = await conn.fetchrow("SELECT tenant_id FROM tenants WHERE api_key_hash = $1", api_key_hash)
-            tenant_id = tenant['tenant_id'] if tenant and tenant['tenant_id'] else "local_dev"
+            tenant = await conn.fetchrow("SELECT clerk_user_id FROM tenants WHERE api_key_hash = $1", api_key_hash)
+            clerk_user_id = tenant['clerk_user_id'] if tenant and tenant['clerk_user_id'] else "unknown_system_user"
 
             async with conn.transaction():
-                if tenant_id != "local_dev" and retail_cost > 0:
-                    await conn.execute(
-                        "UPDATE tenants SET balance = balance - $1, total_saved = COALESCE(total_saved, 0) + $2 WHERE api_key_hash = $3",
-                        retail_cost, savings, api_key_hash
-                    )
-                elif tenant_id == "local_dev":
-                    await conn.execute(
-                        "UPDATE tenants SET total_saved = COALESCE(total_saved, 0) + $1 WHERE api_key_hash = $2",
-                        savings, api_key_hash
-                    )
+                await conn.execute(
+                    "UPDATE tenants SET balance = balance - $1, total_saved = COALESCE(total_saved, 0) + $2 WHERE api_key_hash = $3",
+                    retail_cost, savings, api_key_hash
+                )
 
                 await conn.execute(
-                    "INSERT INTO api_logs (tenant_id, endpoint, tokens, cost, wholesale_cost, savings) VALUES ($1, $2, $3, $4, $5, $6)",
-                    tenant_id, endpoint, tokens, retail_cost, wholesale_cost, savings
+                    "INSERT INTO api_logs (clerk_user_id, endpoint, tokens, cost, wholesale_cost, savings) VALUES ($1, $2, $3, $4, $5, $6)",
+                    clerk_user_id, endpoint, tokens, retail_cost, wholesale_cost, savings
                 )
     except Exception as e:
         print(f"🚨 Failed to charge and log for {api_key_hash}: {e}")
-
-async def charge_and_log_api_batch(api_key_hash: str, logs: List[Dict[str, Any]]):
-    """
-    Batches balance deductions and log insertions in a single transaction
-    to eliminate database row lock contention on the tenants table.
-    """
-    if not db_pool or not logs: return
-    total_retail = sum(log['retail_cost'] for log in logs)
-    total_savings = sum(log['savings'] for log in logs)
-    
-    try:
-        async with db_pool.acquire() as conn:
-            tenant = await conn.fetchrow("SELECT tenant_id FROM tenants WHERE api_key_hash = $1", api_key_hash)
-            tenant_id = tenant['tenant_id'] if tenant and tenant['tenant_id'] else "local_dev"
-
-            async with conn.transaction():
-                if tenant_id != "local_dev" and total_retail > 0:
-                    await conn.execute(
-                        "UPDATE tenants SET balance = balance - $1, total_saved = COALESCE(total_saved, 0) + $2 WHERE api_key_hash = $3",
-                        total_retail, total_savings, api_key_hash
-                    )
-                elif tenant_id == "local_dev":
-                    await conn.execute(
-                        "UPDATE tenants SET total_saved = COALESCE(total_saved, 0) + $1 WHERE api_key_hash = $2",
-                        total_savings, api_key_hash
-                    )
-                
-                # Highly optimized PostgreSQL batch inserts using asyncpg
-                await conn.executemany(
-                    "INSERT INTO api_logs (tenant_id, endpoint, tokens, cost, wholesale_cost, savings) VALUES ($1, $2, $3, $4, $5, $6)",
-                    [(tenant_id, log['endpoint'], log['tokens'], log['retail_cost'], log['wholesale_cost'], log['savings']) for log in logs]
-                )
-    except Exception as e:
-        print(f"🚨 Failed to batch charge and log for {api_key_hash}: {e}")
 
 async def log_to_dlq(api_key_hash: str, prompt: str, schema: Optional[dict], failed_output: str, error_msg: str):
     if not db_pool: return
@@ -518,50 +401,23 @@ async def log_to_dlq(api_key_hash: str, prompt: str, schema: Optional[dict], fai
 @app.get("/")
 async def health_check(): return {"status": "Membrane Swarm API is Live.", "db_connected": db_pool is not None}
 
-@app.get("/api/swarm-ledger")
-async def get_swarm_ledger():
-    try:
-        if os.path.exists("swarm_ledger.json") and os.path.getsize("swarm_ledger.json") > 0:
-            with open("swarm_ledger.json", "r") as f:
-                return json.load(f)
-    except Exception:
-        pass
-    
-    return [
-        {
-            "timestamp": "2026-05-07T00:00:00",
-            "requesting_agent": "System",
-            "target_agent": "Ledger",
-            "task": "Boot Sequence",
-            "policy": "Genesis",
-            "status": "Complete",
-            "proof_of_work": "0x0000"
-        }
-    ]
-
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks, api_key_hash: str = Security(verify_access)):
     scope_identifier = "GLOBAL_HIVE" if request.use_global_cache else api_key_hash
     req_hash = hashlib.md5((scope_identifier + request.prompt + str(request.response_format)).encode()).hexdigest()
     
+    # --- PHASE 1: SENESCENT NODE SHADOW MODE ---
+    # Fire the cognitive density probe asynchronously. 
+    # This measures prompt difficulty in the background without blocking the live request.
+    background_tasks.add_task(run_senescent_shadow, request.prompt, req_hash)
+
     # 3-Tier Dynamic Pricing Enforcement for Cache
     applied_cache_fee = L1_CACHE_FEE if request.use_global_cache else L2_CACHE_FEE
     cache_status_label = "L1_GLOBAL_CACHE" if request.use_global_cache else "L2_SILO_CACHE"
 
-    # Robust memory-safe L1 Cache LRU Cleanup
-    MAX_L1_CACHE_SIZE = 10000
-    L1_CACHE_TTL = 300 # 5 minutes (extended from 60 seconds)
-    
-    if len(l1_memory_cache) > MAX_L1_CACHE_SIZE:
-        keys_to_del = [k for k, v in l1_memory_cache.items() if time.time() - v["timestamp"] > L1_CACHE_TTL]
-        for k in keys_to_del: del l1_memory_cache[k]
-        if len(l1_memory_cache) > MAX_L1_CACHE_SIZE:
-            keys = list(l1_memory_cache.keys())
-            for k in keys[:len(keys)//5]: del l1_memory_cache[k]
-
     if req_hash in active_requests:
         await active_requests[req_hash].wait()
-        if req_hash in l1_memory_cache and time.time() - l1_memory_cache[req_hash]["timestamp"] < L1_CACHE_TTL:
+        if req_hash in l1_memory_cache and time.time() - l1_memory_cache[req_hash]["timestamp"] < 60:
             background_tasks.add_task(charge_and_log_api, api_key_hash, applied_cache_fee, 0.0, f"/api/chat ({cache_status_label})", 0)
             return ChatResponse(receipt_id=req_hash, answer=l1_memory_cache[req_hash]["answer"], route_used="L1_MEMORY_CACHE", status="CACHE HIT", total_tokens=0, hypothetical_pro_cost=0.0, billed_amount=applied_cache_fee, savings_percent=100.0)
 
@@ -569,40 +425,19 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
 
     try:
         if req_hash in l1_memory_cache:
-            if time.time() - l1_memory_cache[req_hash]["timestamp"] < L1_CACHE_TTL:
+            if time.time() - l1_memory_cache[req_hash]["timestamp"] < 60:
                 background_tasks.add_task(charge_and_log_api, api_key_hash, applied_cache_fee, 0.0, f"/api/chat ({cache_status_label})", 0)
                 return ChatResponse(receipt_id=req_hash, answer=l1_memory_cache[req_hash]["answer"], route_used="L1_MEMORY_CACHE", status="CACHE HIT", total_tokens=0, hypothetical_pro_cost=0.0, billed_amount=applied_cache_fee, savings_percent=100.0)
             else: del l1_memory_cache[req_hash]
 
-        prompt_vector = None
-        
-        # Acquire connection ONCE for entire request lifecycle if db is connected
-        if db_pool:
-            async with db_pool.acquire() as conn:
-                cached_answer, prompt_vector = await check_semantic_cache(request.prompt, request.response_format, api_key_hash, request.use_global_cache, conn=conn)
-                if cached_answer:
-                    l1_memory_cache[req_hash] = {"answer": cached_answer, "timestamp": time.time()}
-                    background_tasks.add_task(charge_and_log_api, api_key_hash, applied_cache_fee, 0.0, f"/api/chat ({cache_status_label})", 0)
-                    return ChatResponse(receipt_id=req_hash, answer=cached_answer, route_used="SEMANTIC_CACHE", status="CACHE HIT", total_tokens=0, hypothetical_pro_cost=0.0, billed_amount=applied_cache_fee, savings_percent=100.0)
-
-                # Fetch warnings using the active connection
-                system_warnings = await get_aversive_warnings(req_hash, api_key_hash, request.use_global_cache, conn=conn)
-        else:
-            cached_answer, prompt_vector = await check_semantic_cache(request.prompt, request.response_format, api_key_hash, request.use_global_cache)
-            if cached_answer:
-                l1_memory_cache[req_hash] = {"answer": cached_answer, "timestamp": time.time()}
-                background_tasks.add_task(charge_and_log_api, api_key_hash, applied_cache_fee, 0.0, f"/api/chat ({cache_status_label})", 0)
-                return ChatResponse(receipt_id=req_hash, answer=cached_answer, route_used="SEMANTIC_CACHE", status="CACHE HIT", total_tokens=0, hypothetical_pro_cost=0.0, billed_amount=applied_cache_fee, savings_percent=100.0)
-            system_warnings = ""
-
-        # --- PHASE 1: SENESCENT NODE SHADOW MODE ---
-        background_tasks.add_task(run_senescent_shadow, request.prompt, req_hash, prompt_vector)
-
-        # --- THE PARALLEL RACE: Start the Semantic Bouncer asynchronously ---
-        bouncer_task = asyncio.create_task(check_semantic_intent(request.prompt))
+        cached_answer = await check_semantic_cache(request.prompt, request.response_format, api_key_hash, request.use_global_cache)
+        if cached_answer:
+            l1_memory_cache[req_hash] = {"answer": cached_answer, "timestamp": time.time()}
+            background_tasks.add_task(charge_and_log_api, api_key_hash, applied_cache_fee, 0.0, f"/api/chat ({cache_status_label})", 0)
+            return ChatResponse(receipt_id=req_hash, answer=cached_answer, route_used="SEMANTIC_CACHE", status="CACHE HIT", total_tokens=0, hypothetical_pro_cost=0.0, billed_amount=applied_cache_fee, savings_percent=100.0)
 
         system_instruction = get_semantic_priming(request.prompt, request.response_format)
-        system_instruction += system_warnings
+        system_instruction += await get_aversive_warnings(req_hash, api_key_hash, request.use_global_cache)
 
         litellm_kwargs = {}
         if request.response_format:
@@ -614,28 +449,7 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
         for model, status_label, temp in [(CANARY_MODEL, "SURFACE_ENGAGEMENT", None), (APEX_MODEL, "DEEP_COGNITION", None), (APEX_MODEL, "HEURISTIC_RECOVERY", 0.0)]:
             try:
                 if temp is not None: litellm_kwargs["temperature"] = temp
-                
-                # --- PARALLEL RACE EXECUTION ---
-                llm_task = asyncio.create_task(acompletion(model=model, messages=messages, api_key=os.environ.get("GEMINI_API_KEY"), **litellm_kwargs))
-                
-                if bouncer_task.done():
-                    is_safe, reject_reason = bouncer_task.result()
-                    if not is_safe:
-                        llm_task.cancel()
-                        background_tasks.add_task(log_to_dlq, api_key_hash, request.prompt, request.response_format, "REJECTED_BY_BOUNCER", reject_reason)
-                        raise HTTPException(status_code=400, detail=f"Membrane Policy Violation: {reject_reason}")
-                else:
-                    done, pending = await asyncio.wait([llm_task, bouncer_task], return_when=asyncio.FIRST_COMPLETED)
-                    if bouncer_task in done:
-                        is_safe, reject_reason = bouncer_task.result()
-                        if not is_safe:
-                            llm_task.cancel()
-                            background_tasks.add_task(log_to_dlq, api_key_hash, request.prompt, request.response_format, "REJECTED_BY_BOUNCER", reject_reason)
-                            raise HTTPException(status_code=400, detail=f"Membrane Policy Violation: {reject_reason}")
-                
-                res = await llm_task
-                # --- END PARALLEL RACE ---
-
+                res = await acompletion(model=model, messages=messages, api_key=os.environ.get("GEMINI_API_KEY"), **litellm_kwargs)
                 ans = res.choices[0].message.content
                 in_tok, out_tok = res.usage.prompt_tokens, res.usage.completion_tokens
 
@@ -648,7 +462,7 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
                 dynamic_markup = random.uniform(1.7, 2.3)
                 retail_cost = min(actual_cost * dynamic_markup, hypo_cost)
                 
-                # Base floor price protects margins against zero-cost hits, using active cache tier fee as a floor
+                # Base floor price protects margins against zero-cost hits, using the active cache tier fee as a floor
                 retail_cost = max(retail_cost, applied_cache_fee)
 
                 savings_dollars = max(0, hypo_cost - retail_cost)
@@ -657,7 +471,7 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
                 display_route = "Membrane-Engagement-Layer"
 
                 l1_memory_cache[req_hash] = {"answer": clean_ans, "timestamp": time.time()}
-                background_tasks.add_task(save_to_semantic_cache, request.prompt, request.response_format, clean_ans, api_key_hash, request.use_global_cache, prompt_vector)
+                background_tasks.add_task(save_to_semantic_cache, request.prompt, request.response_format, clean_ans, api_key_hash, request.use_global_cache)
 
                 background_tasks.add_task(charge_and_log_api, api_key_hash, retail_cost, actual_cost, f"/api/chat ({status_label})", in_tok + out_tok, savings_dollars)
 
@@ -672,18 +486,18 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
                     savings_percent=round(savings, 1)
                 )
 
-            except HTTPException:
-                raise  # Bubble up WAF rejections immediately, do not trigger failover!
             except Exception as e:
                 if status_label == "HEURISTIC_RECOVERY":
                     await log_to_dlq(api_key_hash, request.prompt, request.response_format, ans, str(e))
                     raise HTTPException(status_code=422, detail={"error_type": "schema_validation_failure", "message": str(e), "failed_output": ans})
                 
-                # Canary fidelity failure signals Shadow Mode ground truth
+                # --- SHADOW MODE GROUND TRUTH LOGGING ---
+                # If the Canary model fails the fidelity check, we log it. 
+                # This proves whether the Senescent Node was right to 'die'.
                 if model == CANARY_MODEL:
                     background_tasks.add_task(mark_shadow_flash_failed, req_hash)
 
-                print(f"🦅 Model {model} Failed ({e}). Shifting to APEX...")
+                print(f"🦅 Model {model} Failed ({e}). Shifting...")
                 
         raise HTTPException(status_code=502, detail="All upstream models failed to process the request.")
 
@@ -745,6 +559,8 @@ async def get_balance(api_key_hash: str = Security(verify_access)):
     except Exception:
         return {"balance": 1000.00}
 
+from fastapi import Request
+
 @app.get("/v1/models")
 async def openai_compatible_models():
     """
@@ -780,114 +596,6 @@ class SwarmMapResponse(BaseModel):
     total_chunks_processed: int
     failed_chunks: int
 
-# --- CRYPTOGRAPHIC STATE MACHINE ---
-class ProofOfWorkRequest(BaseModel):
-    agent_id: str
-    task_type: str # e.g., "python_code", "json_schema", "react_component"
-    payload: str
-    target_agent_id: str
-
-class ProofOfWorkResponse(BaseModel):
-    verified: bool
-    membrane_signature: Optional[str] = None
-    error_log: Optional[str] = None
-
-@app.post("/v1/swarm/state", response_model=ProofOfWorkResponse)
-async def verify_state_machine(request: ProofOfWorkRequest, api_key_hash: str = Security(verify_access)):
-    """
-    Immutable Middle-Manager. Verifies agent work mechanically before allowing handoff.
-    Fully self-healing for cloud environments (Render) with dynamic fallback compiler checks.
-    """
-    if request.task_type == "python_code":
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as temp_script:
-            temp_script.write(request.payload)
-            temp_path = temp_script.name
-        try:
-            result = subprocess.run(["python3", "-m", "py_compile", temp_path], capture_output=True, text=True, timeout=5)
-            if result.returncode == 0:
-                payload_hash = hashlib.sha256(request.payload.encode()).hexdigest()
-                signature = f"MEMBRANE_VERIFIED_{payload_hash[:16]}"
-                return ProofOfWorkResponse(verified=True, membrane_signature=signature)
-            else:
-                return ProofOfWorkResponse(verified=False, error_log=result.stderr)
-        finally:
-            os.remove(temp_path)
-
-    elif request.task_type == "react_component":
-        # Dynamic path resolution to resolve hardcoded directory typos safely
-        workspace_dir = os.environ.get("MEMBRANE_WORKSPACE_DIR")
-        if not workspace_dir or not os.path.isdir(workspace_dir):
-            # Fallback checks
-            for path in [
-                "/Users/thejoshuapenner/.openclaw/workspace/contract-scanner-demo",
-                os.path.join(os.path.expanduser("~"), ".openclaw/workspace/contract-scanner-demo"),
-                "./contract-scanner-demo",
-                "./workspace"
-            ]:
-                if os.path.isdir(path):
-                    workspace_dir = path
-                    break
-
-        if workspace_dir:
-            file_name = f"temp_component_{int(time.time())}.tsx"
-            file_path = os.path.join(workspace_dir, "src/app", file_name)
-            os.makedirs(os.path.dirname(file_path), exist_ok=True)
-            
-            with open(file_path, "w") as f:
-                f.write(request.payload)
-                
-            try:
-                # Check if typescript compiler tools exist in local shell
-                if shutil.which("npx"):
-                    result = subprocess.run(
-                        ["npx", "tsc", "--noEmit", "--skipLibCheck", "--jsx", "preserve", file_path],
-                        cwd=workspace_dir,
-                        capture_output=True, text=True, timeout=15
-                    )
-                    
-                    if result.returncode == 0:
-                        payload_hash = hashlib.sha256(request.payload.encode()).hexdigest()
-                        signature = f"MEMBRANE_VERIFIED_{payload_hash[:16]}"
-                        if os.path.exists(file_path): os.remove(file_path)
-                        
-                        # Overwrite active destination if code compiles successfully
-                        dest_path = os.path.join(workspace_dir, "src/app/pricing/page.tsx")
-                        os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-                        with open(dest_path, "w") as f_dest:
-                            f_dest.write(request.payload)
-                            
-                        return ProofOfWorkResponse(verified=True, membrane_signature=signature)
-                    else:
-                        if os.path.exists(file_path): os.remove(file_path)
-                        return ProofOfWorkResponse(verified=False, error_log=result.stdout + result.stderr)
-                else:
-                    raise FileNotFoundError("npx compiler runner not found on system path")
-            except Exception as e:
-                if os.path.exists(file_path): os.remove(file_path)
-                print(f"⚠️ Workspace compiler error: {e}. Falling back to lightweight parsing...")
-        
-        # CLOUD CONTAINER / SANDBOX FALLBACK: Lightweight syntactic parsing
-        try:
-            payload = request.payload
-            has_export = "export default" in payload
-            has_return = "return" in payload
-            brace_diff = abs(payload.count("{") - payload.count("}"))
-            
-            if has_export and has_return and brace_diff < 5:
-                payload_hash = hashlib.sha256(payload.encode()).hexdigest()
-                signature = f"MEMBRANE_VERIFIED_MOCK_{payload_hash[:16]}"
-                return ProofOfWorkResponse(verified=True, membrane_signature=signature)
-            else:
-                errors = []
-                if not has_export: errors.append("Missing 'export default' component signature.")
-                if not has_return: errors.append("Missing component JSX 'return' block.")
-                if brace_diff >= 5: errors.append(f"Mismatched curly braces detected (unbalanced count: {brace_diff}).")
-                return ProofOfWorkResponse(verified=False, error_log="\n".join(errors))
-        except Exception as ex:
-            return ProofOfWorkResponse(verified=False, error_log=f"Lightweight parser failed: {ex}")
-
-    return ProofOfWorkResponse(verified=False, error_log="Unsupported task type.")
-
 @app.post("/v1/swarm/map", response_model=SwarmMapResponse)
 async def swarm_map(request: SwarmMapRequest, background_tasks: BackgroundTasks, api_key_hash: str = Security(verify_access)):
     """
@@ -900,6 +608,7 @@ async def swarm_map(request: SwarmMapRequest, background_tasks: BackgroundTasks,
     if len(request.chunks) > 50:
         raise HTTPException(status_code=400, detail="Max 50 chunks per request")
 
+    # Force route to Flash for speed/cost on small chunks
     mapped_model = CANARY_MODEL
 
     async def process_chunk(chunk: str, chunk_index: int, sem: asyncio.Semaphore):
@@ -918,32 +627,34 @@ async def swarm_map(request: SwarmMapRequest, background_tasks: BackgroundTasks,
                     api_key=os.environ.get("GEMINI_API_KEY")
                 )
                 
+                # Calculate cost and trigger background billing
                 in_tok = response.usage.prompt_tokens
                 out_tok = response.usage.completion_tokens
                 actual_cost = calc_cost(mapped_model, in_tok, out_tok, response)
-                retail_cost = actual_cost * MARKUP_MULTIPLIER
+                retail_cost = actual_cost * MARKUP_MULTIPLIER # 2x markup for swarm processing
+
+                background_tasks.add_task(
+                    charge_and_log_api,
+                    api_key_hash,
+                    retail_cost,
+                    actual_cost,
+                    "/v1/swarm/map",
+                    in_tok + out_tok,
+                    0.0 # Swarm doesn't track hypothetical savings right now
+                )
 
                 content = response.choices[0].message.content
+                # Strip markdown code blocks if present
                 if content.startswith("```json"): content = content[7:-3]
                 elif content.startswith("```"): content = content[3:-3]
                 
                 parsed_json = json.loads(content)
-                return {
-                    "index": chunk_index,
-                    "data": parsed_json,
-                    "error": None,
-                    "billing": {
-                        "retail_cost": retail_cost,
-                        "wholesale_cost": actual_cost,
-                        "endpoint": "/v1/swarm/map",
-                        "tokens": in_tok + out_tok,
-                        "savings": 0.0
-                    }
-                }
+                return {"index": chunk_index, "data": parsed_json, "error": None}
             except Exception as e:
                 print(f"Swarm chunk {chunk_index} failed: {e}")
-                return {"index": chunk_index, "data": None, "error": str(e), "billing": None}
+                return {"index": chunk_index, "data": None, "error": str(e)}
 
+    # Limit concurrency to avoid triggering underlying provider rate limits instantly
     semaphore = asyncio.Semaphore(request.max_concurrency)
     
     tasks = [process_chunk(chunk, i, semaphore) for i, chunk in enumerate(request.chunks)]
@@ -951,6 +662,8 @@ async def swarm_map(request: SwarmMapRequest, background_tasks: BackgroundTasks,
     
     merged_output = []
     failed = 0
+    
+    # Re-order results based on original index to maintain structural integrity
     results.sort(key=lambda x: x["index"])
     
     for res in results:
@@ -959,20 +672,19 @@ async def swarm_map(request: SwarmMapRequest, background_tasks: BackgroundTasks,
             continue
         
         data = res["data"]
+        # Intelligently merge: If the JSON returned an array as the root key (e.g. {"clauses": [...]})
+        # Extract the items and flatten them into our merged output list.
         if isinstance(data, dict):
+            # Find the first key that is a list (e.g., 'clauses', 'entities')
             list_keys = [k for k, v in data.items() if isinstance(v, list)]
             if list_keys:
+                # Merge the contents of the primary list
                 primary_key = list_keys[0]
                 merged_output.extend(data[primary_key])
             else:
                 merged_output.append(data)
         elif isinstance(data, list):
             merged_output.extend(data)
-
-    # Queue a single batch deduction transaction instead of N concurrent individual updates!
-    billing_logs = [res["billing"] for res in results if res.get("billing") is not None]
-    if billing_logs:
-        background_tasks.add_task(charge_and_log_api_batch, api_key_hash, billing_logs)
 
     return SwarmMapResponse(
         merged_results=merged_output,
@@ -988,22 +700,27 @@ async def openai_compatible_endpoint(request: Request, background_tasks: Backgro
     system_instructions = ""
     last_user_prompt = ""
 
+    # 1. Extract the Agent DNA (System Rules/TACTICS.md)
     for msg in messages:
         if msg.get("role") == "system":
             system_instructions += msg.get("content", "") + "\n\n"
 
+    # 2. Extract ONLY the immediate task (Zero-Shot Isolation)
     for msg in reversed(messages):
         if msg.get("role") == "user":
             last_user_prompt = msg.get("content", "")
             break
 
+    # 3. Fuse them into the single payload sent to Membrane's core
     prompt = system_instructions + last_user_prompt
+
     response_format = body.get("response_format")
 
+    # 4. Translate it into a Membrane request
     internal_req = ChatRequest(
         prompt=prompt,
         response_format=response_format,
-        use_global_cache=False
+        use_global_cache=False # FIXED: Defaults to False for absolute L2 Silo privacy!
     )
 
     res = await chat_endpoint(internal_req, background_tasks, api_key_hash)

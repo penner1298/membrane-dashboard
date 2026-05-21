@@ -1,4 +1,3 @@
-import { ClerkProvider } from '@clerk/nextjs'
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -14,18 +13,18 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Membrane | The Intelligent AI Routing Layer",
-  description: "Membrane is a drop-in API proxy that uses cognitive telemetry to instantly route your prompts to the cheapest model capable of solving them. Reduce LLM costs by 90% without sacrificing reasoning quality.",
-  keywords: "LLM routing, AI proxy, OpenAI alternative, Gemini proxy, reduce API costs, LLM load balancer, cognitive telemetry",
+  title: "Membrane | The Lossless Inter-Agent Protocol",
+  description: "Membrane is a drop-in inter-agent routing layer and guard sandbox that uses semantic caching and structural validation to securely scale autonomous swarms.",
+  keywords: "LLM routing, inter-agent protocol, A2A proxy, semantic caching, agent sandbox, agent-to-agent communication",
   openGraph: {
-    title: "Membrane | The Intelligent AI Routing Layer",
-    description: "Membrane is a drop-in API proxy that uses cognitive telemetry to instantly route your prompts to the cheapest model capable of solving them.",
+    title: "Membrane | The Lossless Inter-Agent Protocol",
+    description: "Membrane is a drop-in inter-agent routing layer and guard sandbox that uses semantic caching and structural validation to securely scale autonomous swarms.",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Membrane | The Intelligent AI Routing Layer",
-    description: "Membrane is a drop-in API proxy that uses cognitive telemetry to instantly route your prompts to the cheapest model capable of solving them.",
+    title: "Membrane | The Lossless Inter-Agent Protocol",
+    description: "Membrane is a drop-in inter-agent routing layer and guard sandbox that uses semantic caching and structural validation to securely scale autonomous swarms.",
   }
 };
 
@@ -35,12 +34,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
-      <html lang="en">
-        <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-          {children}
-        </body>
-      </html>
-    </ClerkProvider>
+    <html lang="en">
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        {children}
+      </body>
+    </html>
   );
 }

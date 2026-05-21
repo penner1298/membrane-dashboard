@@ -1,29 +1,13 @@
-import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
 
-// 🚨 THE VIP LIST: These routes bypass the login screen completely
-const isPublicRoute = createRouteMatcher([
-  '/', 
-  '/sign-in(.*)',
-  '/sign-up(.*)',
-  '/api/webhook/stripe(.*)',
-  '/llms.txt',
-  '/openapi.json',
-  '/docs(.*)',
-  '/v1(.*)' // <-- Added the Membrane API Gateway tunnel
-]);
-
-// 👇 Notice the 'async' here and 'await' below!
-export default clerkMiddleware(async (auth, request) => {
-  if (!isPublicRoute(request)) {
-    await auth.protect(); 
-  }
-});
+export function middleware(request: NextRequest) {
+  return NextResponse.next();
+}
 
 export const config = {
   matcher: [
-    // Skip Next.js internals and all static files, unless found in search params
     '/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
-    // Always run for API routes
     '/(api|trpc)(.*)',
   ],
 };
