@@ -29,9 +29,3 @@ __pycache__/
 node_modules/
 .next/
 
-# Ignore backend and docker assets (kept locally as untracked files)
-/server.py
-/requirements.txt
-/Dockerfile
-/MEMBRANE_README.md
-/MEMBRANE_SWARM_PROTOCOL.md
