@@ -23,7 +23,7 @@ export function FinalCTASection() {
           </Button>
           
           <Button size="lg" variant="outline" className="w-full sm:w-auto h-12 px-8 border-slate-700 bg-slate-800 hover:bg-slate-700 text-white" asChild>
-            <a href="https://polar.sh/penner1298" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2">
+            <a href="https://buy.polar.sh/polar_cl_xD35VJkFTyba3qNO9q8D5WZ8pemoyiMxVsEyp3xAnbu" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2">
               Sponsor on Polar <span className="text-emerald-400">★</span>
             </a>
           </Button>

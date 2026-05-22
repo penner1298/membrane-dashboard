@@ -59,7 +59,7 @@ Membrane Guard is free and open-source. If you are building high-growth producti
 *   **Pro / Startup ($99/mo):** Designed for high-growth teams. Priority issue triage, custom multi-tenant proxy templates, and monthly swarm calls.
 *   **Enterprise ($999/mo):** For production systems. Guaranteed 24h SLAs, custom threat firewall rules, and a dedicated engineer Slack channel.
 
-👉 **[Sponsor Membrane on Polar.sh](https://polar.sh/penner1298)**
+👉 **[Sponsor Membrane on Polar.sh](https://buy.polar.sh/polar_cl_xD35VJkFTyba3qNO9q8D5WZ8pemoyiMxVsEyp3xAnbu)**
 
 ---
 

@@ -202,7 +202,7 @@ export default async function DashboardPage() {
             <Link href="/docs" className="text-sm font-medium text-slate-400 hover:text-white transition-colors hidden sm:block">Documentation</Link>
             
             <a 
-              href="https://github.com/penner1298/membrane-guard" 
+              href="https://github.com/penner1298/membrane-dashboard" 
               target="_blank" 
               rel="noopener noreferrer" 
               className="text-sm font-semibold text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1 bg-emerald-950/40 border border-emerald-900/40 px-3 py-1.5 rounded-lg"
@@ -538,7 +538,7 @@ export default async function DashboardPage() {
                   </li>
                 </ul>
                 <a 
-                  href="https://polar.sh/penner1298" 
+                  href="https://buy.polar.sh/polar_cl_sd2R0oDefz1RGb00zi086hJjQfOFgVeyjyuec05FOQt" 
                   target="_blank" 
                   rel="noopener noreferrer" 
                   className="w-full inline-flex items-center justify-center gap-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-850 py-2 rounded-lg text-xs font-bold text-slate-300 hover:text-white transition-all"
@@ -575,7 +575,7 @@ export default async function DashboardPage() {
                   </li>
                 </ul>
                 <a 
-                  href="https://polar.sh/penner1298" 
+                  href="https://buy.polar.sh/polar_cl_xD35VJkFTyba3qNO9q8D5WZ8pemoyiMxVsEyp3xAnbu" 
                   target="_blank" 
                   rel="noopener noreferrer" 
                   className="w-full inline-flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 py-2 rounded-lg text-xs font-extrabold text-white transition-all shadow-[0_0_15px_rgba(16,185,129,0.2)]"
@@ -609,7 +609,7 @@ export default async function DashboardPage() {
                   </li>
                 </ul>
                 <a 
-                  href="https://polar.sh/penner1298" 
+                  href="https://buy.polar.sh/polar_cl_LKpkBrNYcX2lgohT03KoRmWCldRk6TRP2XqnJ1bx7hd" 
                   target="_blank" 
                   rel="noopener noreferrer" 
                   className="w-full inline-flex items-center justify-center gap-1.5 bg-slate-900 border border-slate-800 hover:bg-slate-850 py-2 rounded-lg text-xs font-bold text-slate-300 hover:text-white transition-all"
