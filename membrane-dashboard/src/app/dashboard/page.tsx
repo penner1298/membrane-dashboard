@@ -202,7 +202,7 @@ export default async function DashboardPage() {
             <Link href="/docs" className="text-sm font-medium text-slate-400 hover:text-white transition-colors hidden sm:block">Documentation</Link>
             
             <a 
-              href="https://github.com/penner1298/membrane-dashboard" 
+              href="https://github.com/thejoshuapenner/membrane-dashboard" 
               target="_blank" 
               rel="noopener noreferrer" 
               className="text-sm font-semibold text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1 bg-emerald-950/40 border border-emerald-900/40 px-3 py-1.5 rounded-lg"
@@ -623,7 +623,7 @@ export default async function DashboardPage() {
             <div className="bg-slate-900/40 rounded-xl p-5 border border-slate-850 text-center">
                <p className="text-xs text-slate-400 mb-2">Running a high-traffic production swarm?</p>
                <a 
-                 href="https://github.com/penner1298/membrane-dashboard/issues" 
+                 href="https://github.com/thejoshuapenner/membrane-dashboard/issues" 
                  target="_blank" 
                  rel="noopener noreferrer" 
                  className="text-xs font-bold text-emerald-400 hover:text-emerald-300 flex items-center justify-center gap-1.5 transition-colors"
