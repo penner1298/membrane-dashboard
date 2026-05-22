@@ -34,24 +34,18 @@ export default async function DashboardPage() {
     { endpoint: "/v1/swarm/map", created_at: new Date(Date.now() - 86400000).toISOString(), cost: 0.2850, savings: 8.5000 }
   ];
 
+  const hashedDevKey = crypto.createHash("sha256").update(apiKey).digest("hex");
+  const tenantId = `local_dev_${hashedDevKey.slice(0, 8)}`;
+  const newRefCode = `REF-${crypto.createHash("md5").update(hashedDevKey).digest("hex").slice(0, 6).toUpperCase()}`;
+
   let dbStatus = "Offline";
   let isMock = true;
 
   try {
-    // Self-Healing Schema Fixes (Non-blocking)
-    try {
-      await pool.query("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS has_paid BOOLEAN DEFAULT FALSE;");
-      await pool.query("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255) UNIQUE;");
-      await pool.query("ALTER TABLE api_logs ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255);");
-      await pool.query("ALTER TABLE api_logs ADD COLUMN IF NOT EXISTS savings DECIMAL(10, 4) DEFAULT 0.0;");
-      await pool.query("ALTER TABLE api_logs ADD COLUMN IF NOT EXISTS wholesale_cost DECIMAL(10, 6) DEFAULT 0.0;");
-    } catch (schemaErr) {
-      console.warn("⚠️ Non-blocking schema sync warning:", schemaErr.message);
-    }
-
-    // 1. Attempt real DB query for the 'local_dev' tenant
+    // 1. Attempt real DB query for the dynamic tenant
     const { rows: tenantRows } = await pool.query(
-      "SELECT balance, total_saved FROM tenants WHERE tenant_id = 'local_dev'"
+      "SELECT balance, total_saved FROM tenants WHERE tenant_id = $1",
+      [tenantId]
     );
     
     if (tenantRows.length > 0) {
@@ -60,18 +54,27 @@ export default async function DashboardPage() {
       dbStatus = "Online";
       isMock = false;
     } else {
-      // Just-In-Time Provision 'local_dev' tenant
+      // Just-In-Time Provision dynamic tenant
       try {
-        const hashedDevKey = crypto.createHash("sha256").update("sk_live_local_dev_key").digest("hex");
         await pool.query(`
-          INSERT INTO tenants (tenant_id, api_key_hash, balance, total_saved, has_paid)
-          VALUES ('local_dev', $1, 1000.00, 0, TRUE)
-          ON CONFLICT (tenant_id) DO NOTHING
-        `, [hashedDevKey]);
+          INSERT INTO tenants (tenant_id, api_key_hash, balance, total_saved, referral_code, has_paid)
+          VALUES ($1, $2, 1000.00, 0, $3, TRUE)
+          ON CONFLICT (api_key_hash) DO NOTHING
+        `, [tenantId, hashedDevKey, newRefCode]);
+        
+        const { rows: retryRows } = await pool.query(
+          "SELECT balance, total_saved FROM tenants WHERE tenant_id = $1",
+          [tenantId]
+        );
+        if (retryRows.length > 0) {
+          balance = Number(retryRows[0].balance);
+          totalSaved = Number(retryRows[0].total_saved);
+        }
+        
         dbStatus = "Online";
         isMock = false;
       } catch (provErr) {
-        console.warn("⚠️ JIT local_dev provisioning failed:", provErr.message);
+        console.warn("⚠️ JIT tenant provisioning failed:", provErr.message);
       }
     }
 
@@ -83,8 +86,8 @@ export default async function DashboardPage() {
           COALESCE(SUM(cost), 0)::double precision as total_cost_30d,
           COALESCE(SUM(savings), 0)::double precision as total_savings_30d
         FROM api_logs 
-        WHERE tenant_id = 'local_dev' AND created_at >= NOW() - INTERVAL '30 days'
-      `);
+        WHERE tenant_id = $1 AND created_at >= NOW() - INTERVAL '30 days'
+      `, [tenantId]);
       
       if (statsRows.length > 0 && Number(statsRows[0].total_calls_30d) > 0) {
         stats.total_calls_30d = Number(statsRows[0].total_calls_30d);
@@ -95,10 +98,10 @@ export default async function DashboardPage() {
       const { rows: logRows } = await pool.query(`
         SELECT endpoint, cost, savings, created_at 
         FROM api_logs 
-        WHERE tenant_id = 'local_dev' 
+        WHERE tenant_id = $1 
         ORDER BY created_at DESC 
         LIMIT 5
-      `);
+      `, [tenantId]);
       
       if (logRows.length > 0) {
         logs = logRows.map(row => ({
@@ -154,9 +157,9 @@ export default async function DashboardPage() {
           COALESCE(SUM(cost), 0) as total_cost,
           COALESCE(SUM(savings), 0) as total_savings
         FROM api_logs
-        WHERE tenant_id = 'local_dev' AND created_at >= NOW() - INTERVAL '7 days'
+        WHERE tenant_id = $1 AND created_at >= NOW() - INTERVAL '7 days'
         GROUP BY DATE_TRUNC('day', created_at)
-      `);
+      `, [tenantId]);
       
       if (dailyRows.length > 0) {
         last7Days.forEach(d => {
@@ -234,6 +237,27 @@ export default async function DashboardPage() {
             </span>
           </div>
         </div>
+
+        {dbStatus !== "Online" && (
+          <div className="mb-6 bg-amber-950/30 border border-amber-900/40 rounded-xl p-5 flex items-start gap-4 text-amber-200">
+            <ShieldAlert className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <h3 className="font-extrabold text-sm text-amber-300">Running in Sandbox Fallback Mode (Database Offline)</h3>
+              <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
+                Membrane Dashboard is currently unable to establish a connection to your PostgreSQL database. The console is running with simulated L1 memory caches and sandbox credentials to allow friction-free exploration.
+              </p>
+              <div className="mt-3.5 space-y-1.5 text-xs">
+                <p className="font-bold text-slate-300">To enable real-time persistent telemetry tracking and cost-savings logging:</p>
+                <ul className="list-disc list-inside text-slate-455 space-y-1 pl-1">
+                  <li>Ensure your local or remote PostgreSQL container is running.</li>
+                  <li>Set the <code className="text-emerald-400 px-1 py-0.5 bg-slate-900 border border-slate-800 rounded font-mono">DATABASE_URL</code> environment variable in your <code className="font-mono">.env</code> configuration.</li>
+                  <li>Ensure <code className="text-emerald-400 px-1 py-0.5 bg-slate-900 border border-slate-800 rounded font-mono">DATABASE_SSL=false</code> if connecting to a local uncertified database pool.</li>
+                  <li>Restart the dashboard stack with <code className="text-emerald-455 px-1 py-0.5 bg-slate-900 border border-slate-800 rounded font-mono">npm run dev</code>.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* LEFT: Live Graphs & Telemetry */}

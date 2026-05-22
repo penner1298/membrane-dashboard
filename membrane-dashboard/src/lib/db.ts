@@ -8,8 +8,7 @@ export const pool =
   globalForPg.pool ||
   new Pool({
     connectionString: process.env.DATABASE_URL,
-    // 👇 FIX: Force SSL on at all times since your cloud DB requires it!
-    ssl: { rejectUnauthorized: false },
+    ssl: process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: false } : false,
   });
 
 if (process.env.NODE_ENV !== "production") globalForPg.pool = pool;

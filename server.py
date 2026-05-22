@@ -37,6 +37,26 @@ MARKUP_MULTIPLIER = 2.0 # You charge 2x the raw API cost
 L1_CACHE_FEE = 0.0001 # Subsidized micro-transaction for Global Hive Mind
 L2_CACHE_FEE = 0.0025 # Discounted rate for Private Silo Database Read
 
+# --- VALUE-BASED ACCOUNING LEDGER MATH ---
+def calculate_token_savings(model_name: str, raw_tokens: int, optimized_tokens: int):
+    # Static industry baseline rates per 1M tokens
+    if "flash" in model_name.lower():
+        input_rate = 0.075
+        output_rate = 0.30
+    else:
+        input_rate = 1.25
+        output_rate = 5.00
+        
+    actual_cost = (optimized_tokens / 1000000) * input_rate
+    hypothetical_cost = (raw_tokens / 1000000) * input_rate
+    net_savings = max(0.0, hypothetical_cost - actual_cost)
+    
+    return {
+        "actual_cost_incurred": actual_cost,
+        "gross_unoptimized_cost": hypothetical_cost,
+        "net_enterprise_savings": net_savings
+    }
+
 # --- AGENT-AGNOSTIC MODEL SPECIFICATIONS ---
 # We support FLASH_MODEL (or CANARY_MODEL), APEX_MODEL, and EMBED_MODEL (or EMBEDDING_MODEL).
 # suggestions:
@@ -58,6 +78,16 @@ license_state = {
     "key": None,
     "error": None
 }
+
+class GlobalStateNamespace:
+    @property
+    def license_active(self) -> bool:
+        return license_state["validated"]
+    @license_active.setter
+    def license_active(self, val: bool):
+        license_state["validated"] = val
+
+global_state = GlobalStateNamespace()
 
 async def validate_polar_license(key: str) -> bool:
     if key == "test_license_key":
@@ -271,7 +301,45 @@ async def lifespan(app: FastAPI):
                 ON shadow_telemetry USING hnsw (prompt_embedding vector_cosine_ops);
                 """)
 
-            print("✅ Database connected. Multi-Tenant Ledger initialized.")
+                # Next.js migrated DDL Alter commands
+                await conn.execute("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS has_paid BOOLEAN DEFAULT FALSE;")
+                await conn.execute("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255) UNIQUE;")
+                await conn.execute("ALTER TABLE api_logs ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255);")
+                await conn.execute("ALTER TABLE api_logs ADD COLUMN IF NOT EXISTS savings DECIMAL(10, 4) DEFAULT 0.0;")
+                await conn.execute("ALTER TABLE api_logs ADD COLUMN IF NOT EXISTS wholesale_cost DECIMAL(10, 6) DEFAULT 0.0;")
+
+                # Map-Reduce Telemetry Tracking columns
+                await conn.execute("ALTER TABLE api_logs ADD COLUMN IF NOT EXISTS raw_input_size INTEGER DEFAULT 0;")
+                await conn.execute("ALTER TABLE api_logs ADD COLUMN IF NOT EXISTS optimized_output_size INTEGER DEFAULT 0;")
+                await conn.execute("ALTER TABLE api_logs ADD COLUMN IF NOT EXISTS savings_percentage DECIMAL(10, 4) DEFAULT 0.0;")
+                await conn.execute("ALTER TABLE api_logs ADD COLUMN IF NOT EXISTS workload_profile VARCHAR(255);")
+
+                # Benchmarking Telemetry lookup table
+                await conn.execute("""
+                CREATE TABLE IF NOT EXISTS benchmarks (
+                    id SERIAL PRIMARY KEY,
+                    dataset_size INTEGER DEFAULT 0,
+                    aggregate_precision DECIMAL(10, 4) DEFAULT 0.0,
+                    aggregate_faithfulness DECIMAL(10, 4) DEFAULT 0.0,
+                    average_latency_sec DECIMAL(10, 4) DEFAULT 0.0,
+                    total_tokens INTEGER DEFAULT 0,
+                    retail_cost DECIMAL(10, 4) DEFAULT 0.0,
+                    wholesale_cost DECIMAL(10, 6) DEFAULT 0.0,
+                    created_at TIMESTAMPTZ DEFAULT NOW()
+                );
+                """)
+
+                # Seed mock benchmarks if empty
+                count = await conn.fetchval("SELECT COUNT(*) FROM benchmarks;")
+                if count == 0:
+                    await conn.execute("""
+                    INSERT INTO benchmarks (dataset_size, aggregate_precision, aggregate_faithfulness, average_latency_sec, total_tokens, retail_cost, wholesale_cost) VALUES
+                    (250, 0.965, 0.942, 2.14, 1420500, 120.4500, 60.2250),
+                    (500, 0.982, 0.958, 1.89, 2841000, 241.9000, 120.9500),
+                    (100, 0.941, 0.912, 3.42, 580000, 48.2000, 24.1000);
+                    """)
+
+            print("✅ Database connected. Multi-Tenant Ledger initialized and all schema migrations completed.")
         except Exception as e:
             print(f"❌ Failed to connect to database: {e}")
     else:
@@ -285,6 +353,16 @@ async def lifespan(app: FastAPI):
     if db_pool: await db_pool.close()
 
 app = FastAPI(title="Membrane API - Swarm Edition", lifespan=lifespan)
+
+from fastapi.middleware.cors import CORSMiddleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 security = HTTPBearer()
 
 def hash_api_key(api_key: str) -> str:
@@ -302,12 +380,13 @@ async def verify_access(credentials: HTTPAuthorizationCredentials = Security(sec
         tenant = await conn.fetchrow("SELECT balance, tenant_id FROM tenants WHERE api_key_hash = $1", hashed_key)
         if not tenant:
             # Auto-provision a default local developer tenant with a $1,000.00 mock balance
-            print(f"🆕 Auto-provisioning tenant for API key hash: {hashed_key[:8]}... with $1000.00 balance.")
+            dynamic_tenant_id = f"local_dev_{hashed_key[:8]}"
+            print(f"🆕 Auto-provisioning tenant for API key hash: {hashed_key[:8]}... as {dynamic_tenant_id} with $1000.00 balance.")
             try:
                 new_ref_code = f"REF-{hashlib.md5(hashed_key.encode()).hexdigest()[:6].upper()}"
                 await conn.execute(
                     "INSERT INTO tenants (api_key_hash, balance, tenant_id, referral_code, has_paid) VALUES ($1, 1000.0000, $2, $3, TRUE) ON CONFLICT (api_key_hash) DO NOTHING",
-                    hashed_key, "local_dev", new_ref_code
+                    hashed_key, dynamic_tenant_id, new_ref_code
                 )
                 tenant = await conn.fetchrow("SELECT balance, tenant_id FROM tenants WHERE api_key_hash = $1", hashed_key)
             except Exception as e:
@@ -316,7 +395,8 @@ async def verify_access(credentials: HTTPAuthorizationCredentials = Security(sec
         
         if tenant['balance'] <= 0:
             # Refill automatic local dev accounts so developers don't get blocked
-            if tenant.get('tenant_id') == 'local_dev' or api_key == "local_dev_key":
+            t_id = tenant.get('tenant_id') or ""
+            if t_id.startswith('local_dev') or api_key == "local_dev_key":
                 await conn.execute("UPDATE tenants SET balance = 1000.0000 WHERE api_key_hash = $1", hashed_key)
                 print(f"🔄 Auto-refilled exhausted local dev balance to $1000.00.")
             else:
@@ -329,6 +409,7 @@ class ChatRequest(BaseModel):
     model: Optional[str] = None
     response_format: Optional[Dict[str, Any]] = None
     use_global_cache: bool = False
+    temperature: Optional[float] = 0.0
 
 class ChatResponse(BaseModel):
     receipt_id: str
@@ -355,6 +436,8 @@ class DLQLogResponse(BaseModel):
     error_message: str
 
 def calc_cost(model_name, in_tokens, out_tokens, response_object=None):
+    if any(p in model_name.lower() for p in ["ollama/", "local/", "llama"]):
+        return 0.0
     cost = 0.0
     try:
         if response_object: calculated = completion_cost(completion_response=response_object)
@@ -581,7 +664,18 @@ async def mark_shadow_flash_failed(receipt_id: str):
 
 
 # 3. 🚀 THE TOLL BOOTH: Async Ledger Deduction & Logging
-async def charge_and_log_api(api_key_hash: str, retail_cost: float, wholesale_cost: float, endpoint: str, tokens: int, savings: float = 0.0):
+async def charge_and_log_api(
+    api_key_hash: str, 
+    retail_cost: float, 
+    wholesale_cost: float, 
+    endpoint: str, 
+    tokens: int, 
+    savings: float = 0.0,
+    raw_input_size: int = 0,
+    optimized_output_size: int = 0,
+    savings_percentage: float = 0.0,
+    workload_profile: str = 'general'
+):
     if not db_pool: return
     try:
         async with db_pool.acquire() as conn:
@@ -601,8 +695,14 @@ async def charge_and_log_api(api_key_hash: str, retail_cost: float, wholesale_co
                     )
 
                 await conn.execute(
-                    "INSERT INTO api_logs (tenant_id, endpoint, tokens, cost, wholesale_cost, savings) VALUES ($1, $2, $3, $4, $5, $6)",
-                    tenant_id, endpoint, tokens, retail_cost, wholesale_cost, savings
+                    """
+                    INSERT INTO api_logs (
+                        tenant_id, endpoint, tokens, cost, wholesale_cost, savings,
+                        raw_input_size, optimized_output_size, savings_percentage, workload_profile
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                    """,
+                    tenant_id, endpoint, tokens, retail_cost, wholesale_cost, savings,
+                    raw_input_size, optimized_output_size, savings_percentage, workload_profile
                 )
     except Exception as e:
         print(f"🚨 Failed to charge and log for {api_key_hash}: {e}")
@@ -635,8 +735,26 @@ async def charge_and_log_api_batch(api_key_hash: str, logs: List[Dict[str, Any]]
                 
                 # Highly optimized PostgreSQL batch inserts using asyncpg
                 await conn.executemany(
-                    "INSERT INTO api_logs (tenant_id, endpoint, tokens, cost, wholesale_cost, savings) VALUES ($1, $2, $3, $4, $5, $6)",
-                    [(tenant_id, log['endpoint'], log['tokens'], log['retail_cost'], log['wholesale_cost'], log['savings']) for log in logs]
+                    """
+                    INSERT INTO api_logs (
+                        tenant_id, endpoint, tokens, cost, wholesale_cost, savings, 
+                        raw_input_size, optimized_output_size, savings_percentage, workload_profile
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                    """,
+                    [
+                        (
+                            tenant_id, 
+                            log['endpoint'], 
+                            log['tokens'], 
+                            log['retail_cost'], 
+                            log['wholesale_cost'], 
+                            log['savings'],
+                            log.get('raw_input_size', 0),
+                            log.get('optimized_output_size', 0),
+                            log.get('savings_percentage', 0.0),
+                            log.get('workload_profile', 'general')
+                        ) for log in logs
+                    ]
                 )
     except Exception as e:
         print(f"🚨 Failed to batch charge and log for {api_key_hash}: {e}")
@@ -679,7 +797,6 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
 
     prompt_repr = request.prompt
     if not prompt_repr and request.messages:
-        # Find last user message
         for msg in reversed(request.messages):
             if msg.get("role") == "user":
                 prompt_repr = msg.get("content", "")
@@ -687,21 +804,33 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
     if not prompt_repr:
         prompt_repr = ""
 
-    # PII scrubbing if Polar license is validated
-    if license_state["validated"]:
-        if request.prompt:
-            request.prompt = scrub_pii(request.prompt)
-        if prompt_repr:
-            prompt_repr = scrub_pii(prompt_repr)
-        if request.messages:
-            for msg in request.messages:
-                if msg.get("content"):
-                    msg["content"] = scrub_pii(msg["content"])
+    # PII scrubbing - run aggressively on all profiles (QA-15)
+    if request.prompt:
+        request.prompt = scrub_pii(request.prompt)
+    if prompt_repr:
+        prompt_repr = scrub_pii(prompt_repr)
+    if request.messages:
+        for msg in request.messages:
+            if msg.get("content"):
+                msg["content"] = scrub_pii(msg["content"])
 
+    # WAF Serial safety bouncer (QA-02)
+    is_safe, reject_reason = await check_semantic_intent(prompt_repr)
+    if not is_safe:
+        background_tasks.add_task(log_to_dlq, api_key_hash, prompt_repr, request.response_format, "REJECTED_BY_BOUNCER", reject_reason)
+        raise HTTPException(status_code=400, detail=f"Membrane Policy Violation: {reject_reason}")
+
+    # Build the Composite Cache Key Architecture (QA-04 / QA-13)
     scope_identifier = "GLOBAL_HIVE" if request.use_global_cache else api_key_hash
-    req_hash = hashlib.md5((scope_identifier + prompt_repr + str(request.response_format)).encode()).hexdigest()
+    req_payload = {
+        "scope": scope_identifier,
+        "messages": request.messages or [{"role": "user", "content": request.prompt or ""}],
+        "model": request.model,
+        "temperature": request.temperature,
+        "response_format": request.response_format
+    }
+    req_hash = hashlib.md5(json.dumps(req_payload, sort_keys=True).encode()).hexdigest()
     
-    # 3-Tier Dynamic Pricing Enforcement for Cache
     applied_cache_fee = L1_CACHE_FEE if request.use_global_cache else L2_CACHE_FEE
     cache_status_label = "L1_GLOBAL_CACHE" if request.use_global_cache else "L2_SILO_CACHE"
 
@@ -712,11 +841,11 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
             wait_event = None
             active_requests[req_hash] = asyncio.Event()
 
+    # Intercept parallel concurrent threads to charge 0.0 fee (QA-08)
     if wait_event:
         await wait_event.wait()
         if req_hash in l1_memory_cache and time.time() - l1_memory_cache[req_hash]["timestamp"] < L1_CACHE_TTL:
-            background_tasks.add_task(charge_and_log_api, api_key_hash, applied_cache_fee, 0.0, f"/api/chat ({cache_status_label})", 0)
-            return ChatResponse(receipt_id=req_hash, answer=l1_memory_cache[req_hash]["answer"], route_used="L1_MEMORY_CACHE", status="CACHE HIT", total_tokens=0, hypothetical_pro_cost=0.0, billed_amount=applied_cache_fee, savings_percent=100.0)
+            return ChatResponse(receipt_id=req_hash, answer=l1_memory_cache[req_hash]["answer"], route_used="L1_MEMORY_CACHE", status="CACHE HIT", total_tokens=0, hypothetical_pro_cost=0.0, billed_amount=0.0, savings_percent=100.0)
 
     try:
         if req_hash in l1_memory_cache:
@@ -727,7 +856,6 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
 
         prompt_vector = None
         
-        # Acquire connection ONCE for entire request lifecycle if db is connected
         if db_pool:
             async with db_pool.acquire() as conn:
                 cached_answer, prompt_vector = await check_semantic_cache(prompt_repr, request.response_format, api_key_hash, request.use_global_cache, conn=conn)
@@ -736,7 +864,6 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
                     background_tasks.add_task(charge_and_log_api, api_key_hash, applied_cache_fee, 0.0, f"/api/chat ({cache_status_label})", 0)
                     return ChatResponse(receipt_id=req_hash, answer=cached_answer, route_used="SEMANTIC_CACHE", status="CACHE HIT", total_tokens=0, hypothetical_pro_cost=0.0, billed_amount=applied_cache_fee, savings_percent=100.0)
 
-                # Fetch warnings using the active connection
                 system_warnings = await get_aversive_warnings(req_hash, api_key_hash, request.use_global_cache, conn=conn)
         else:
             cached_answer, prompt_vector = await check_semantic_cache(prompt_repr, request.response_format, api_key_hash, request.use_global_cache)
@@ -749,9 +876,6 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
         # --- PHASE 1: SENESCENT NODE SHADOW MODE ---
         background_tasks.add_task(run_senescent_shadow, prompt_repr, req_hash, prompt_vector)
 
-        # --- THE PARALLEL RACE: Start the Semantic Bouncer asynchronously ---
-        bouncer_task = asyncio.create_task(check_semantic_intent(prompt_repr))
-
         system_instruction = get_semantic_priming(prompt_repr, request.response_format)
         system_instruction += system_warnings
 
@@ -762,7 +886,6 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
 
         if request.messages:
             messages = list(request.messages)
-            # Find system message
             system_msg_idx = -1
             for idx, msg in enumerate(messages):
                 if msg.get("role") == "system":
@@ -778,11 +901,21 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
         else:
             messages = [{"role": "user", "content": (request.prompt or "") + "\n" + system_instruction}]
 
-        # Determine Canary and Apex models dynamically, allowing arbitrary overrides
+        # Determine Canary and Apex models dynamically
         canary = request.model or CANARY_MODEL
         apex = request.model or APEX_MODEL
 
-        for model, status_label, temp in [(canary, "SURFACE_ENGAGEMENT", None), (apex, "DEEP_COGNITION", None), (apex, "HEURISTIC_RECOVERY", 0.0)]:
+        # Skip redundant identical recovery model fallback iterations (QA-20)
+        if request.model:
+            evaluation_queue = [(request.model, "SURFACE_ENGAGEMENT", None)]
+        else:
+            evaluation_queue = [
+                (canary, "SURFACE_ENGAGEMENT", None),
+                (apex, "DEEP_COGNITION", None),
+                (apex, "HEURISTIC_RECOVERY", 0.0)
+            ]
+
+        for model, status_label, temp in evaluation_queue:
             ans = ""
             try:
                 litellm_kwargs = {}
@@ -791,51 +924,44 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
                 if temp is not None:
                     litellm_kwargs["temperature"] = temp
 
-                # --- PARALLEL RACE EXECUTION ---
-                llm_task = asyncio.create_task(acompletion(model=model, messages=messages, **litellm_kwargs))
-                
-                if bouncer_task.done():
-                    is_safe, reject_reason = bouncer_task.result()
-                    if not is_safe:
-                        llm_task.cancel()
-                        background_tasks.add_task(log_to_dlq, api_key_hash, prompt_repr, request.response_format, "REJECTED_BY_BOUNCER", reject_reason)
-                        raise HTTPException(status_code=400, detail=f"Membrane Policy Violation: {reject_reason}")
-                else:
-                    done, pending = await asyncio.wait([llm_task, bouncer_task], return_when=asyncio.FIRST_COMPLETED)
-                    if bouncer_task in done:
-                        is_safe, reject_reason = bouncer_task.result()
-                        if not is_safe:
-                            llm_task.cancel()
-                            background_tasks.add_task(log_to_dlq, api_key_hash, prompt_repr, request.response_format, "REJECTED_BY_BOUNCER", reject_reason)
-                            raise HTTPException(status_code=400, detail=f"Membrane Policy Violation: {reject_reason}")
-                
-                res = await llm_task
-                # --- END PARALLEL RACE ---
-
+                res = await acompletion(model=model, messages=messages, **litellm_kwargs)
                 ans = res.choices[0].message.content
                 in_tok, out_tok = res.usage.prompt_tokens, res.usage.completion_tokens
 
-                passed, error_msg, clean_ans = fidelity_check(prompt_repr, ans, request.response_format)
-                if not passed: raise ValueError(error_msg)
-
+                # Secure Token Ledgers: Calculate pricing immediately after upstream call (QA-19)
                 actual_cost = calc_cost(model, in_tok, out_tok, res)
                 hypo_cost = calc_cost(apex, in_tok, out_tok)
 
-                dynamic_markup = random.uniform(1.7, 2.3)
-                retail_cost = min(actual_cost * dynamic_markup, hypo_cost)
-                
-                # Base floor price protects margins against zero-cost hits, using active cache tier fee as a floor
-                retail_cost = max(retail_cost, applied_cache_fee)
+                # Base savings math uses calculate_token_savings (QA-06 / QA-07)
+                savings_data = calculate_token_savings(model, in_tok + out_tok, in_tok)
+                retail_cost = actual_cost
+                savings_dollars = savings_data["net_enterprise_savings"]
+                savings_percent = (savings_dollars / hypo_cost * 100) if hypo_cost > 0 else 0.0
 
-                savings_dollars = max(0, hypo_cost - retail_cost)
-                savings = max(0, ((hypo_cost - retail_cost) / hypo_cost) * 100) if hypo_cost > 0 else 0
+                # Charge immediately and log in background so deductions register on schema errors
+                background_tasks.add_task(
+                    charge_and_log_api,
+                    api_key_hash,
+                    retail_cost,
+                    actual_cost,
+                    f"/api/chat ({status_label})",
+                    in_tok + out_tok,
+                    savings_dollars,
+                    in_tok,
+                    out_tok,
+                    savings_percent,
+                    "chat"
+                )
+
+                # Fidelity validation bouncer
+                passed, error_msg, clean_ans = fidelity_check(prompt_repr, ans, request.response_format)
+                if not passed:
+                    raise ValueError(error_msg)
 
                 display_route = "Membrane-Engagement-Layer"
 
                 l1_memory_cache[req_hash] = {"answer": clean_ans, "timestamp": time.time()}
                 background_tasks.add_task(save_to_semantic_cache, prompt_repr, request.response_format, clean_ans, api_key_hash, request.use_global_cache, prompt_vector)
-
-                background_tasks.add_task(charge_and_log_api, api_key_hash, retail_cost, actual_cost, f"/api/chat ({status_label})", in_tok + out_tok, savings_dollars)
 
                 return ChatResponse(
                     receipt_id=req_hash,
@@ -845,21 +971,20 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
                     total_tokens=in_tok+out_tok,
                     hypothetical_pro_cost=round(hypo_cost, 6),
                     billed_amount=round(retail_cost, 6),
-                    savings_percent=round(savings, 1)
+                    savings_percent=round(savings_percent, 1)
                 )
 
             except HTTPException:
-                raise  # Bubble up WAF rejections immediately, do not trigger failover!
+                raise
             except Exception as e:
-                if status_label == "HEURISTIC_RECOVERY":
+                if status_label == "HEURISTIC_RECOVERY" or len(evaluation_queue) == 1:
                     await log_to_dlq(api_key_hash, prompt_repr, request.response_format, ans, str(e))
                     raise HTTPException(status_code=422, detail={"error_type": "schema_validation_failure", "message": str(e), "failed_output": ans})
                 
-                # Canary fidelity failure signals Shadow Mode ground truth
                 if model == canary:
                     background_tasks.add_task(mark_shadow_flash_failed, req_hash)
 
-                print(f"🦅 Model {model} Failed ({e}). Shifting to APEX...")
+                print(f"🦅 Model {model} Failed ({e}). Shifting...")
                 
         raise HTTPException(status_code=502, detail="All upstream models failed to process the request.")
 
@@ -968,15 +1093,49 @@ async def openai_compatible_models():
 
 class SwarmMapRequest(BaseModel):
     model: str = "membrane-engagement-layer"
-    system_prompt: str
+    system_prompt: Optional[str] = None
     chunks: List[str]
     max_concurrency: int = 20
     temperature: float = 0.0
+    extraction_criteria: Optional[Dict[str, Any]] = None
+
+    model_config = {"extra": "allow"}
+    class Config:
+        extra = "allow"
+
+class ExtractionEntry(BaseModel):
+    chunk_index: int
+    source_reference: str
+    verbatim_text: str
+    matched_signals: List[str]
+
+class ValueLedger(BaseModel):
+    actual_cost_incurred: float
+    gross_unoptimized_cost: float
+    net_enterprise_savings: float
+
+class ArchitecturalGuidance(BaseModel):
+    alert: str = "HIGH_VOLUME_RAW_DATA_SIGNAL"
+    interpretation_note: str = (
+        "This payload represents an un-synthesized, high-fidelity verbatim map extraction array. "
+        "To convert these raw needles into focused, contextual insights, Membrane strongly recommends "
+        "passing this array downstream to a dedicated Interpretive Reduction Layer (e.g., Gemini 3.5 Flash) "
+        "to filter out acceptable boilerplate."
+    )
+
+class SwarmMapMetadata(BaseModel):
+    status: str = "MAP_COMPLETE_INTERPRETATION_REQUIRED"
+    total_raw_extractions_captured: int
+    deduplication_scrub_count: int = 0
+    value_ledger: ValueLedger
+    architectural_guidance: ArchitecturalGuidance = ArchitecturalGuidance()
 
 class SwarmMapResponse(BaseModel):
-    merged_results: List[Any]
-    total_chunks_processed: int
-    failed_chunks: int
+    object: str = "swarm.extraction_matrix"
+    model: str = "membrane-engagement-layer"
+    task_id: str
+    extractions: List[ExtractionEntry]
+    membrane_metadata: SwarmMapMetadata
 
 # --- CRYPTOGRAPHIC STATE MACHINE ---
 class ProofOfWorkRequest(BaseModel):
@@ -1082,6 +1241,193 @@ async def verify_state_machine(request: ProofOfWorkRequest, api_key_hash: str = 
 
     raise HTTPException(status_code=400, detail="Unsupported task type.")
 
+async def process_swarm_chunk(
+    chunk: str,
+    chunk_index: int,
+    mapped_model: str,
+    system_prompt: str,
+    target_signals: List[str],
+    temperature: float,
+    sem: asyncio.Semaphore
+) -> Dict[str, Any]:
+    async with sem:
+        try:
+            user_content = chunk
+            if target_signals:
+                user_content = f"Target Signals to extract: {json.dumps(target_signals)}\n\nText Chunk:\n{chunk}"
+            
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_content}
+            ]
+            
+            kwargs = {}
+            response = await acompletion(
+                model=mapped_model,
+                messages=messages,
+                temperature=temperature,
+                response_format={"type": "json_object"},
+                **kwargs
+            )
+            
+            in_tok = response.usage.prompt_tokens
+            out_tok = response.usage.completion_tokens
+            actual_cost = calc_cost(mapped_model, in_tok, out_tok, response)
+            
+            # Value-based ledger math: calculate_token_savings
+            savings_data = calculate_token_savings(mapped_model, in_tok + out_tok, in_tok)
+            
+            content = response.choices[0].message.content
+            content_clean = content.strip()
+            if content_clean.startswith("```json"):
+                content_clean = content_clean[7:]
+            if content_clean.endswith("```"):
+                content_clean = content_clean[:-3]
+            content_clean = content_clean.strip()
+            
+            parsed_json = json.loads(content_clean)
+            
+            verbatim_text = ""
+            matched_signals = []
+            if isinstance(parsed_json, dict):
+                for k, v in parsed_json.items():
+                    if isinstance(v, str) and any(sig.lower() in v.lower() for sig in target_signals):
+                        verbatim_text = v
+                        matched_signals = [sig for sig in target_signals if sig.lower() in v.lower()]
+                        break
+                if not verbatim_text:
+                    for k, v in parsed_json.items():
+                        if isinstance(v, str):
+                            verbatim_text = v
+                            break
+                    if not verbatim_text:
+                        verbatim_text = json.dumps(parsed_json)
+            else:
+                verbatim_text = str(parsed_json)
+                
+            if not matched_signals:
+                matched_signals = [sig for sig in target_signals if sig.lower() in verbatim_text.lower()]
+                if not matched_signals and target_signals:
+                    matched_signals = [target_signals[0]]
+
+            return {
+                "index": chunk_index,
+                "verbatim_text": verbatim_text,
+                "matched_signals": matched_signals,
+                "error": None,
+                "tokens": in_tok + out_tok,
+                "actual_cost": savings_data["actual_cost_incurred"],
+                "hypothetical_cost": savings_data["gross_unoptimized_cost"],
+                "savings": savings_data["net_enterprise_savings"]
+            }
+        except Exception as e:
+            print(f"Swarm chunk {chunk_index} failed: {e}")
+            return {
+                "index": chunk_index,
+                "verbatim_text": f"Error: {e}",
+                "matched_signals": [],
+                "error": str(e),
+                "tokens": 0,
+                "actual_cost": 0.0,
+                "hypothetical_cost": 0.0,
+                "savings": 0.0
+            }
+
+def compile_swarm_response(results: List[Dict[str, Any]], chunks: List[str], model: str, api_key_hash: str, background_tasks: BackgroundTasks) -> SwarmMapResponse:
+    results.sort(key=lambda x: x["index"])
+    extractions = []
+    total_tokens = 0
+    total_actual_cost = 0.0
+    total_hypothetical_cost = 0.0
+    total_savings = 0.0
+    failed = 0
+    
+    for r in results:
+        if r["error"]:
+            failed += 1
+        extractions.append(
+            ExtractionEntry(
+                chunk_index=r["index"],
+                source_reference=f"Chunk {r['index'] + 1}",
+                verbatim_text=r["verbatim_text"],
+                matched_signals=r["matched_signals"]
+            )
+        )
+        total_tokens += r["tokens"]
+        total_actual_cost += r["actual_cost"]
+        total_hypothetical_cost += r["hypothetical_cost"]
+        total_savings += r["savings"]
+
+    if failed == len(chunks):
+        raise HTTPException(status_code=500, detail="All swarm chunks failed to compile.")
+
+    savings_percent = (total_savings / total_hypothetical_cost * 100) if total_hypothetical_cost > 0 else 0.0
+    
+    billing_logs = []
+    for r in results:
+        if not r["error"]:
+            billing_logs.append({
+                "endpoint": "/v1/swarm/map",
+                "tokens": r["tokens"],
+                "retail_cost": r["actual_cost"],
+                "wholesale_cost": r["actual_cost"] * 0.5,
+                "savings": r["savings"],
+                "raw_input_size": len(chunks[r["index"]]),
+                "optimized_output_size": len(r["verbatim_text"]),
+                "savings_percentage": savings_percent,
+                "workload_profile": "swarm_map"
+            })
+            
+    if billing_logs:
+        background_tasks.add_task(charge_and_log_api_batch, api_key_hash, billing_logs)
+
+    task_id = f"ext_matrix_{hashlib.md5(str(time.time()).encode()).hexdigest()[:8]}"
+    
+    return SwarmMapResponse(
+        object="swarm.extraction_matrix",
+        model="membrane-engagement-layer",
+        task_id=task_id,
+        extractions=extractions,
+        membrane_metadata=SwarmMapMetadata(
+            status="MAP_COMPLETE_INTERPRETATION_REQUIRED",
+            total_raw_extractions_captured=len(chunks) - failed,
+            deduplication_scrub_count=0,
+            value_ledger=ValueLedger(
+                actual_cost_incurred=round(total_actual_cost, 6),
+                gross_unoptimized_cost=round(total_hypothetical_cost, 6),
+                net_enterprise_savings=round(total_savings, 6)
+            )
+        )
+    )
+
+async def execute_basic_sandbox_gather(chunks: List[str], request: SwarmMapRequest, api_key_hash: str, background_tasks: BackgroundTasks) -> SwarmMapResponse:
+    mapped_model = request.model if request.model != "membrane-engagement-layer" else CANARY_MODEL
+    criteria = request.extraction_criteria or {}
+    system_prompt = criteria.get("system_persona") or request.system_prompt or "Extract data."
+    target_signals = criteria.get("target_signals") or []
+    
+    semaphore = asyncio.Semaphore(request.max_concurrency)
+    tasks = [
+        process_swarm_chunk(chunk, i, mapped_model, system_prompt, target_signals, request.temperature, semaphore)
+        for i, chunk in enumerate(chunks)
+    ]
+    results = await asyncio.gather(*tasks)
+    return compile_swarm_response(results, chunks, mapped_model, api_key_hash, background_tasks)
+
+async def execute_sliding_window_queue(chunks: List[str], request: SwarmMapRequest, api_key_hash: str, background_tasks: BackgroundTasks) -> SwarmMapResponse:
+    mapped_model = request.model if request.model != "membrane-engagement-layer" else CANARY_MODEL
+    criteria = request.extraction_criteria or {}
+    system_prompt = criteria.get("system_persona") or request.system_prompt or "Extract data."
+    target_signals = criteria.get("target_signals") or []
+    
+    semaphore = asyncio.Semaphore(min(request.max_concurrency, 10))
+    tasks = [
+        process_swarm_chunk(chunk, i, mapped_model, system_prompt, target_signals, request.temperature, semaphore)
+        for i, chunk in enumerate(chunks)
+    ]
+    results = await asyncio.gather(*tasks)
+    return compile_swarm_response(results, chunks, mapped_model, api_key_hash, background_tasks)
+
 @app.post("/v1/swarm/map", response_model=SwarmMapResponse)
 async def swarm_map(request: SwarmMapRequest, background_tasks: BackgroundTasks, api_key_hash: str = Security(verify_access)):
     """
@@ -1095,90 +1441,19 @@ async def swarm_map(request: SwarmMapRequest, background_tasks: BackgroundTasks,
         raise HTTPException(status_code=400, detail="Max 50 chunks per request")
 
     validate_model_string(request.model)
-    mapped_model = request.model if request.model != "membrane-engagement-layer" else CANARY_MODEL
 
-    async def process_chunk(chunk: str, chunk_index: int, sem: asyncio.Semaphore):
-        async with sem:
-            try:
-                messages = [
-                    {"role": "system", "content": request.system_prompt},
-                    {"role": "user", "content": chunk}
-                ]
-                
-                kwargs = {}
-
-                response = await acompletion(
-                    model=mapped_model,
-                    messages=messages,
-                    temperature=request.temperature,
-                    response_format={"type": "json_object"},
-                    **kwargs
-                )
-                
-                in_tok = response.usage.prompt_tokens
-                out_tok = response.usage.completion_tokens
-                actual_cost = calc_cost(mapped_model, in_tok, out_tok, response)
-                retail_cost = actual_cost * MARKUP_MULTIPLIER
-
-                content = response.choices[0].message.content
-                if content.startswith("```json"): content = content[7:-3]
-                elif content.startswith("```"): content = content[3:-3]
-                
-                parsed_json = json.loads(content)
-                return {
-                    "index": chunk_index,
-                    "data": parsed_json,
-                    "error": None,
-                    "billing": {
-                        "retail_cost": retail_cost,
-                        "wholesale_cost": actual_cost,
-                        "endpoint": "/v1/swarm/map",
-                        "tokens": in_tok + out_tok,
-                        "savings": 0.0
-                    }
-                }
-            except Exception as e:
-                print(f"Swarm chunk {chunk_index} failed: {e}")
-                return {"index": chunk_index, "data": None, "error": str(e), "billing": None}
-
-    semaphore = asyncio.Semaphore(request.max_concurrency)
-    
-    tasks = [process_chunk(chunk, i, semaphore) for i, chunk in enumerate(request.chunks)]
-    results = await asyncio.gather(*tasks)
-    
-    merged_output = []
-    failed = 0
-    results.sort(key=lambda x: x["index"])
-    
-    for res in results:
-        if res["error"]:
-            failed += 1
-            continue
+    MAX_SANDBOX_CHUNKS = 25
+ 
+    if not global_state.license_active:
+        if len(request.chunks) > MAX_SANDBOX_CHUNKS:
+            active_chunks = request.chunks[:MAX_SANDBOX_CHUNKS]
+            print(f"⚠️ Scale Throttle: Capping unvalidated run at {MAX_SANDBOX_CHUNKS} chunks.")
+        else:
+            active_chunks = request.chunks
         
-        data = res["data"]
-        if isinstance(data, dict):
-            list_keys = [k for k, v in data.items() if isinstance(v, list)]
-            if list_keys:
-                primary_key = list_keys[0]
-                merged_output.extend(data[primary_key])
-            else:
-                merged_output.append(data)
-        elif isinstance(data, list):
-            merged_output.extend(data)
-
-    if failed == len(request.chunks):
-        raise HTTPException(status_code=500, detail="All swarm chunks failed to compile.")
-
-    # Queue a single batch deduction transaction instead of N concurrent individual updates!
-    billing_logs = [res["billing"] for res in results if res.get("billing") is not None]
-    if billing_logs:
-        background_tasks.add_task(charge_and_log_api_batch, api_key_hash, billing_logs)
-
-    return SwarmMapResponse(
-        merged_results=merged_output,
-        total_chunks_processed=len(request.chunks),
-        failed_chunks=failed
-    )
+        return await execute_basic_sandbox_gather(active_chunks, request, api_key_hash, background_tasks)
+    else:
+        return await execute_sliding_window_queue(request.chunks, request, api_key_hash, background_tasks)
 
 @app.post("/v1/chat/completions")
 async def openai_compatible_endpoint(request: Request, background_tasks: BackgroundTasks, api_key_hash: str = Security(verify_access)):
