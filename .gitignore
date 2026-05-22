@@ -6,9 +6,11 @@ inputs/
 weaver/
 
 # Ignore personal agent configurations
+AGENTS.md
 IDENTITY.md
 LESSONS.md
 SOUL.md
+TACTICS.md
 BOOTSTRAP.md
 
 # Ignore large DBs and uncompiled data
