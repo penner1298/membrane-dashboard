@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, Terminal, Server, ShieldAlert, Zap } from "lucide-react";
+import { ArrowLeft, Terminal, Server, ShieldAlert, Zap, BookOpen } from "lucide-react";
 
 export default function DocsPage() {
   return (
@@ -196,6 +196,78 @@ Integration details:
 - Do NOT disable model validation in your client; Membrane handles the handshake automatically.`}
             </pre>
           </div>
+
+          <hr className="my-12 border-gray-200" />
+
+          {/* Section 6: Production Blueprints & Showcases */}
+          <div className="flex items-center gap-2 mb-6">
+            <BookOpen className="w-6 h-6 text-green-600" />
+            <h2 className="text-2xl font-bold text-gray-900 m-0">6. Production Blueprints & Showcases</h2>
+          </div>
+          <p className="text-gray-600 mb-8 leading-relaxed">
+            Explore complete, production-grade architectures built on top of the Membrane agent proxy. Learn from detailed integration playbooks featuring concrete performance benchmarks and cost optimization methodologies.
+          </p>
+
+          <Link href="/docs/case-studies" className="group block mb-12">
+            <div className="relative overflow-hidden rounded-xl border border-gray-200 bg-gradient-to-br from-white to-gray-50/50 p-6 md:p-8 shadow-sm transition-all duration-300 hover:shadow-md hover:border-green-600/30 hover:shadow-green-950/[0.01]">
+              {/* Green Glow Accent Blur */}
+              <div className="absolute top-0 right-0 -mr-16 -mt-16 w-48 h-48 rounded-full bg-green-500/[0.03] blur-3xl group-hover:bg-green-500/[0.06] transition-all duration-500" />
+
+              <div className="flex flex-col md:flex-row gap-6 items-start">
+                {/* Skeuomorphic Document Receipt (The Meng Sauce) */}
+                <div className="relative shrink-0 w-20 h-24 bg-white border border-gray-200 rounded-md shadow-sm transition-all duration-300 group-hover:scale-105 group-hover:shadow-md group-hover:border-green-600/20 overflow-hidden flex flex-col self-center md:self-start">
+                  {/* Top Emerald Accent Bar */}
+                  <div className="h-2 w-full bg-emerald-600 shrink-0" />
+                  
+                  {/* Subtle Dog-Ear Fold (Skeuomorphic folded corner) */}
+                  <div className="absolute top-0 right-0 w-4 h-4 bg-gray-50 border-l border-b border-gray-200 rounded-bl-sm" />
+                  <div className="absolute top-0 right-0 w-0 h-0 border-t-[16px] border-r-[16px] border-t-white border-r-white" />
+
+                  {/* Mock Text Lines */}
+                  <div className="p-3 pt-4 flex flex-col gap-2 w-full h-full justify-between">
+                    <div className="flex flex-col gap-1.5 w-full">
+                      <div className="h-1.5 w-[70%] bg-gray-200 rounded-full" />
+                      <div className="h-1.5 w-full bg-gray-100 rounded-full" />
+                      <div className="h-1.5 w-[50%] bg-gray-100 rounded-full" />
+                    </div>
+                    <div className="flex justify-between items-center w-full mt-auto">
+                      <div className="h-2 w-2 rounded-full bg-emerald-500/80" />
+                      <div className="h-1 w-[40%] bg-gray-250 rounded-full" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Case Study Details */}
+                <div className="flex-1">
+                  <span className="text-[10px] font-bold tracking-widest text-emerald-600 uppercase">CASE STUDY</span>
+                  <h3 className="text-xl font-bold text-gray-900 mt-1 mb-2 group-hover:text-green-700 transition-colors">
+                    Liberty Lake Zoning Oracle
+                  </h3>
+                  <p className="text-gray-500 text-sm leading-relaxed mb-5">
+                    How we built a zero-hallucination municipal compliance reasoning agent that pre-filters complex legal documents, streams NDJSON citations, and leverages sequential caching to save token costs.
+                  </p>
+                  
+                  {/* Metrics Badge Flow */}
+                  <div className="flex flex-wrap gap-2 text-[11px] font-mono">
+                    <span className="px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-100/50 text-emerald-700 font-semibold">
+                      60-65% token savings
+                    </span>
+                    <span className="px-2.5 py-1 rounded-full bg-blue-50 border border-blue-100/50 text-blue-700 font-semibold">
+                      &lt;200ms citation latency
+                    </span>
+                    <span className="px-2.5 py-1 rounded-full bg-gray-100 border border-gray-200/60 text-gray-600 font-semibold">
+                      RAG Pre-Filtering
+                    </span>
+                  </div>
+                </div>
+
+                {/* Action Indicator */}
+                <div className="shrink-0 flex items-center justify-center w-10 h-10 rounded-full border border-gray-200 bg-white group-hover:border-green-600/30 group-hover:bg-green-50 transition-all duration-300 self-end md:self-center">
+                  <span className="text-gray-400 group-hover:text-green-600 group-hover:translate-x-0.5 transition-all text-lg">&rarr;</span>
+                </div>
+              </div>
+            </div>
+          </Link>
 
         </div>
       </main>
