@@ -12,17 +12,21 @@ Membrane Guard is a high-speed, agent-agnostic routing layer. Send a prompt, get
 
 ## Getting Started
 
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
+### 1. Start the Membrane Guard Proxy (Backend)
+Membrane Guard runs as a lightweight, self-healing proxy on port 8000. Start it instantly using Docker:
+```bash
+docker run -d -p 8000:8000 thejoshuapenner/membrane-guard
+```
 
-2. Start the development server (which includes the Membrane Dashboard):
-   ```bash
-   npm run dev
-   ```
+### 2. Start the Control Panel (Frontend)
+Once the proxy is running, you can spin up the visual dashboard to monitor your traffic.
+```bash
+npm install
+npm run dev
+```
 
-3. Open your browser to [http://localhost:3000](http://localhost:3000) to view the Swarm Guard Control Panel and view local traffic.
+### 3. Access Dashboard
+Open your browser to [http://localhost:3000](http://localhost:3000) to view the Swarm Guard Control Panel and view local traffic.
 
 ## Integration (AI Coworker)
 
