@@ -620,12 +620,16 @@ export default async function DashboardPage() {
               </div>
             </div>
 
-            {/* Support info */}
             <div className="bg-slate-900/40 rounded-xl p-5 border border-slate-850 text-center">
                <p className="text-xs text-slate-400 mb-2">Running a high-traffic production swarm?</p>
-               <a href="mailto:support@membrane-api.com" className="text-xs font-bold text-emerald-400 hover:text-emerald-300 flex items-center justify-center gap-1.5 transition-colors">
+               <a 
+                 href="https://github.com/penner1298/membrane-dashboard/issues" 
+                 target="_blank" 
+                 rel="noopener noreferrer" 
+                 className="text-xs font-bold text-emerald-400 hover:text-emerald-300 flex items-center justify-center gap-1.5 transition-colors"
+               >
                  <Mail className="w-4 h-4" />
-                 Email Protocol Advisory Team
+                 Open GitHub Issue
                </a>
             </div>
 
