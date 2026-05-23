@@ -14,4 +14,6 @@ This file serves as the index for all operational playbooks and strategic bluepr
 - [Membrane Adversarial Testing & White-Box Auditing Blueprint]: /Users/thejoshuapenner/.openclaw/workspace/CATALOGUE/membrane_adversarial_testing_blueprint.md
 - [Membrane Sandbox Security & JIT Onboarding Blueprint]: /Users/thejoshuapenner/.openclaw/workspace/CATALOGUE/membrane_sandbox_security_onboarding_blueprint.md
 - [Membrane DX Live Sandbox & Streaming Playbook]: /Users/thejoshuapenner/.openclaw/workspace/CATALOGUE/membrane_dx_live_sandbox.md
+- [Membrane 2-Page Stack and Server Optimizations Blueprint]: /Users/thejoshuapenner/My Drive/Penner Strategy/membrane-dashboard/CATALOGUE/membrane_2page_stack_optimizations.md
+
 
