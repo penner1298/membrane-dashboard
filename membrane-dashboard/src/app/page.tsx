@@ -130,7 +130,7 @@ export default function Home() {
       : "http://localhost:8000";
 
     const targetUrl = `${apiBase}${selectedPattern.endpoint}`;
-    const activeKey = retryKey || playgroundApiKey;
+    const activeKey = (retryKey && typeof retryKey === "string") ? retryKey : playgroundApiKey;
     
     // Setup headers
     const headers: Record<string, string> = {
@@ -436,7 +436,7 @@ export default function Home() {
                 {/* Trigger Buttons */}
                 <div className="pt-4 mt-auto">
                   <button
-                    onClick={executePlaygroundQuery}
+                    onClick={() => executePlaygroundQuery()}
                     disabled={isExecuting || (selectedPattern.id === "swarm_map" && slices > 50)}
                     className={`w-full py-3 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 shadow-sm transition tilt-3d ${
                       selectedPattern.id === "swarm_map" && slices > 50

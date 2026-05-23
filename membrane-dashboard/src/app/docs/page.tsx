@@ -58,12 +58,12 @@ export default function DocsPage() {
   const runLiveTest = async (retryKey?: string) => {
     setPlaygroundLoading(true);
     setPlaygroundError(null);
-    if (!retryKey) {
+    if (!retryKey || typeof retryKey !== "string") {
       setPlaygroundOutput("");
       setTelemetryROI(null);
     }
 
-    const activeKey = retryKey || apiKey;
+    const activeKey = (retryKey && typeof retryKey === "string") ? retryKey : apiKey;
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${activeKey}`,
@@ -635,7 +635,7 @@ Headers:
               </div>
 
               <button
-                onClick={runLiveTest}
+                onClick={() => runLiveTest()}
                 disabled={playgroundLoading || !testPrompt}
                 className={`w-full py-3 px-6 rounded-xl flex items-center justify-center gap-2 font-bold uppercase tracking-wider text-xs border transition-all tilt-3d ${
                   playgroundLoading
