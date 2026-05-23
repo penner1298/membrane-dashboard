@@ -430,7 +430,14 @@ async def get_debug_auth_logs():
 
 async def verify_access(credentials: HTTPAuthorizationCredentials = Security(security)):
     raw_credential = credentials.credentials
-    api_key = raw_credential.strip().strip('"').strip("'")
+    import re
+    match = re.search(r'(sk_live_[a-zA-Z0-9_]+|sk_membrane_[a-zA-Z0-9_]+)', raw_credential)
+    if match:
+        api_key = match.group(1)
+    elif "local_dev_key" in raw_credential:
+        api_key = "local_dev_key"
+    else:
+        api_key = raw_credential.strip().strip('"').strip("'").strip('“').strip('”')
     hashed_key = hash_api_key(api_key)
 
     import datetime
