@@ -142,7 +142,7 @@ export default function Home() {
 
     const host = typeof window !== "undefined" ? window.location.host : "";
     const apiBase = !host.includes("localhost") && !host.includes("127.0.0.1")
-      ? "https://membrane-api.com" 
+      ? window.location.origin
       : "http://localhost:8000";
 
     const targetUrl = `${apiBase}${selectedPattern.endpoint}`;
