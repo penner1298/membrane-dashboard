@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { Header } from "@/components/header";
+import { Footer } from "@/components/footer";
 import { 
   ArrowLeft, Terminal, Server, ShieldAlert, Zap, BookOpen, 
   Key, Copy, Check, Play, Cpu, AlertTriangle, Layers
@@ -275,95 +277,71 @@ Headers:
 - Pass \\\`X-Membrane-Preserve-Context: true\\\` to bypass default zero-shot context pruning when full multi-turn conversational history is required.`;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-emerald-500/30 selection:text-emerald-300 font-sans antialiased relative overflow-hidden">
+    <div className="min-h-screen bg-[#f8fafc] text-[#0f172a] selection:bg-emerald-100 selection:text-emerald-800 font-sans antialiased relative overflow-hidden flex flex-col justify-between">
       
-      {/* 3% SVG Fractal Noise Overlay for Texture (Meng Sauce Pillar 1) */}
-      <div className="pointer-events-none fixed inset-0 z-50 opacity-[0.02]" style={{
+      {/* 3% SVG Fractal Noise Overlay for Texture */}
+      <div className="pointer-events-none fixed inset-0 z-50 opacity-[0.03]" style={{
         backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`
       }} />
 
-      {/* Abstract Radial Blobs to Break Grid (Meng Sauce Pillar 2) */}
+      {/* Abstract Radial Blobs */}
       <div className="absolute top-20 left-1/4 -z-10 w-96 h-96 rounded-full bg-emerald-500/5 blur-3xl pointer-events-none" />
       <div className="absolute top-[800px] right-1/4 -z-10 w-[600px] h-[600px] rounded-full bg-blue-500/[0.02] blur-3xl pointer-events-none" />
 
-      {/* Sticky Header with Frosted Glassmorphism */}
-      <header className="border-b border-slate-800 bg-slate-900/60 sticky top-0 z-40 backdrop-blur-md">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="text-slate-400 hover:text-slate-200 transition-colors flex items-center justify-center w-8 h-8 rounded-full hover:bg-slate-900">
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center justify-center w-8 h-8 font-bold text-white bg-emerald-600 rounded-md">
-                M
-              </div>
-              <span className="font-extrabold text-white text-lg hidden sm:inline-block">Membrane API</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link href="/cookbook" className="text-sm font-medium text-slate-400 hover:text-slate-200 transition-colors">
-              Swarm Cookbook
-            </Link>
-            <Link href="/dashboard" className="text-sm font-medium text-emerald-500 hover:text-emerald-400 transition-colors font-bold">
-              Console &rarr;
-            </Link>
-          </div>
-        </div>
-      </header>
+      <Header />
 
-      <main className="max-w-5xl mx-auto px-6 py-12 md:py-16">
+      <main className="max-w-5xl mx-auto px-6 py-12 md:py-16 relative z-10 w-full flex-1">
         
-        {/* Title Section (Authoritative Typography) */}
+        {/* Title Section */}
         <div className="mb-12">
           <div className="flex flex-wrap items-center gap-2 mb-4">
-            <span className="text-[10px] font-black tracking-widest text-emerald-400 uppercase bg-emerald-950/60 border border-emerald-900/40 px-2.5 py-1 rounded-md">
+            <span className="text-[10px] font-black tracking-widest text-emerald-700 uppercase bg-emerald-50 border border-emerald-250 px-2.5 py-1 rounded-md">
               ACTIVE API SPEC v1.0
             </span>
-            <span className="text-[10px] font-black tracking-widest text-blue-400 uppercase bg-blue-950/60 border border-blue-900/40 px-2.5 py-1 rounded-md">
+            <span className="text-[10px] font-black tracking-widest text-blue-700 uppercase bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-md">
               HTTPS ENCRYPTED
             </span>
             <a 
               href="/llms.txt" 
               target="_blank" 
-              className="text-[10px] font-black tracking-widest text-purple-400 uppercase bg-purple-950/60 border border-purple-900/40 px-2.5 py-1 rounded-md hover:bg-purple-900/30 transition-colors flex items-center gap-1"
+              className="text-[10px] font-black tracking-widest text-purple-700 uppercase bg-purple-50 border border-purple-200 px-2.5 py-1 rounded-md hover:bg-purple-100 transition-colors flex items-center gap-1"
             >
               <Cpu className="w-3 h-3" />
               AI-Readable Docs (llms.txt)
             </a>
           </div>
 
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-white font-serif leading-none mt-2">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-900 leading-none mt-2">
             API Specification & Integration
           </h1>
-          <p className="text-lg text-slate-400 max-w-3xl leading-relaxed mt-4">
+          <p className="text-base text-slate-600 max-w-3xl leading-relaxed mt-4">
             Membrane operates as a drop-in, zero-latency proxy. Point your existing OpenAI or LangChain clients to the Membrane gateway, inject your API key, and instantly benefit from semantic caching, zero-shot pruning, and automatic model escalation.
           </p>
         </div>
 
-        <hr className="my-10 border-slate-800/80" />
+        <hr className="my-10 border-slate-200" />
 
         {/* SECTION 1: AI TO AI HANDSHAKE PROTOCOL */}
         <section className="mb-16">
           <div className="flex items-center gap-2.5 mb-6">
-            <Cpu className="w-6 h-6 text-emerald-500" />
-            <h2 className="text-2xl font-bold text-white m-0">AI-to-AI Agent Handshake Protocol</h2>
+            <Cpu className="w-6 h-6 text-emerald-600" />
+            <h2 className="text-2xl font-bold text-slate-900 m-0">AI-to-AI Agent Handshake Protocol</h2>
           </div>
           
-          <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40 p-6 md:p-8 backdrop-blur-sm shadow-xl">
-            {/* Glowing neon border accent */}
+          <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 md:p-8 shadow-sm">
             <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-emerald-500/20 via-blue-500/30 to-purple-500/20" />
             
-            <p className="text-sm text-slate-350 leading-relaxed mb-6">
+            <p className="text-xs text-slate-650 leading-relaxed mb-6">
               Are you an AI coding agent (like Cursor, Windsurf, or Claude) currently writing implementation code? You can ingest these rules directly. Copy this instruction block to configure standard SDK clients to use the local or remote Membrane proxy without breaking existing code schemas.
             </p>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
               {/* Terminal command to fetch llms.txt */}
-              <div className="lg:col-span-5 flex flex-col justify-between p-5 bg-slate-950 rounded-xl border border-slate-850">
+              <div className="lg:col-span-5 flex flex-col justify-between p-5 bg-slate-50 rounded-xl border border-slate-200">
                 <div>
-                  <span className="text-[9px] font-black tracking-widest text-slate-500 uppercase block mb-2 font-mono">Agent Command Line</span>
-                  <h4 className="text-xs font-bold text-white mb-2">Automated Discovery</h4>
-                  <p className="text-[11px] text-slate-400 leading-normal mb-4">
+                  <span className="text-[9px] font-black tracking-widest text-slate-400 uppercase block mb-2 font-mono">Agent Command Line</span>
+                  <h4 className="text-xs font-bold text-slate-900 mb-2">Automated Discovery</h4>
+                  <p className="text-[11px] text-slate-500 leading-normal mb-4">
                     Direct your agent to scrape the official `llms.txt` config file to dynamically resolve all endpoint formats and capabilities.
                   </p>
                 </div>
@@ -379,19 +357,19 @@ Headers:
               </div>
 
               {/* Rules block */}
-              <div className="lg:col-span-7 flex flex-col p-5 bg-slate-950 rounded-xl border border-slate-850">
+              <div className="lg:col-span-7 flex flex-col p-5 bg-slate-50 rounded-xl border border-slate-200">
                 <div className="flex justify-between items-center mb-3">
                   <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-[10px] font-bold text-emerald-400 font-mono uppercase tracking-wider">.cursorrules / .windsurfrules</span>
+                    <span className="text-[10px] font-bold text-emerald-600 font-mono uppercase tracking-wider">.cursorrules / .windsurfrules</span>
                   </div>
                   <button 
                     onClick={() => handleCopy(cursorRulesSnippet, "cursorrules")}
-                    className="text-slate-400 hover:text-white transition-all text-xs font-bold flex items-center gap-1 py-1 px-2.5 rounded bg-slate-900 border border-slate-800"
+                    className="text-slate-650 hover:text-slate-900 transition-all text-xs font-bold flex items-center gap-1 py-1 px-2.5 rounded bg-white border border-slate-200 shadow-sm"
                   >
                     {copiedText === "cursorrules" ? (
                       <>
-                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        <Check className="w-3.5 h-3.5 text-emerald-500" />
                         Copied Rules
                       </>
                     ) : (
@@ -403,7 +381,7 @@ Headers:
                   </button>
                 </div>
                 
-                <pre className="text-[10px] text-slate-400 leading-relaxed font-mono overflow-y-auto max-h-[160px] custom-scrollbar bg-slate-900/50 p-3.5 rounded border border-slate-900">
+                <pre className="text-[10px] text-slate-300 leading-relaxed font-mono overflow-y-auto max-h-[160px] custom-scrollbar bg-slate-900 p-3.5 rounded border border-slate-950">
                   {cursorRulesSnippet}
                 </pre>
               </div>
@@ -414,57 +392,57 @@ Headers:
         {/* SECTION 2: STEP BY STEP QUICK START */}
         <section className="mb-20">
           <div className="flex items-center gap-2.5 mb-6">
-            <Layers className="w-6 h-6 text-emerald-500" />
-            <h2 className="text-2xl font-bold text-white m-0">Quick Start Integration</h2>
+            <Layers className="w-6 h-6 text-emerald-600" />
+            <h2 className="text-2xl font-bold text-slate-900 m-0">Quick Start Integration</h2>
           </div>
 
-          <p className="text-slate-400 text-sm leading-relaxed mb-8">
+          <p className="text-slate-600 text-xs leading-relaxed mb-8">
             Integrating Membrane is mathematically simple. Follow these three steps to redirect your existing logic blocks:
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
             
             {/* Step 1 */}
-            <div className="flex flex-col justify-between p-6 bg-slate-900/40 border border-slate-850 rounded-xl relative hover:border-emerald-500/20 transition-all duration-300">
-              <span className="absolute -top-7 right-2 text-8xl font-black text-slate-900/60 select-none font-serif tracking-tighter">01</span>
+            <div className="flex flex-col justify-between p-6 bg-white border border-slate-200/80 rounded-xl relative hover:border-emerald-500/50 transition-all duration-300 shadow-sm">
+              <span className="absolute -top-7 right-2 text-8xl font-black text-slate-100 select-none font-serif tracking-tighter">01</span>
               <div>
-                <span className="text-[10px] font-bold text-emerald-400 tracking-wider uppercase block mb-1">STEP ONE</span>
-                <h3 className="text-base font-bold text-white mb-2 mt-0">Point the Base URL</h3>
-                <p className="text-xs text-slate-400 leading-relaxed mb-6">
+                <span className="text-[10px] font-bold text-emerald-600 tracking-wider uppercase block mb-1">STEP ONE</span>
+                <h3 className="text-base font-bold text-slate-900 mb-2 mt-0">Point the Base URL</h3>
+                <p className="text-xs text-slate-500 leading-relaxed mb-6">
                   Replace your client library&apos;s standard API base URL with the Membrane gateway host.
                 </p>
               </div>
-              <div className="p-3 bg-slate-950 rounded font-mono text-[10px] text-slate-300 border border-slate-900 overflow-x-auto">
+              <div className="p-3 bg-slate-50 rounded font-mono text-[10px] text-slate-600 border border-slate-200 overflow-x-auto">
                 <code>https://membrane-api.com/v1</code>
               </div>
             </div>
 
             {/* Step 2 */}
-            <div className="flex flex-col justify-between p-6 bg-slate-900/40 border border-slate-850 rounded-xl relative hover:border-emerald-500/20 transition-all duration-300">
-              <span className="absolute -top-7 right-2 text-8xl font-black text-slate-900/60 select-none font-serif tracking-tighter">02</span>
+            <div className="flex flex-col justify-between p-6 bg-white border border-slate-200/80 rounded-xl relative hover:border-emerald-500/50 transition-all duration-300 shadow-sm">
+              <span className="absolute -top-7 right-2 text-8xl font-black text-slate-100 select-none font-serif tracking-tighter">02</span>
               <div>
-                <span className="text-[10px] font-bold text-emerald-400 tracking-wider uppercase block mb-1">STEP TWO</span>
-                <h3 className="text-base font-bold text-white mb-2 mt-0">Provide Bearer Token</h3>
-                <p className="text-xs text-slate-400 leading-relaxed mb-6">
+                <span className="text-[10px] font-bold text-emerald-600 tracking-wider uppercase block mb-1">STEP TWO</span>
+                <h3 className="text-base font-bold text-slate-900 mb-2 mt-0">Provide Bearer Token</h3>
+                <p className="text-xs text-slate-500 leading-relaxed mb-6">
                   Authenticate your request by supplying your Membrane API key in the standard header.
                 </p>
               </div>
-              <div className="p-3 bg-slate-950 rounded font-mono text-[10px] text-slate-300 border border-slate-900 overflow-x-auto">
+              <div className="p-3 bg-slate-50 rounded font-mono text-[10px] text-slate-600 border border-slate-200 overflow-x-auto">
                 <code>Authorization: Bearer sk_live_...</code>
               </div>
             </div>
 
             {/* Step 3 */}
-            <div className="flex flex-col justify-between p-6 bg-slate-900/40 border border-slate-850 rounded-xl relative hover:border-emerald-500/20 transition-all duration-300">
-              <span className="absolute -top-7 right-2 text-8xl font-black text-slate-900/60 select-none font-serif tracking-tighter">03</span>
+            <div className="flex flex-col justify-between p-6 bg-white border border-slate-200/80 rounded-xl relative hover:border-emerald-500/50 transition-all duration-300 shadow-sm">
+              <span className="absolute -top-7 right-2 text-8xl font-black text-slate-100 select-none font-serif tracking-tighter">03</span>
               <div>
-                <span className="text-[10px] font-bold text-emerald-400 tracking-wider uppercase block mb-1">STEP THREE</span>
-                <h3 className="text-base font-bold text-white mb-2 mt-0">Zero-Shot Messages</h3>
-                <p className="text-xs text-slate-400 leading-relaxed mb-6">
+                <span className="text-[10px] font-bold text-emerald-600 tracking-wider uppercase block mb-1">STEP THREE</span>
+                <h3 className="text-base font-bold text-slate-900 mb-2 mt-0">Zero-Shot Messages</h3>
+                <p className="text-xs text-slate-500 leading-relaxed mb-6">
                   Pack guidelines in `system` and the current query in the final `user` message.
                 </p>
               </div>
-              <div className="p-3 bg-slate-950 rounded font-mono text-[10px] text-slate-300 border border-slate-900 overflow-x-auto">
+              <div className="p-3 bg-slate-50 rounded font-mono text-[10px] text-slate-600 border border-slate-200 overflow-x-auto">
                 <code>[sys_instr, ..., final_user]</code>
               </div>
             </div>
@@ -474,22 +452,22 @@ Headers:
 
         {/* SECTION 3: CODE SNIPPETS WITH TABS */}
         <section className="mb-20">
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-2.5">
-              <Terminal className="w-6 h-6 text-emerald-500" />
-              <h2 className="text-2xl font-bold text-white m-0">Standard SDK Integrations</h2>
+              <Terminal className="w-6 h-6 text-emerald-600" />
+              <h2 className="text-2xl font-bold text-slate-900 m-0">Standard SDK Integrations</h2>
             </div>
             
             {/* Lang Tabs */}
-            <div className="flex bg-slate-900 border border-slate-800 p-1 rounded-lg">
+            <div className="flex bg-slate-100 border border-slate-200 p-1 rounded-lg">
               {(["python", "javascript", "curl", "langchain"] as CodeLang[]).map((lang) => (
                 <button
                   key={lang}
                   onClick={() => setActiveLang(lang)}
                   className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all uppercase cursor-pointer ${
                     activeLang === lang 
-                      ? "bg-slate-800 text-white shadow-sm" 
-                      : "text-slate-400 hover:text-slate-200"
+                      ? "bg-slate-900 text-white shadow-sm" 
+                      : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
                   {lang === "javascript" ? "JS/Node" : lang}
@@ -499,11 +477,11 @@ Headers:
           </div>
 
           {/* Code Showcase Card */}
-          <div className="bg-slate-950 border border-slate-850 rounded-xl overflow-hidden relative group">
+          <div className="bg-slate-900 border border-slate-950 rounded-xl overflow-hidden relative group">
             {/* Clipboard copy button */}
             <button
               onClick={() => handleCopy(codeSnippets[activeLang], "snippet")}
-              className="absolute right-4 top-4 px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded text-slate-400 hover:text-white transition-all text-[10px] font-bold flex items-center gap-1.5 z-10"
+              className="absolute right-4 top-4 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded text-slate-300 hover:text-white transition-all text-[10px] font-bold flex items-center gap-1.5 z-10"
             >
               {copiedText === "snippet" ? (
                 <>
@@ -529,62 +507,62 @@ Headers:
           </div>
         </section>
 
-        {/* SECTION 4: LIVE ENDPOINT TEST BENCH (WOW Interactive Playground) */}
+        {/* SECTION 4: LIVE ENDPOINT TEST BENCH */}
         <section className="mb-20 relative">
           <div className="flex items-center gap-2.5 mb-2">
-            <Zap className="w-6 h-6 text-emerald-500 animate-pulse" />
-            <h2 className="text-2xl font-bold text-white m-0">Live Completions Test Bench</h2>
+            <Zap className="w-6 h-6 text-emerald-600" />
+            <h2 className="text-2xl font-bold text-slate-900 m-0">Live Completions Test Bench</h2>
           </div>
-          <p className="text-slate-400 text-sm leading-relaxed mb-8">
+          <p className="text-slate-600 text-xs leading-relaxed mb-8">
             Test the live API endpoint directly from your browser. Modify parameters below and observe the compiled request structure and execution return values.
           </p>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             
             {/* Left: Interactive Controls (5 cols) */}
-            <div className="lg:col-span-5 space-y-5 bg-slate-900/35 border border-slate-850 p-5 rounded-2xl shadow-xl backdrop-blur-sm relative">
+            <div className="lg:col-span-5 space-y-5 bg-white border border-slate-200/80 p-5 rounded-2xl shadow-sm relative">
               <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-600/40 rounded-l-2xl" />
               
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
                   Sandbox Authorization Key
                 </label>
                 <div className="relative">
-                  <Key className="w-3.5 h-3.5 absolute left-3 top-3.5 text-slate-500" />
+                  <Key className="w-3.5 h-3.5 absolute left-3 top-3.5 text-slate-400" />
                   <input
                     type="password"
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 pl-9 font-mono text-xs text-slate-300 focus:outline-none focus:border-emerald-500/40"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 pl-9 font-mono text-xs text-slate-700 focus:outline-none focus:bg-white focus:ring-1 focus:ring-slate-300"
                     placeholder="sk_live_..."
                   />
                 </div>
-                <span className="text-[9px] text-slate-500 mt-1 block">
-                  💡 Autoprovisions $1k balance for any key.
+                <span className="text-[9px] text-slate-400 mt-1 block font-serif italic">
+                  * Autoprovisions $1k balance for any key.
                 </span>
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
                   Test prompt
                 </label>
                 <textarea
                   value={testPrompt}
                   onChange={(e) => setTestPrompt(e.target.value)}
                   rows={2}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 font-mono text-xs text-slate-350 focus:outline-none focus:border-emerald-500/40 resize-none"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 font-mono text-xs text-slate-700 focus:outline-none focus:bg-white focus:ring-1 focus:ring-slate-300 resize-none"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
                     Model Layer
                   </label>
                   <select
                     value={testModel}
                     onChange={(e) => setTestModel(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-slate-350 focus:outline-none"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-700 focus:outline-none focus:bg-white"
                   >
                     <option value="membrane-engagement-layer">membrane-engagement</option>
                     <option value="openai/gpt-4o-mini">gpt-4o-mini</option>
@@ -599,9 +577,9 @@ Headers:
                       id="use-streaming"
                       checked={useStreaming}
                       onChange={(e) => setUseStreaming(e.target.checked)}
-                      className="accent-emerald-500 rounded border-slate-800 cursor-pointer"
+                      className="accent-emerald-600 rounded border-slate-300 cursor-pointer"
                     />
-                    <label htmlFor="use-streaming" className="text-xs font-bold text-slate-350 cursor-pointer select-none">
+                    <label htmlFor="use-streaming" className="text-xs font-bold text-slate-700 cursor-pointer select-none">
                       Stream (SSE)
                     </label>
                   </div>
@@ -615,34 +593,34 @@ Headers:
                     id="preserve-context"
                     checked={preserveContext}
                     onChange={(e) => setPreserveContext(e.target.checked)}
-                    className="accent-emerald-500 rounded border-slate-800 cursor-pointer"
+                    className="accent-emerald-600 rounded border-slate-300 cursor-pointer"
                   />
-                  <label htmlFor="preserve-context" className="text-xs font-bold text-slate-350 cursor-pointer select-none">
+                  <label htmlFor="preserve-context" className="text-xs font-bold text-slate-700 cursor-pointer select-none">
                     Preserve Context (Bypass Pruning)
                   </label>
                 </div>
-                <span className="text-[9px] text-slate-500 mt-1 block">
-                  Adds: <code className="bg-slate-950 px-1 border border-slate-850 rounded">X-Membrane-Preserve-Context: true</code>
+                <span className="text-[9px] text-slate-400 mt-1 block">
+                  Adds: <code className="bg-slate-100 px-1 border border-slate-200 rounded">X-Membrane-Preserve-Context: true</code>
                 </span>
               </div>
 
               <button
                 onClick={runLiveTest}
                 disabled={playgroundLoading || !testPrompt}
-                className={`w-full py-3.5 px-6 rounded-xl flex items-center justify-center gap-2.5 font-bold uppercase tracking-wider text-xs border transition-all duration-300 ${
+                className={`w-full py-3 px-6 rounded-xl flex items-center justify-center gap-2 font-bold uppercase tracking-wider text-xs border transition-all ${
                   playgroundLoading
-                    ? "bg-slate-800 text-slate-500 border-slate-700 cursor-not-allowed"
-                    : "bg-emerald-600 text-white cursor-pointer hover:bg-emerald-500 hover:scale-[1.02] shadow-[0_0_20px_rgba(16,185,129,0.2)] border-emerald-500/50"
+                    ? "bg-slate-200 text-slate-400 border-slate-200 cursor-not-allowed"
+                    : "bg-slate-900 text-white cursor-pointer hover:bg-slate-800 shadow-sm border-slate-950"
                 }`}
               >
                 {playgroundLoading ? (
                   <>
-                    <span className="w-3.5 h-3.5 border-2 border-slate-600 border-t-white rounded-full animate-spin" />
+                    <span className="w-3.5 h-3.5 border-2 border-slate-400 border-t-slate-800 rounded-full animate-spin" />
                     Executing Request...
                   </>
                 ) : (
                   <>
-                    <Play className="w-3.5 h-3.5 text-white" />
+                    <Play className="w-3.5 h-3.5 text-white fill-current" />
                     Execute Live Query
                   </>
                 )}
@@ -655,33 +633,33 @@ Headers:
               
               {/* Telemetry Display */}
               {telemetryROI && (
-                <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-4 font-mono shadow-md animate-fade-in">
-                  <div className="flex justify-between items-center border-b border-slate-800 pb-2 mb-3">
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 font-mono shadow-sm animate-fade-in">
+                  <div className="flex justify-between items-center border-b border-slate-250 pb-2 mb-3">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                       Ledger Telemetry
                     </span>
-                    <span className="text-[9px] font-bold bg-emerald-950/60 border border-emerald-900/40 text-emerald-400 px-1.5 py-0.5 rounded">
+                    <span className="text-[9px] font-bold bg-emerald-50 border border-emerald-250 text-emerald-600 px-1.5 py-0.5 rounded">
                       {telemetryROI.status}
                     </span>
                   </div>
 
                   <div className="grid grid-cols-3 gap-2.5 text-center">
-                    <div className="p-2.5 bg-slate-950 rounded-lg border border-slate-850">
-                      <p className="text-[9px] text-slate-500 uppercase font-sans font-bold">Latency</p>
-                      <p className="text-xs font-bold text-white mt-1">
+                    <div className="p-2.5 bg-white rounded-lg border border-slate-250 shadow-sm">
+                      <p className="text-[9px] text-slate-450 uppercase font-sans font-bold">Latency</p>
+                      <p className="text-xs font-bold text-slate-900 mt-1">
                         {telemetryROI.latency}ms
                       </p>
                     </div>
-                    <div className="p-2.5 bg-slate-950 rounded-lg border border-slate-850">
-                      <p className="text-[9px] text-slate-500 uppercase font-sans font-bold">Cost</p>
-                      <p className="text-xs font-bold text-white mt-1">
+                    <div className="p-2.5 bg-white rounded-lg border border-slate-250 shadow-sm">
+                      <p className="text-[9px] text-slate-450 uppercase font-sans font-bold">Cost</p>
+                      <p className="text-xs font-bold text-slate-900 mt-1">
                         ${telemetryROI.billed_amount.toFixed(5)}
                       </p>
                     </div>
-                    <div className="p-2.5 bg-emerald-950/30 rounded-lg border border-emerald-900/30">
-                      <p className="text-[9px] text-emerald-400 uppercase font-sans font-bold">Savings</p>
-                      <p className="text-xs font-bold text-emerald-400 mt-1">
+                    <div className="p-2.5 bg-emerald-50 rounded-lg border border-emerald-150">
+                      <p className="text-[9px] text-emerald-700 uppercase font-sans font-bold">Savings</p>
+                      <p className="text-xs font-bold text-emerald-600 mt-1">
                         {telemetryROI.savings_percent.toFixed(1)}% Saved
                       </p>
                     </div>
@@ -691,12 +669,12 @@ Headers:
 
               {/* Error Gating */}
               {playgroundError && (
-                <div className="bg-red-950/30 border border-red-900/50 text-red-200 rounded-xl p-4 flex items-start gap-3">
-                  <AlertTriangle className="w-5 h-5 text-red-400 shrink-0" />
+                <div className="bg-rose-50 border border-rose-100 text-rose-800 rounded-xl p-4 flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0" />
                   <div className="text-xs">
-                    <p className="font-bold text-red-300">Request Rejected</p>
+                    <p className="font-bold text-rose-900">Request Rejected</p>
                     <p className="mt-1 leading-relaxed">{playgroundError}</p>
-                    <p className="mt-2 text-slate-500 leading-normal font-sans">
+                    <p className="mt-2 text-slate-400 leading-normal font-sans">
                       Ensure the API proxy server is running. On Render, local dev endpoints fall back to cloud.
                     </p>
                   </div>
@@ -704,11 +682,11 @@ Headers:
               )}
 
               {/* Terminal Block */}
-              <div className="border border-slate-800 bg-slate-950 rounded-xl overflow-hidden shadow-2xl flex flex-col min-h-[220px]">
+              <div className="border border-slate-200 bg-slate-900 rounded-xl overflow-hidden shadow-sm flex flex-col min-h-[220px]">
                 {/* Header */}
-                <div className="bg-slate-900 px-4 py-2 border-b border-slate-850 flex items-center justify-between text-xs text-slate-400">
+                <div className="bg-slate-950 px-4 py-2 border-b border-slate-990 flex items-center justify-between text-xs text-slate-400">
                   <span className="font-mono">completions-response-data</span>
-                  <span className="font-mono text-[9px] text-slate-500">
+                  <span className="font-mono text-[9px] text-slate-650">
                     {useStreaming ? "SSE (text/event-stream)" : "application/json"}
                   </span>
                 </div>
@@ -722,7 +700,7 @@ Headers:
                   ) : playgroundOutput ? (
                     <pre className="whitespace-pre-wrap">{playgroundOutput}</pre>
                   ) : (
-                    <span className="text-slate-650 italic">
+                    <span className="text-slate-500 italic">
                       Configure parameters and execute the query to trigger live diagnostics.
                     </span>
                   )}
@@ -737,50 +715,50 @@ Headers:
         {/* SECTION 5: PARAMETERS REFERENCE TABLE */}
         <section className="mb-20">
           <div className="flex items-center gap-2.5 mb-6">
-            <Server className="w-6 h-6 text-emerald-500" />
-            <h2 className="text-2xl font-bold text-white m-0">JSON Payload Parameters</h2>
+            <Server className="w-6 h-6 text-emerald-600" />
+            <h2 className="text-2xl font-bold text-slate-900 m-0">JSON Payload Parameters</h2>
           </div>
           
-          <div className="border border-slate-800 rounded-xl overflow-hidden shadow-lg">
+          <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white">
             <table className="w-full text-left text-xs m-0 border-collapse">
-              <thead className="bg-slate-900 border-b border-slate-800 text-slate-300">
+              <thead className="bg-slate-50 border-b border-slate-200 text-slate-700">
                 <tr>
-                  <th className="px-5 py-3.5 font-bold uppercase tracking-wider">Parameter</th>
-                  <th className="px-5 py-3.5 font-bold uppercase tracking-wider">Type</th>
-                  <th className="px-5 py-3.5 font-bold uppercase tracking-wider">Default</th>
-                  <th className="px-5 py-3.5 font-bold uppercase tracking-wider">Description</th>
+                  <th className="px-5 py-3.5 font-bold uppercase tracking-wider text-[10px]">Parameter</th>
+                  <th className="px-5 py-3.5 font-bold uppercase tracking-wider text-[10px]">Type</th>
+                  <th className="px-5 py-3.5 font-bold uppercase tracking-wider text-[10px]">Default</th>
+                  <th className="px-5 py-3.5 font-bold uppercase tracking-wider text-[10px]">Description</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-850 text-slate-350 font-mono">
-                <tr className="hover:bg-slate-900/20">
-                  <td className="px-5 py-4 text-white font-bold">messages <span className="text-red-500">*</span></td>
-                  <td className="px-5 py-4 text-slate-400">array</td>
-                  <td className="px-5 py-4 text-slate-500">n/a</td>
-                  <td className="px-5 py-4 text-slate-300 font-sans leading-relaxed">
+              <tbody className="divide-y divide-slate-100 text-slate-750 font-mono">
+                <tr className="hover:bg-slate-55 bg-white">
+                  <td className="px-5 py-4 text-slate-900 font-bold">messages <span className="text-rose-500">*</span></td>
+                  <td className="px-5 py-4 text-slate-500">array</td>
+                  <td className="px-5 py-4 text-slate-400">n/a</td>
+                  <td className="px-5 py-4 text-slate-650 font-sans leading-relaxed">
                     OpenAI SDK standard messages array. System instructions reside in `system`; final query must occupy the last `user` position.
                   </td>
                 </tr>
-                <tr className="hover:bg-slate-900/20">
-                  <td className="px-5 py-4 text-white font-bold">model</td>
-                  <td className="px-5 py-4 text-slate-400">string</td>
-                  <td className="px-5 py-4 text-slate-300">membrane-engagement-layer</td>
-                  <td className="px-5 py-4 text-slate-300 font-sans leading-relaxed">
+                <tr className="hover:bg-slate-55 bg-white">
+                  <td className="px-5 py-4 text-slate-900 font-bold">model</td>
+                  <td className="px-5 py-4 text-slate-500">string</td>
+                  <td className="px-5 py-4 text-slate-650">membrane-engagement-layer</td>
+                  <td className="px-5 py-4 text-slate-650 font-sans leading-relaxed">
                     Routing layer identifier. Auto-routes complex logic demands to high-density models, routing simple tasks to canary.
                   </td>
                 </tr>
-                <tr className="hover:bg-slate-900/20">
-                  <td className="px-5 py-4 text-white font-bold">stream</td>
-                  <td className="px-5 py-4 text-slate-400">boolean</td>
-                  <td className="px-5 py-4 text-slate-300">false</td>
-                  <td className="px-5 py-4 text-slate-300 font-sans leading-relaxed">
+                <tr className="hover:bg-slate-55 bg-white">
+                  <td className="px-5 py-4 text-slate-900 font-bold">stream</td>
+                  <td className="px-5 py-4 text-slate-500">boolean</td>
+                  <td className="px-5 py-4 text-slate-400">false</td>
+                  <td className="px-5 py-4 text-slate-650 font-sans leading-relaxed">
                     Toggles Server-Sent Events (SSE). Intercepts and formats output to comply with standard token-streaming readers.
                   </td>
                 </tr>
-                <tr className="hover:bg-slate-900/20">
-                  <td className="px-5 py-4 text-white font-bold">X-Membrane-Preserve-Context</td>
-                  <td className="px-5 py-4 text-slate-400">header</td>
-                  <td className="px-5 py-4 text-slate-300">false</td>
-                  <td className="px-5 py-4 text-slate-300 font-sans leading-relaxed">
+                <tr className="hover:bg-slate-55 bg-white">
+                  <td className="px-5 py-4 text-slate-900 font-bold">X-Membrane-Preserve-Context</td>
+                  <td className="px-5 py-4 text-slate-500">header</td>
+                  <td className="px-5 py-4 text-slate-400">false</td>
+                  <td className="px-5 py-4 text-slate-650 font-sans leading-relaxed">
                     Custom HTTP request header. Set to `true` to skip default context compression filters when executing conversational dialogue.
                   </td>
                 </tr>
@@ -792,59 +770,59 @@ Headers:
         {/* SECTION 6: THREAT FIREWALL & ERROR REFERENCE */}
         <section className="mb-20">
           <div className="flex items-center gap-2.5 mb-6">
-            <ShieldAlert className="w-6 h-6 text-emerald-500" />
-            <h2 className="text-2xl font-bold text-white m-0">Zero-Latency Threat Firewall & Rejections</h2>
+            <ShieldAlert className="w-6 h-6 text-emerald-600" />
+            <h2 className="text-2xl font-bold text-slate-900 m-0">Zero-Latency Threat Firewall & Rejections</h2>
           </div>
 
-          <p className="text-slate-400 text-sm leading-relaxed mb-6">
+          <p className="text-slate-600 text-xs leading-relaxed mb-6">
             Membrane classifies prompt intent in parallel using an optimized intent-gating engine. Injection payloads, jailbreak strings, or severe policy violations trigger immediate connection termination:
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             
-            <div className="p-5 bg-slate-900/30 border border-slate-850 rounded-xl flex items-start gap-4">
-              <div className="w-8 h-8 rounded-lg bg-red-950/40 border border-red-900/30 flex items-center justify-center font-mono font-bold text-red-400 shrink-0">
+            <div className="p-5 bg-white border border-slate-200/80 rounded-xl flex items-start gap-4 shadow-sm">
+              <div className="w-8 h-8 rounded-lg bg-rose-50 border border-rose-100 flex items-center justify-center font-mono font-bold text-rose-700 shrink-0">
                 400
               </div>
               <div className="text-xs">
-                <h4 className="font-bold text-white mb-1">Bad Request (Policy Rejection)</h4>
-                <p className="text-slate-450 leading-relaxed">
+                <h4 className="font-bold text-slate-900 mb-1">Bad Request (Policy Rejection)</h4>
+                <p className="text-slate-500 leading-relaxed">
                   Firewall detected prompt injection, guideline bypass code, or jailbreak keywords. Connection is terminated instantly with zero upstream cost.
                 </p>
               </div>
             </div>
 
-            <div className="p-5 bg-slate-900/30 border border-slate-850 rounded-xl flex items-start gap-4">
-              <div className="w-8 h-8 rounded-lg bg-orange-950/40 border border-orange-900/30 flex items-center justify-center font-mono font-bold text-orange-400 shrink-0">
+            <div className="p-5 bg-white border border-slate-200/80 rounded-xl flex items-start gap-4 shadow-sm">
+              <div className="w-8 h-8 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center font-mono font-bold text-amber-700 shrink-0">
                 402
               </div>
               <div className="text-xs">
-                <h4 className="font-bold text-white mb-1">Payment Required (Balance Depleted)</h4>
-                <p className="text-slate-450 leading-relaxed">
+                <h4 className="font-bold text-slate-900 mb-1">Payment Required (Balance Depleted)</h4>
+                <p className="text-slate-500 leading-relaxed">
                   Prepaid account ledger balance hit $0.00. (Note: Sandbox developer credentials bypass this check with auto-refilling $1,000 balances).
                 </p>
               </div>
             </div>
 
-            <div className="p-5 bg-slate-900/30 border border-slate-850 rounded-xl flex items-start gap-4">
-              <div className="w-8 h-8 rounded-lg bg-yellow-950/40 border border-yellow-900/30 flex items-center justify-center font-mono font-bold text-yellow-400 shrink-0">
+            <div className="p-5 bg-white border border-slate-200/80 rounded-xl flex items-start gap-4 shadow-sm">
+              <div className="w-8 h-8 rounded-lg bg-orange-50 border border-orange-100 flex items-center justify-center font-mono font-bold text-orange-700 shrink-0">
                 422
               </div>
               <div className="text-xs">
-                <h4 className="font-bold text-white mb-1">Unprocessable Entity (JSON Hallucination)</h4>
-                <p className="text-slate-450 leading-relaxed">
+                <h4 className="font-bold text-slate-900 mb-1">Unprocessable Entity (JSON Hallucination)</h4>
+                <p className="text-slate-500 leading-relaxed">
                   FastAPI validation error, or the model repeatedly failed JSON structure checks and recovery routines when outputting structured schemas.
                 </p>
               </div>
             </div>
 
-            <div className="p-5 bg-slate-900/30 border border-slate-850 rounded-xl flex items-start gap-4">
-              <div className="w-8 h-8 rounded-lg bg-purple-950/40 border border-purple-900/30 flex items-center justify-center font-mono font-bold text-purple-400 shrink-0">
+            <div className="p-5 bg-white border border-slate-200/80 rounded-xl flex items-start gap-4 shadow-sm">
+              <div className="w-8 h-8 rounded-lg bg-purple-50 border border-purple-100 flex items-center justify-center font-mono font-bold text-purple-700 shrink-0">
                 502
               </div>
               <div className="text-xs">
-                <h4 className="font-bold text-white mb-1">Bad Gateway (Provider Timeout)</h4>
-                <p className="text-slate-450 leading-relaxed">
+                <h4 className="font-bold text-slate-900 mb-1">Bad Gateway (Provider Timeout)</h4>
+                <p className="text-slate-500 leading-relaxed">
                   Upstream completion endpoints (Google, OpenAI, Anthropic) timed out or returned HTTP 5xx errors concurrently, triggering local failover.
                 </p>
               </div>
@@ -853,29 +831,9 @@ Headers:
           </div>
         </section>
 
-
-
       </main>
 
-      {/* Footer */}
-      <footer className="bg-slate-900 border-t border-slate-850 py-16 text-center text-slate-400 relative overflow-hidden mt-12">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 -mt-20 w-80 h-80 rounded-full bg-emerald-500/5 blur-3xl pointer-events-none" />
-        <div className="max-w-4xl mx-auto px-6 relative">
-          <BookOpen className="w-10 h-10 text-emerald-600 mx-auto mb-4 animate-pulse" />
-          <h3 className="text-xl font-bold text-white mb-2">Build Your Own Lossless Agent Swarms</h3>
-          <p className="text-slate-400 text-sm max-w-xl mx-auto mb-6 leading-relaxed">
-            Ready to integrate high-speed agentic routing, semantic caching, and threat firewall safety modules into your own developer stack?
-          </p>
-          <div className="flex justify-center gap-3">
-            <Link href="/cookbook" className="px-5 py-2.5 bg-slate-850 hover:bg-slate-800 hover:text-white transition-all text-xs font-semibold rounded-md border border-slate-750">
-              Open Cookbook Playground
-            </Link>
-            <Link href="/dashboard" className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 transition-all text-white text-xs font-semibold rounded-md shadow shadow-emerald-950">
-              Open Sandbox Console
-            </Link>
-          </div>
-        </div>
-      </footer>
+      <Footer />
 
     </div>
   );

@@ -22,11 +22,11 @@ export async function POST(req: Request) {
       console.warn("⚠️ Database offline during referral redemption. Proceeding with mock success.", dbError);
     }
 
-    // Redirect back to dashboard
-    return NextResponse.redirect(new URL("/dashboard", req.url), { status: 303 });
+    // Redirect back to console
+    return NextResponse.redirect(new URL("/console", req.url), { status: 303 });
 
   } catch (error) {
     console.error("Referral Redemption Error:", error);
-    return NextResponse.redirect(new URL("/dashboard", req.url), { status: 303 });
+    return NextResponse.redirect(new URL("/console", req.url), { status: 303 });
   }
 }
