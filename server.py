@@ -431,7 +431,7 @@ async def verify_access(credentials: HTTPAuthorizationCredentials = Security(sec
 
     # Hardened prefix/key check to prevent database flooding (DoS) from arbitrary spam keys
     if not api_key.startswith("sk_live_") and not api_key.startswith("sk_membrane_") and api_key != "local_dev_key":
-        raise HTTPException(status_code=401, detail="Access Denied: Invalid API key format or prefix.")
+        raise HTTPException(status_code=401, detail=f"Access Denied: Invalid API key format or prefix. Received len={len(api_key)} val={repr(api_key)}")
 
     if not db_pool:
         print("⚠️ Database offline. Bypassing billing/auth check for local demo.")
