@@ -57,6 +57,7 @@ sequenceDiagram
 Playground components, consoles, and documentation test benches must not operate in state isolation or rely on raw, ad-hoc `localStorage` queries.
 * **Context Wrapper (`ApiKeyProvider`):** Encapsulates the entire application layout in `src/app/layout.tsx`. On mount, it initializes saved credentials from local storage and synchronizes them across all child views.
 * **Client-Side SHA-256 Computation:** Computes tenant IDs locally using browser-safe Web Crypto APIs (`window.crypto.subtle.digest`), ensuring high-speed hashing without Node.js crypto package dependencies or bloated JS bundles.
+* **Self-Healing Key Verification:** Sanitizes and syntax-checks the key loaded from `localStorage` on component mount. If the cached key does not conform to valid formats (e.g., is an invalid serialization string like `[object Object]` or lacks the correct `sk_live_` / `sk_membrane_` prefixes), the context discards it and silently triggers `refreshApiKey()` to dynamically provision and cache a new, valid sandbox/trial key.
 * **Unified Hook (`useApiKey()`):** Exposes `apiKey`, `tenantId`, `refreshApiKey`, and `updateApiKey` states. Any update to the API key in the developer console instantly propagates across the homepage playground and docs test bench.
 
 ### Context Provider Implementation (`ApiKeyContext.tsx`)
@@ -72,6 +73,38 @@ const computeTenantId = async (key: string): Promise<string> => {
     return "local_dev_active";
   }
 };
+```
+
+### Client-Side Self-Healing Verification Routine (`initializeKey`)
+To prevent persistent HTTP 401 exceptions from stale, corrupted, or object-serialized credentials stored in the user's browser storage (such as raw `[object Object]` keys), the context's initialization hook executes a self-healing routine:
+
+1. **Extraction and Sanitization:** Reads the raw value from `localStorage` and cleanses it using regex-based extraction (stripping outer braces, quotes, or double-prefixing).
+2. **Format Verification:** Validates that the sanitized key matches acceptable prefix signatures (`sk_live_`, `sk_membrane_`, or `local_dev_key`).
+3. **Automatic Healing:** If the validation fails (e.g., the key is empty, malformed, or contains invalid strings), the entry is discarded, and the provider automatically makes a call to `refreshApiKey()` to fetch and persist a fresh, valid trial key.
+
+```typescript
+useEffect(() => {
+  const initializeKey = async () => {
+    const savedKey = localStorage.getItem("membrane_playground_api_key");
+    if (savedKey) {
+      const sanitized = cleanKey(savedKey);
+      if (
+        sanitized.startsWith("sk_live_") ||
+        sanitized.startsWith("sk_membrane_") ||
+        sanitized === "local_dev_key"
+      ) {
+        setApiKey(sanitized);
+        const tenant = await computeTenantId(sanitized);
+        setTenantId(tenant);
+        setLoading(false);
+        return;
+      }
+    }
+    // Auto-heal by provisioning a new valid sandbox key
+    await refreshApiKey();
+  };
+  initializeKey();
+}, []);
 ```
 
 ---
