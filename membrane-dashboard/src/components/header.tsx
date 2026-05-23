@@ -7,12 +7,12 @@ export function Header() {
   return (
     <header className="flex items-center justify-between px-6 py-4 border-b bg-background/80 backdrop-blur-md sticky top-0 z-50">
       {/* LEFT: Logo */}
-      <div className="flex items-center gap-2 w-[220px]">
+      <Link href="/" className="flex items-center gap-2 w-[220px] hover:opacity-90 transition-opacity">
         <div className="flex items-center justify-center w-8 h-8 font-bold text-white bg-emerald-600 rounded-md">
           M
         </div>
         <span className="text-xl font-bold">Membrane Guard</span>
-      </div>
+      </Link>
       
       {/* CENTER: Navigation Links */}
       <nav className="hidden gap-8 md:flex text-sm font-medium text-muted-foreground absolute left-1/2 -translate-x-1/2">

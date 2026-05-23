@@ -35,7 +35,7 @@ export function FeaturesSection() {
           {features.map((feature) => (
             <div 
               key={feature.title}
-              className="group rounded-xl border border-border bg-background/80 p-8 shadow-sm backdrop-blur-sm transition-all hover:border-accent/50 hover:shadow-md"
+              className="group rounded-xl border border-border bg-background/80 p-8 shadow-sm backdrop-blur-sm transition-all hover:border-accent/50 hover:shadow-md tilt-3d"
             >
               <div className="mb-4 inline-flex rounded-lg bg-accent/10 p-3">
                 <feature.icon className="h-6 w-6 text-accent" />

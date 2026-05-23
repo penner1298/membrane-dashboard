@@ -117,6 +117,24 @@ export function ConsoleClient({
         </div>
       </div>
 
+      {dbStatus !== "Online" && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-850 p-4 rounded-2xl flex items-start gap-3 shadow-sm">
+          <AlertTriangle className="w-5.5 h-5.5 text-amber-500 shrink-0 mt-0.5" />
+          <div className="text-xs">
+            <p className="font-bold text-amber-900">Database Offline (Running Mock Fallback)</p>
+            <p className="mt-1 leading-relaxed">
+              Membrane Guard is currently running in stateless mock telemetry mode. To connect a live database for persistent audit logs, vector L2 caching, and tenant balance tracking:
+            </p>
+            <ol className="list-decimal list-inside mt-1.5 space-y-1 font-mono text-[10.5px]">
+              <li>Ensure PostgreSQL is running locally or provisioned in the cloud.</li>
+              <li>Install the <code className="bg-amber-100/50 px-1 rounded border border-amber-200/50">pgvector</code> extension in your database.</li>
+              <li>Set the <code className="bg-amber-100/50 px-1 rounded border border-amber-200/50">DATABASE_URL</code> environment variable (e.g., <code className="bg-amber-100/50 px-1 rounded border border-amber-200/50">postgres://user:pass@host:5432/dbname</code>).</li>
+              <li>Restart the Membrane gateway server (<code className="bg-amber-100/50 px-1 rounded border border-amber-200/50">python3 server.py</code>).</li>
+            </ol>
+          </div>
+        </div>
+      )}
+
       {/* METRICS GRID */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white/70 backdrop-blur-md p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
@@ -168,6 +186,17 @@ export function ConsoleClient({
               DLQ Auditor {dlqLogs.length > 0 && (
                 <span className="w-2 h-2 bg-rose-500 rounded-full"></span>
               )}
+            </button>
+
+            <button
+              onClick={() => setActiveTab("settings")}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${
+                activeTab === "settings"
+                  ? "bg-slate-900 text-white"
+                  : "bg-slate-100 text-slate-650 hover:bg-slate-200"
+              }`}
+            >
+              Settings
             </button>
           </div>
 
@@ -311,6 +340,36 @@ export function ConsoleClient({
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* TAB 3: SETTINGS / REFERRAL */}
+        {activeTab === "settings" && (
+          <div className="max-w-md space-y-6">
+            <div className="space-y-2">
+              <h3 className="text-sm font-bold text-slate-800">Redeem Referral Code</h3>
+              <p className="text-xs text-slate-500">
+                Enter a referral code to instantly boost your active tenant's balance by $10.00.
+              </p>
+            </div>
+            
+            <form action="/api/referral/redeem" method="POST" className="space-y-4">
+              <input type="hidden" name="token" value={apiKey} />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  name="code"
+                  placeholder="REF-XXXXXX"
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:bg-white flex-1"
+                />
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition shadow-sm"
+                >
+                  Redeem
+                </button>
+              </div>
+            </form>
           </div>
         )}
       </div>

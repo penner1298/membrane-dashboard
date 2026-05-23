@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
+import { FeaturesSection } from "@/components/features-section";
 import { 
   Play, Copy, Check, Terminal, Sliders, Sparkles, Cpu, 
   AlertTriangle, Lock, Shield, ArrowRight, Layers, FileText, 
@@ -84,6 +85,7 @@ export default function Home() {
   const [payloadText, setPayloadText] = useState<string>(ENGINEERING_PATTERNS[0].defaultPayload);
   const [slices, setSlices] = useState<number>(10);
   const [preserveContext, setPreserveContext] = useState<boolean>(false);
+  const [playgroundApiKey, setPlaygroundApiKey] = useState<string>("sk_membrane_instant_trial");
   
   // Terminal / execute state
   const [isExecuting, setIsExecuting] = useState<boolean>(false);
@@ -129,7 +131,7 @@ export default function Home() {
     // Setup headers
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      "Authorization": "Bearer sk_membrane_instant_trial"
+      "Authorization": `Bearer ${playgroundApiKey}`
     };
 
     if (preserveContext && selectedPattern.id === "context_isolation") {
@@ -204,7 +206,12 @@ export default function Home() {
       });
 
     } catch (err: any) {
-      setStreamOutput(`// Exception Caught:\n${err.message || err}`);
+      const is401 = err.message && (err.message.includes("401") || err.message.includes("Unauthorized") || err.message.includes("Tenant not found"));
+      if (is401) {
+        setStreamOutput(`// Exception Caught:\n${err.message || err}\n\n💡 PROXIMITY ASSISTANCE (401 Unauthorized):\nIt looks like the API key you are using is not registered on the live hosted Render server, or has expired.\n\nTo resolve this instantly:\n1. Open the DevOps Console (click "Console" in the header).\n2. Copy the active "Gateway Authorization Key" (prefilled for you).\n3. Paste it in the "Gateway Authorization Key" input box on the left panel.\n4. Re-execute this query.`);
+      } else {
+        setStreamOutput(`// Exception Caught:\n${err.message || err}`);
+      }
     } finally {
       setIsExecuting(false);
     }
@@ -258,7 +265,7 @@ export default function Home() {
             Membrane Guard
           </h1>
           <p className="text-lg sm:text-xl font-serif italic text-slate-600 max-w-2xl mx-auto">
-            "The Lossless Inter-Agent Protocol. Strip conversational memory bloat, enforce strict structural schema compliance, and secure your agent swarms with a sub-2ms edge cache layer."
+            &ldquo;The Lossless Inter-Agent Protocol. Strip conversational memory bloat, enforce strict structural schema compliance, and secure your agent swarms with a sub-2ms edge cache layer.&rdquo;
           </p>
         </div>
 
@@ -269,7 +276,7 @@ export default function Home() {
             <span className="text-[10px] uppercase font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded">No signup needed</span>
           </div>
           
-          <div className="bg-slate-900 text-slate-100 p-4 rounded-xl shadow-lg border border-slate-800 font-mono text-sm relative group overflow-hidden">
+          <div className="bg-slate-900 text-slate-100 p-4 rounded-xl shadow-lg border border-slate-800 font-mono text-sm relative group overflow-hidden tilt-3d">
             <div className="absolute top-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity">
               <button 
                 onClick={() => handleCopy(TRIAL_CURL_SNIPPET, "curl")}
@@ -286,6 +293,8 @@ export default function Home() {
             Copy and paste this query into your local shell terminal. The `sk_membrane_instant_trial` token triggers a stateless sandboxed run.
           </p>
         </div>
+
+        <FeaturesSection />
 
         <hr className="border-slate-200" />
 
@@ -321,7 +330,7 @@ export default function Home() {
             
             {/* LEFT INPUT BAY (5 cols) */}
             <div className="lg:col-span-5 flex flex-col space-y-6">
-              <div className="bg-white/70 backdrop-blur-md rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-4 flex-1 flex flex-col justify-between">
+              <div className="bg-white/70 backdrop-blur-md rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-4 flex-1 flex flex-col justify-between tilt-3d">
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 text-xs font-mono font-bold text-slate-400 uppercase tracking-widest">
                     <Database className="w-4 h-4 text-emerald-600" /> RAW STREAM INPUT BAY
@@ -336,6 +345,22 @@ export default function Home() {
                     <div className="bg-slate-50 px-3 py-2 rounded-lg border border-slate-200 text-xs font-mono text-slate-600 select-all">
                       POST {selectedPattern.endpoint}
                     </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex justify-between items-center">
+                      <span>Gateway Authorization Key</span>
+                      <Link href="/console" className="text-emerald-600 font-semibold underline hover:text-emerald-700 font-sans tracking-normal capitalize text-[9.5px]">
+                        Get key from Console
+                      </Link>
+                    </label>
+                    <input
+                      type="text"
+                      value={playgroundApiKey}
+                      onChange={(e) => setPlaygroundApiKey(e.target.value)}
+                      placeholder="sk_membrane_..."
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-mono text-xs text-slate-705 focus:outline-none focus:bg-white focus:ring-1 focus:ring-slate-300"
+                    />
                   </div>
 
                   {/* Dynamic control options depending on selected pattern */}
@@ -399,7 +424,7 @@ export default function Home() {
                   <button
                     onClick={executePlaygroundQuery}
                     disabled={isExecuting || (selectedPattern.id === "swarm_map" && slices > 50)}
-                    className={`w-full py-3 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 shadow-sm transition ${
+                    className={`w-full py-3 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 shadow-sm transition tilt-3d ${
                       selectedPattern.id === "swarm_map" && slices > 50
                         ? "bg-slate-300 cursor-not-allowed"
                         : isExecuting 
@@ -425,7 +450,7 @@ export default function Home() {
             <div className="lg:col-span-7 flex flex-col space-y-6">
               
               {/* Output Monitor */}
-              <div className="bg-white/70 backdrop-blur-md rounded-2xl border border-slate-200/80 p-6 shadow-sm flex-1 flex flex-col justify-between">
+              <div className="bg-white/70 backdrop-blur-md rounded-2xl border border-slate-200/80 p-6 shadow-sm flex-1 flex flex-col justify-between tilt-3d">
                 <div className="space-y-4 flex-1 flex flex-col">
                   <div className="flex items-center justify-between text-xs font-mono font-bold text-slate-400 uppercase tracking-widest">
                     <span className="flex items-center gap-1.5"><Terminal className="w-4 h-4 text-slate-600" /> LOSSLESS OUTPUT CANVAS</span>
@@ -466,7 +491,7 @@ export default function Home() {
         <hr className="border-slate-200" />
 
         {/* TABBED CONTEXT-AWARE SDK RECIPES */}
-        <div className="bg-white/70 backdrop-blur-md rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-6">
+        <div className="bg-white/70 backdrop-blur-md rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-6 tilt-3d">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
             <div>
               <h3 className="text-lg font-black text-slate-950 flex items-center gap-2">

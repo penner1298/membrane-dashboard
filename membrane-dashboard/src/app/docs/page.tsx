@@ -207,7 +207,11 @@ response = client.chat.completions.create(
         {"role": "system", "content": "You are a data-extraction assistant."},
         {"role": "user", "content": "Process transaction ID: 9482103"}
     ],
-    temperature=0.0
+    temperature=0.0,
+    # Optional: bypass context pruning
+    extra_headers={
+        "X-Membrane-Preserve-Context": "true"
+    }
 )
 
 print(response.choices[0].message.content)`,
@@ -218,17 +222,20 @@ const openai = new OpenAI({
   apiKey: "sk_live_YOUR_API_KEY",
 });
 
-const completion = await openai.chat.completions.create({
-  model: "membrane-engagement-layer",
-  messages: [
-    { role: "system", content: "You are a stateful assistant." },
-    { role: "user", content: "Analyze these log events." }
-  ],
-  // Optional: preserve intermediate messages
-  extraHeaders: {
-    "X-Membrane-Preserve-Context": "true"
+const completion = await openai.chat.completions.create(
+  {
+    model: "membrane-engagement-layer",
+    messages: [
+      { role: "system", content: "You are a stateful assistant." },
+      { role: "user", content: "Analyze these log events." }
+    ]
+  },
+  {
+    headers: {
+      "X-Membrane-Preserve-Context": "true"
+    }
   }
-});
+);
 
 console.log(completion.choices[0].message.content);`,
     curl: `curl -X POST https://membrane-api.com/v1/chat/completions \\
@@ -328,7 +335,7 @@ Headers:
             <h2 className="text-2xl font-bold text-slate-900 m-0">AI-to-AI Agent Handshake Protocol</h2>
           </div>
           
-          <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 md:p-8 shadow-sm">
+          <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 md:p-8 shadow-sm tilt-3d">
             <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-emerald-500/20 via-blue-500/30 to-purple-500/20" />
             
             <p className="text-xs text-slate-650 leading-relaxed mb-6">
@@ -337,7 +344,7 @@ Headers:
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
               {/* Terminal command to fetch llms.txt */}
-              <div className="lg:col-span-5 flex flex-col justify-between p-5 bg-slate-50 rounded-xl border border-slate-200">
+              <div className="lg:col-span-5 flex flex-col justify-between p-5 bg-slate-50 rounded-xl border border-slate-200 tilt-3d">
                 <div>
                   <span className="text-[9px] font-black tracking-widest text-slate-400 uppercase block mb-2 font-mono">Agent Command Line</span>
                   <h4 className="text-xs font-bold text-slate-900 mb-2">Automated Discovery</h4>
@@ -357,7 +364,7 @@ Headers:
               </div>
 
               {/* Rules block */}
-              <div className="lg:col-span-7 flex flex-col p-5 bg-slate-50 rounded-xl border border-slate-200">
+              <div className="lg:col-span-7 flex flex-col p-5 bg-slate-50 rounded-xl border border-slate-200 tilt-3d">
                 <div className="flex justify-between items-center mb-3">
                   <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -403,7 +410,7 @@ Headers:
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
             
             {/* Step 1 */}
-            <div className="flex flex-col justify-between p-6 bg-white border border-slate-200/80 rounded-xl relative hover:border-emerald-500/50 transition-all duration-300 shadow-sm">
+            <div className="flex flex-col justify-between p-6 bg-white border border-slate-200/80 rounded-xl relative hover:border-emerald-500/50 transition-all duration-300 shadow-sm tilt-3d">
               <span className="absolute -top-7 right-2 text-8xl font-black text-slate-100 select-none font-serif tracking-tighter">01</span>
               <div>
                 <span className="text-[10px] font-bold text-emerald-600 tracking-wider uppercase block mb-1">STEP ONE</span>
@@ -418,13 +425,17 @@ Headers:
             </div>
 
             {/* Step 2 */}
-            <div className="flex flex-col justify-between p-6 bg-white border border-slate-200/80 rounded-xl relative hover:border-emerald-500/50 transition-all duration-300 shadow-sm">
+            <div className="flex flex-col justify-between p-6 bg-white border border-slate-200/80 rounded-xl relative hover:border-emerald-500/50 transition-all duration-300 shadow-sm tilt-3d">
               <span className="absolute -top-7 right-2 text-8xl font-black text-slate-100 select-none font-serif tracking-tighter">02</span>
               <div>
                 <span className="text-[10px] font-bold text-emerald-600 tracking-wider uppercase block mb-1">STEP TWO</span>
                 <h3 className="text-base font-bold text-slate-900 mb-2 mt-0">Provide Bearer Token</h3>
                 <p className="text-xs text-slate-500 leading-relaxed mb-6">
-                  Authenticate your request by supplying your Membrane API key in the standard header.
+                  Authenticate your request by supplying your Membrane API key. Copy your dynamic credentials from the{" "}
+                  <Link href="/console" className="text-emerald-600 font-bold underline hover:text-emerald-700">
+                    DevOps Console
+                  </Link>{" "}
+                  or use the trial key `sk_membrane_instant_trial`.
                 </p>
               </div>
               <div className="p-3 bg-slate-50 rounded font-mono text-[10px] text-slate-600 border border-slate-200 overflow-x-auto">
@@ -433,7 +444,7 @@ Headers:
             </div>
 
             {/* Step 3 */}
-            <div className="flex flex-col justify-between p-6 bg-white border border-slate-200/80 rounded-xl relative hover:border-emerald-500/50 transition-all duration-300 shadow-sm">
+            <div className="flex flex-col justify-between p-6 bg-white border border-slate-200/80 rounded-xl relative hover:border-emerald-500/50 transition-all duration-300 shadow-sm tilt-3d">
               <span className="absolute -top-7 right-2 text-8xl font-black text-slate-100 select-none font-serif tracking-tighter">03</span>
               <div>
                 <span className="text-[10px] font-bold text-emerald-600 tracking-wider uppercase block mb-1">STEP THREE</span>
@@ -477,7 +488,7 @@ Headers:
           </div>
 
           {/* Code Showcase Card */}
-          <div className="bg-slate-900 border border-slate-950 rounded-xl overflow-hidden relative group">
+          <div className="bg-slate-900 border border-slate-950 rounded-xl overflow-hidden relative group tilt-3d">
             {/* Clipboard copy button */}
             <button
               onClick={() => handleCopy(codeSnippets[activeLang], "snippet")}
@@ -520,7 +531,7 @@ Headers:
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             
             {/* Left: Interactive Controls (5 cols) */}
-            <div className="lg:col-span-5 space-y-5 bg-white border border-slate-200/80 p-5 rounded-2xl shadow-sm relative">
+            <div className="lg:col-span-5 space-y-5 bg-white border border-slate-200/80 p-5 rounded-2xl shadow-sm relative tilt-3d">
               <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-600/40 rounded-l-2xl" />
               
               <div>
@@ -607,7 +618,7 @@ Headers:
               <button
                 onClick={runLiveTest}
                 disabled={playgroundLoading || !testPrompt}
-                className={`w-full py-3 px-6 rounded-xl flex items-center justify-center gap-2 font-bold uppercase tracking-wider text-xs border transition-all ${
+                className={`w-full py-3 px-6 rounded-xl flex items-center justify-center gap-2 font-bold uppercase tracking-wider text-xs border transition-all tilt-3d ${
                   playgroundLoading
                     ? "bg-slate-200 text-slate-400 border-slate-200 cursor-not-allowed"
                     : "bg-slate-900 text-white cursor-pointer hover:bg-slate-800 shadow-sm border-slate-950"
@@ -633,7 +644,7 @@ Headers:
               
               {/* Telemetry Display */}
               {telemetryROI && (
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 font-mono shadow-sm animate-fade-in">
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 font-mono shadow-sm animate-fade-in tilt-3d">
                   <div className="flex justify-between items-center border-b border-slate-250 pb-2 mb-3">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -682,7 +693,7 @@ Headers:
               )}
 
               {/* Terminal Block */}
-              <div className="border border-slate-200 bg-slate-900 rounded-xl overflow-hidden shadow-sm flex flex-col min-h-[220px]">
+              <div className="border border-slate-200 bg-slate-900 rounded-xl overflow-hidden shadow-sm flex flex-col min-h-[220px] tilt-3d">
                 {/* Header */}
                 <div className="bg-slate-950 px-4 py-2 border-b border-slate-990 flex items-center justify-between text-xs text-slate-400">
                   <span className="font-mono">completions-response-data</span>
@@ -780,7 +791,7 @@ Headers:
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             
-            <div className="p-5 bg-white border border-slate-200/80 rounded-xl flex items-start gap-4 shadow-sm">
+            <div className="p-5 bg-white border border-slate-200/80 rounded-xl flex items-start gap-4 shadow-sm tilt-3d">
               <div className="w-8 h-8 rounded-lg bg-rose-50 border border-rose-100 flex items-center justify-center font-mono font-bold text-rose-700 shrink-0">
                 400
               </div>
@@ -792,7 +803,7 @@ Headers:
               </div>
             </div>
 
-            <div className="p-5 bg-white border border-slate-200/80 rounded-xl flex items-start gap-4 shadow-sm">
+            <div className="p-5 bg-white border border-slate-200/80 rounded-xl flex items-start gap-4 shadow-sm tilt-3d">
               <div className="w-8 h-8 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center font-mono font-bold text-amber-700 shrink-0">
                 402
               </div>
@@ -804,7 +815,7 @@ Headers:
               </div>
             </div>
 
-            <div className="p-5 bg-white border border-slate-200/80 rounded-xl flex items-start gap-4 shadow-sm">
+            <div className="p-5 bg-white border border-slate-200/80 rounded-xl flex items-start gap-4 shadow-sm tilt-3d">
               <div className="w-8 h-8 rounded-lg bg-orange-50 border border-orange-100 flex items-center justify-center font-mono font-bold text-orange-700 shrink-0">
                 422
               </div>
@@ -816,7 +827,7 @@ Headers:
               </div>
             </div>
 
-            <div className="p-5 bg-white border border-slate-200/80 rounded-xl flex items-start gap-4 shadow-sm">
+            <div className="p-5 bg-white border border-slate-200/80 rounded-xl flex items-start gap-4 shadow-sm tilt-3d">
               <div className="w-8 h-8 rounded-lg bg-purple-50 border border-purple-100 flex items-center justify-center font-mono font-bold text-purple-700 shrink-0">
                 502
               </div>
