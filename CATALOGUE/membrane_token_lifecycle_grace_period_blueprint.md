@@ -160,7 +160,50 @@ async def verify_access(credentials: HTTPAuthorizationCredentials = Security(sec
 
 ---
 
-## 🧪 5. Validation & Verification Methodology
+## 🔍 5. Regex-Based Robust Key Extraction (Client & Server)
+Copy-paste operations, browser auto-fill, and OS smart punctuation replacements frequently wrap API keys in invalid characters. Typical examples include curly "smart quotes" (`“` / `”`), brackets (`<` / `>`), nested double bearer prefixes (`Bearer Bearer ...`), or leading/trailing whitespace. 
+
+To prevent validation failures (HTTP 401 exceptions) in these common cases while preserving rigid security formats, a unified regex-based key extraction pattern is enforced symmetrically on both the React client and Python API Gateway.
+
+### A. Backend Extraction Logic (`server.py`)
+Within the authorization gateway's `verify_access` dependency, credentials are first scrubbed via regular expression matching before hashing or prefix validation. The pattern targets exact prefixes `sk_live_` and `sk_membrane_`, ignoring any trailing or leading invalid characters:
+
+```python
+import re
+
+# Match the core API key directly within the raw header credential string
+match = re.search(r'(sk_live_[a-zA-Z0-9_]+|sk_membrane_[a-zA-Z0-9_]+)', raw_credential)
+if match:
+    api_key = match.group(1)
+elif "local_dev_key" in raw_credential:
+    api_key = "local_dev_key"
+else:
+    # Fallback to standard stripping of smart quotes and braces
+    api_key = raw_credential.strip().strip('"').strip("'").strip('“').strip('”')
+```
+
+### B. Client-Side Sanitization (`ApiKeyContext.tsx`)
+To ensure that dashboard states, local storage values, and outgoing request headers remain clean and canonical, the React context executes a matching sanitization routine during key initialization and manual updates:
+
+```typescript
+const cleanKey = (key: string): string => {
+  // Regex extract the core key sequence
+  const match = key.match(/(sk_live_[a-zA-Z0-9_]+|sk_membrane_[a-zA-Z0-9_]+)/);
+  if (match) {
+    return match[1];
+  }
+  if (key.includes("local_dev_key")) {
+    return "local_dev_key";
+  }
+  // Trim and strip external quotes or smart quotes
+  return key.trim().replace(/^['"“‘]+|['"”’]+$/g, "").trim();
+};
+```
+Whenever a developer writes or pastes a new key into the console, the input is immediately piped through `cleanKey(newKey)` prior to running SHA-256 tenant computation or committing the state to `localStorage`.
+
+---
+
+## 🧪 6. Validation & Verification Methodology
 
 ### 1. Python Compilation Syntax Assurance
 Verify that any updates to `server.py` compile clean on the host environment:
@@ -169,7 +212,7 @@ $ python3 -m py_compile server.py
 # Must compile successfully with exit code 0
 ```
 
-### 2. Functional Sandbox Verification
+### 2. Functional Sandbox & Key Extraction Verification
 Validate that the stateless sandbox trial fallback works end-to-end, resolving user-facing 401 playground exceptions on the live gateway without writing to the database:
 
 ```bash
@@ -184,4 +227,22 @@ $ curl -X POST -H "Authorization: Bearer sk_live_test_123" \
   https://membrane-wh1g.onrender.com/api/chat
 {"receipt_id":"95415980c0e367f43fae5f1b7ed317ff","answer":"Hello there! How can I help you today?","route_used":"Membrane-Engagement-Layer","status":"SURFACE_ENGAGEMENT","total_tokens":55,"billed_amount":8.5e-05}
 ```
-All trial credentials generated on `https://membrane-api.com` now execute successfully, bypassing Render gateway DB restrictions while protecting the persistent database layer.
+
+### 3. Regex Robustness Gateway Verification
+Verify that the gateway correctly extracts API keys and processes requests even when keys are wrapped in invalid quote marks, brackets, or double prefixes:
+
+```bash
+# Test 1: Smart Quotes
+$ curl -H "Authorization: Bearer “sk_live_test_123”" https://membrane-wh1g.onrender.com/api/user/balance
+{"balance":1000.0}
+
+# Test 2: Bracket Wrapping
+$ curl -H "Authorization: Bearer <sk_live_test_123>" https://membrane-wh1g.onrender.com/api/user/balance
+{"balance":1000.0}
+
+# Test 3: Double Bearer Prefix
+$ curl -H "Authorization: Bearer Bearer sk_live_test_123" https://membrane-wh1g.onrender.com/api/user/balance
+{"balance":1000.0}
+```
+All trial credentials generated on `https://membrane-api.com` now execute successfully, bypassing Render gateway DB restrictions while protecting the persistent database layer and ignoring copy-paste formatting anomalies.
+
