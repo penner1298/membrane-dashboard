@@ -57,6 +57,7 @@ export default function CookbookPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [swarmResponse, setSwarmResponse] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [submitDisabled, setSubmitDisabled] = useState(false);
 
   // Switch workload profile template
   const handleProfileChange = (profileId: string) => {
@@ -72,6 +73,13 @@ export default function CookbookPage() {
       setError(null);
     }
   };
+
+  // Reset chunking states when input changes
+  useEffect(() => {
+    setChunks([]);
+    setIsChunked(false);
+    setSubmitDisabled(false);
+  }, [inputText, maxWordsPerChunk]);
 
   // Perform client-side chunking
   const performChunking = () => {
@@ -91,6 +99,12 @@ export default function CookbookPage() {
     setChunks(resultChunks);
     setIsChunked(true);
     setSwarmResponse(null);
+
+    if (resultChunks.length > 50) {
+      setSubmitDisabled(true);
+    } else {
+      setSubmitDisabled(false);
+    }
   };
 
   // Submit dynamic chunks to /v1/swarm/map
@@ -417,9 +431,9 @@ export default function CookbookPage() {
               {/* EXECUTE BUTTON - PREMIUM GLOW & HOVER SCALE */}
               <button
                 onClick={executeSwarmMap}
-                disabled={isLoading || chunks.length === 0}
+                disabled={isLoading || chunks.length === 0 || submitDisabled}
                 className={`w-full py-4 px-6 rounded-xl flex items-center justify-center gap-2.5 font-bold uppercase tracking-wider text-xs transition-all duration-300 ${
-                  chunks.length === 0 
+                  (chunks.length === 0 || submitDisabled) 
                     ? "bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed" 
                     : "bg-emerald-600 text-white cursor-pointer hover:bg-emerald-500 hover:scale-[1.02] shadow-[0_0_20px_rgba(16,185,129,0.25)] hover:shadow-[0_0_25px_rgba(16,185,129,0.4)] border border-emerald-500/50"
                 }`}
@@ -441,6 +455,22 @@ export default function CookbookPage() {
                 <p className="text-[10px] text-center text-slate-500 mt-3.5">
                   * Generate text chunks first to activate the router button.
                 </p>
+              )}
+
+              {/* AMBER WARNING BANNER */}
+              {submitDisabled && (
+                <div className="mt-4 bg-amber-950/40 border border-amber-500/30 text-amber-200 rounded-xl p-4 flex items-start gap-3 shadow-lg backdrop-blur-sm">
+                  <AlertCircle className="w-5 h-5 text-amber-400 shrink-0" />
+                  <div className="text-xs text-left">
+                    <p className="font-bold text-amber-300">Sandbox Limit Exceeded</p>
+                    <p className="mt-1 leading-relaxed">
+                      Your document has been split into <strong>{chunks.length} chunks</strong>, which exceeds the sandbox threshold limit of <strong>50 chunks</strong>.
+                    </p>
+                    <p className="mt-2 text-slate-400">
+                      To proceed, adjust the <strong>Max Words per Chunk</strong> slider to decrease the total chunk count below 50, or shorten the source text.
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
 

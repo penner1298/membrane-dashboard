@@ -83,7 +83,7 @@ export default function DocsPage() {
             <Terminal className="w-6 h-6 text-green-600" />
             <h2 className="text-2xl font-bold text-gray-900 m-0">2. Zero-Shot Protocol & Payload</h2>
           </div>
-          <p className="text-gray-600 mb-4">
+          <p className="text-gray-650 mb-4">
             Membrane prevents cascading hallucinations using the <strong>Zero-Shot Isolation Protocol</strong>. To format your payload properly:
           </p>
           <ul className="list-disc pl-6 mb-6 text-gray-600 space-y-2">
@@ -91,6 +91,43 @@ export default function DocsPage() {
             <li><strong>Immediate Task:</strong> Membrane will only look at the <em>last</em> <code>user</code> message in the array to determine the current task.</li>
             <li><strong>Conversational Bloat:</strong> All intermediate <code>assistant</code> and older <code>user</code> messages are automatically stripped out before routing to prevent context confusion.</li>
           </ul>
+
+          {/* Subsection: Preserving Context & History */}
+          <div className="mt-6 bg-amber-50/40 border border-amber-200/60 rounded-xl p-5 mb-10 text-sm">
+            <h3 className="text-sm font-bold text-amber-800 mb-2 flex items-center gap-2">
+              <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
+              Bypassing Context Purging (Preventing Amnesia)
+            </h3>
+            <p className="text-gray-600 leading-relaxed mb-4">
+              By default, Membrane purges intermediate assistant messages to optimize performance and WAF costs. If your application relies on full conversational memory (multi-turn chat histories, sequential reasoning loops, or stateful debugging), you must explicitly request context preservation.
+            </p>
+            <p className="text-gray-600 leading-relaxed mb-4">
+              Pass the custom header <code className="bg-white px-1.5 py-0.5 rounded border border-gray-200 font-mono text-xs font-semibold">X-Membrane-Preserve-Context: true</code> in your request headers to instruct Membrane's routing engine to preserve the entire message history intact without truncation.
+            </p>
+            
+            <div className="bg-gray-900 rounded-lg p-4 font-mono text-xs text-gray-300 overflow-x-auto">
+              <p className="text-slate-400 mb-2">// Example using standard fetch in Node.js / Browser:</p>
+              <pre className="text-green-400">
+{`const response = await fetch("http://localhost:8000/v1/chat/completions", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer sk_live_your_key",
+    "X-Membrane-Preserve-Context": "true"
+  },
+  body: JSON.stringify({
+    model: "membrane-engagement-layer",
+    messages: [
+      { "role": "system", "content": "You are a stateful assistant." },
+      { "role": "user", "content": "Hello! Remember the number 7919." },
+      { "role": "assistant", "content": "Understood. I will remember 7919." },
+      { "role": "user", "content": "What was the number I asked you to remember?" }
+    ]
+  })
+});`}
+              </pre>
+            </div>
+          </div>
           
           <div className="border border-gray-200 rounded-lg overflow-hidden mb-10">
             <table className="w-full text-left text-sm m-0">

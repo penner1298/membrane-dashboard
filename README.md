@@ -10,6 +10,12 @@ Membrane Guard is a high-speed, agent-agnostic routing layer. Send a prompt, get
 - **Threat Firewall:** Instantly intercepts prompt injections and policy violations mid-flight.
 - **Semantic Caching:** Identical semantic queries bypass frontier models entirely, dramatically saving latency and token costs.
 
+## Just-In-Time Onboarding & License Key (Optional)
+
+Getting started with Membrane is friction-free. You do not need to register or purchase a license key immediately to begin local developer testing:
+- **Optional Polar.sh Licenses:** A Polar.sh license key is entirely optional for local developer sandboxes. If `MEMBRANE_LICENSE_KEY` is omitted, the proxy automatically runs in a local sandbox mode with full support for up to 25 parallel chunks.
+- **Instant Local Balance:** Any local bearer token key (e.g., `sk_live_local_dev_key`) passed in the Authorization header will automatically provision a **$1,000 testing balance** in the local database for rapid integration testing out of the box.
+
 ## Getting Started
 
 ### 1. Start the Membrane Guard Proxy (Backend)

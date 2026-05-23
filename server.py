@@ -63,14 +63,19 @@ def calculate_token_savings(model_name: str, raw_tokens: int, optimized_tokens: 
 # - Flash: gemini/gemini-2.5-flash, openai/gpt-4o-mini, anthropic/claude-3-5-haiku, groq/llama3-8b-8192
 # - Apex: gemini/gemini-3.5-flash, openai/gpt-4o, anthropic/claude-3-5-sonnet, deepseek/deepseek-chat
 # - Embed: gemini/text-embedding-004, openai/text-embedding-3-small, cohere/embed-english-v3.0
-FLASH_MODEL = os.environ.get("FLASH_MODEL") or os.environ.get("CANARY_MODEL") or "gemini/gemini-2.5-flash"
-APEX_MODEL = os.environ.get("APEX_MODEL") or "gemini/gemini-3.5-flash"
+FLASH_MODEL = os.environ.get("MEMBRANE_FLASH_MODEL") or os.environ.get("FLASH_MODEL") or os.environ.get("CANARY_MODEL") or "gemini/gemini-2.5-flash"
+APEX_MODEL = os.environ.get("MEMBRANE_APEX_MODEL") or os.environ.get("APEX_MODEL") or "gemini/gemini-3.5-flash"
 EMBED_MODEL = os.environ.get("EMBED_MODEL") or os.environ.get("EMBEDDING_MODEL") or "gemini/text-embedding-004"
 BOUNCER_MODEL = os.environ.get("BOUNCER_MODEL") or FLASH_MODEL
 
 # Maintain variables for backwards compatibility
 CANARY_MODEL = FLASH_MODEL
 EMBEDDING_MODEL = EMBED_MODEL
+
+# Sandbox & Swarm Parameters
+MAX_SANDBOX_CHUNKS = 25
+MAX_SWARM_CEILING_CHUNKS = 50
+MAX_SAFE_CHUNK_CHARS = 25000
 
 # --- POLAR.SH LICENSE STATE & VALIDATION ---
 license_state = {
@@ -111,6 +116,9 @@ async def validate_polar_license(key: str) -> bool:
                     else:
                         print(f"❌ Polar.sh License Key is invalid. Status: {status}")
                         return False
+                elif resp.status >= 500:
+                    print(f"⚠️ Polar.sh server error (HTTP {resp.status}). Fail-open enabled for production resilience.")
+                    return True
                 else:
                     text = await resp.text()
                     print(f"❌ Polar.sh validation failed with HTTP {resp.status}: {text}")
@@ -208,9 +216,11 @@ async def lifespan(app: FastAPI):
     license_state["key"] = license_key
     db_url = os.environ.get("DATABASE_URL")
     if db_url:
-        print("🔌 Connecting to PostgreSQL...")
+        DATABASE_SSL_STR = os.environ.get("DATABASE_SSL", "false")
+        DATABASE_SSL = DATABASE_SSL_STR.lower() == "true"
+        print(f"🔌 Connecting to PostgreSQL (SSL={DATABASE_SSL})...")
         try:
-            db_pool = await asyncpg.create_pool(db_url)
+            db_pool = await asyncpg.create_pool(db_url, ssl=DATABASE_SSL)
             async with db_pool.acquire() as conn:
                 try:
                     await conn.execute("CREATE EXTENSION IF NOT EXISTS vector;")
@@ -1100,8 +1110,6 @@ class SwarmMapRequest(BaseModel):
     extraction_criteria: Optional[Dict[str, Any]] = None
 
     model_config = {"extra": "allow"}
-    class Config:
-        extra = "allow"
 
 class ExtractionEntry(BaseModel):
     chunk_index: int
@@ -1134,6 +1142,8 @@ class SwarmMapResponse(BaseModel):
     object: str = "swarm.extraction_matrix"
     model: str = "membrane-engagement-layer"
     task_id: str
+    is_truncated: bool = False
+    warning_msg: Optional[str] = None
     extractions: List[ExtractionEntry]
     membrane_metadata: SwarmMapMetadata
 
@@ -1156,6 +1166,29 @@ async def verify_state_machine(request: ProofOfWorkRequest, api_key_hash: str = 
     Immutable Middle-Manager. Verifies agent work mechanically before allowing handoff.
     Fully self-healing for cloud environments (Render) with dynamic fallback compiler checks.
     """
+    # Dynamic path resolution for workspace, fallback to current dir or temp
+    workspace_dir = os.environ.get("MEMBRANE_WORKSPACE_DIR")
+    if not workspace_dir or not os.path.isdir(workspace_dir):
+        workspace_dir = os.getcwd()
+    workspace_dir = os.path.abspath(workspace_dir)
+
+    safe_dest_path = None
+    if request.destination_path:
+        # Enforce traversal cleaning with os.path.normpath().lstrip("/")
+        cleaned_rel_path = os.path.normpath(request.destination_path).lstrip("/")
+        dest_path = os.path.abspath(os.path.join(workspace_dir, cleaned_rel_path))
+        # Verify that the canonical path stays strictly inside os.path.abspath(workspace_dir)
+        if os.path.commonpath([workspace_dir, dest_path]) != workspace_dir:
+            raise HTTPException(status_code=400, detail="Path traversal attempt detected.")
+        safe_dest_path = dest_path
+
+    # Modulo-7919 math helper for plume/plagiarism/canary hashing watermark signature
+    def make_canary_signature(payload_str: str, prefix: str) -> str:
+        payload_hash = hashlib.sha256(payload_str.encode()).hexdigest()
+        payload_int = int(payload_hash, 16)
+        watermark = payload_int % 7919
+        return f"{prefix}_{watermark}_{payload_hash[:16]}"
+
     if request.task_type == "python_code":
         with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as temp_script:
             temp_script.write(request.payload)
@@ -1163,8 +1196,11 @@ async def verify_state_machine(request: ProofOfWorkRequest, api_key_hash: str = 
         try:
             result = subprocess.run(["python3", "-m", "py_compile", temp_path], capture_output=True, text=True, timeout=5)
             if result.returncode == 0:
-                payload_hash = hashlib.sha256(request.payload.encode()).hexdigest()
-                signature = f"MEMBRANE_VERIFIED_{payload_hash[:16]}"
+                signature = make_canary_signature(request.payload, "MEMBRANE_VERIFIED")
+                if safe_dest_path:
+                    os.makedirs(os.path.dirname(safe_dest_path), exist_ok=True)
+                    with open(safe_dest_path, "w") as f_dest:
+                        f_dest.write(request.payload)
                 return ProofOfWorkResponse(verified=True, membrane_signature=signature)
             else:
                 raise HTTPException(status_code=400, detail=f"Python compilation failed: {result.stderr}")
@@ -1172,11 +1208,6 @@ async def verify_state_machine(request: ProofOfWorkRequest, api_key_hash: str = 
             os.remove(temp_path)
 
     elif request.task_type == "react_component":
-        # Dynamic path resolution for workspace, fallback to current dir or temp
-        workspace_dir = os.environ.get("MEMBRANE_WORKSPACE_DIR")
-        if not workspace_dir or not os.path.isdir(workspace_dir):
-            workspace_dir = os.getcwd()
-
         file_name = f"temp_component_{int(time.time())}.tsx"
         file_path = os.path.join(workspace_dir, file_name)
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
@@ -1194,25 +1225,20 @@ async def verify_state_machine(request: ProofOfWorkRequest, api_key_hash: str = 
                 )
                 
                 if result.returncode == 0:
-                    payload_hash = hashlib.sha256(request.payload.encode()).hexdigest()
-                    signature = f"MEMBRANE_VERIFIED_{payload_hash[:16]}"
+                    signature = make_canary_signature(request.payload, "MEMBRANE_VERIFIED")
                     if os.path.exists(file_path): os.remove(file_path)
                     
-                    # If the client provided a destination path, write it safely
-                    if request.destination_path:
-                        dest_path = os.path.join(workspace_dir, request.destination_path)
-                        os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-                        with open(dest_path, "w") as f_dest:
+                    if safe_dest_path:
+                        os.makedirs(os.path.dirname(safe_dest_path), exist_ok=True)
+                        with open(safe_dest_path, "w") as f_dest:
                             f_dest.write(request.payload)
                         
                     return ProofOfWorkResponse(verified=True, membrane_signature=signature)
                 else:
-                    if os.path.exists(file_path): os.remove(file_path)
-                    raise HTTPException(status_code=400, detail=f"React component TypeScript compilation failed: {result.stdout} {result.stderr}")
+                    # Drop through to lightweight parser by raising a standard exception
+                    raise RuntimeError(f"TypeScript compilation failed: {result.stdout} {result.stderr}")
             else:
                 raise FileNotFoundError("npx compiler runner not found on system path")
-        except HTTPException:
-            raise
         except Exception as e:
             if os.path.exists(file_path): os.remove(file_path)
             print(f"⚠️ Workspace compiler error: {e}. Falling back to lightweight parsing...")
@@ -1225,8 +1251,11 @@ async def verify_state_machine(request: ProofOfWorkRequest, api_key_hash: str = 
             brace_diff = abs(payload.count("{") - payload.count("}"))
             
             if has_export and has_return and brace_diff < 5:
-                payload_hash = hashlib.sha256(payload.encode()).hexdigest()
-                signature = f"MEMBRANE_VERIFIED_MOCK_{payload_hash[:16]}"
+                signature = make_canary_signature(payload, "MEMBRANE_VERIFIED_MOCK")
+                if safe_dest_path:
+                    os.makedirs(os.path.dirname(safe_dest_path), exist_ok=True)
+                    with open(safe_dest_path, "w") as f_dest:
+                        f_dest.write(request.payload)
                 return ProofOfWorkResponse(verified=True, membrane_signature=signature)
             else:
                 errors = []
@@ -1251,6 +1280,7 @@ async def process_swarm_chunk(
     sem: asyncio.Semaphore
 ) -> Dict[str, Any]:
     async with sem:
+        response = None
         try:
             user_content = chunk
             if target_signals:
@@ -1290,18 +1320,22 @@ async def process_swarm_chunk(
             verbatim_text = ""
             matched_signals = []
             if isinstance(parsed_json, dict):
-                for k, v in parsed_json.items():
-                    if isinstance(v, str) and any(sig.lower() in v.lower() for sig in target_signals):
-                        verbatim_text = v
-                        matched_signals = [sig for sig in target_signals if sig.lower() in v.lower()]
-                        break
-                if not verbatim_text:
+                # QA-26: Empty Signal Document Management
+                if not target_signals:
+                    verbatim_text = json.dumps(parsed_json)
+                else:
                     for k, v in parsed_json.items():
-                        if isinstance(v, str):
+                        if isinstance(v, str) and any(sig.lower() in v.lower() for sig in target_signals):
                             verbatim_text = v
+                            matched_signals = [sig for sig in target_signals if sig.lower() in v.lower()]
                             break
                     if not verbatim_text:
-                        verbatim_text = json.dumps(parsed_json)
+                        for k, v in parsed_json.items():
+                            if isinstance(v, str):
+                                verbatim_text = v
+                                break
+                        if not verbatim_text:
+                            verbatim_text = json.dumps(parsed_json)
             else:
                 verbatim_text = str(parsed_json)
                 
@@ -1322,15 +1356,33 @@ async def process_swarm_chunk(
             }
         except Exception as e:
             print(f"Swarm chunk {chunk_index} failed: {e}")
+            tokens = 0
+            actual_cost = 0.0
+            hypothetical_cost = 0.0
+            savings = 0.0
+            
+            # QA-19: Capture usage if response is populated before failure
+            if response is not None and getattr(response, "usage", None) is not None:
+                try:
+                    in_tok = response.usage.prompt_tokens
+                    out_tok = response.usage.completion_tokens
+                    tokens = in_tok + out_tok
+                    savings_data = calculate_token_savings(mapped_model, tokens, in_tok)
+                    actual_cost = savings_data["actual_cost_incurred"]
+                    hypothetical_cost = savings_data["gross_unoptimized_cost"]
+                    savings = savings_data["net_enterprise_savings"]
+                except Exception as ex_calc:
+                    print(f"⚠️ Error calculating costs for failed chunk: {ex_calc}")
+            
             return {
                 "index": chunk_index,
                 "verbatim_text": f"Error: {e}",
                 "matched_signals": [],
                 "error": str(e),
-                "tokens": 0,
-                "actual_cost": 0.0,
-                "hypothetical_cost": 0.0,
-                "savings": 0.0
+                "tokens": tokens,
+                "actual_cost": actual_cost,
+                "hypothetical_cost": hypothetical_cost,
+                "savings": savings
             }
 
 def compile_swarm_response(results: List[Dict[str, Any]], chunks: List[str], model: str, api_key_hash: str, background_tasks: BackgroundTasks) -> SwarmMapResponse:
@@ -1358,9 +1410,6 @@ def compile_swarm_response(results: List[Dict[str, Any]], chunks: List[str], mod
         total_hypothetical_cost += r["hypothetical_cost"]
         total_savings += r["savings"]
 
-    if failed == len(chunks):
-        raise HTTPException(status_code=500, detail="All swarm chunks failed to compile.")
-
     savings_percent = (total_savings / total_hypothetical_cost * 100) if total_hypothetical_cost > 0 else 0.0
     
     billing_logs = []
@@ -1377,9 +1426,26 @@ def compile_swarm_response(results: List[Dict[str, Any]], chunks: List[str], mod
                 "savings_percentage": savings_percent,
                 "workload_profile": "swarm_map"
             })
+        else:
+            # QA-19: Charge failed runs under a swarm_map_error profile
+            if r["tokens"] > 0:
+                billing_logs.append({
+                    "endpoint": "/v1/swarm/map",
+                    "tokens": r["tokens"],
+                    "retail_cost": r["actual_cost"],
+                    "wholesale_cost": r["actual_cost"] * 0.5,
+                    "savings": r["savings"],
+                    "raw_input_size": len(chunks[r["index"]]) if r["index"] < len(chunks) else 0,
+                    "optimized_output_size": len(r["verbatim_text"]),
+                    "savings_percentage": 0.0,
+                    "workload_profile": "swarm_map_error"
+                })
             
     if billing_logs:
         background_tasks.add_task(charge_and_log_api_batch, api_key_hash, billing_logs)
+
+    if failed == len(chunks):
+        raise HTTPException(status_code=500, detail="All swarm chunks failed to compile.")
 
     task_id = f"ext_matrix_{hashlib.md5(str(time.time()).encode()).hexdigest()[:8]}"
     
@@ -1437,23 +1503,36 @@ async def swarm_map(request: SwarmMapRequest, background_tasks: BackgroundTasks,
     if not request.chunks:
         raise HTTPException(status_code=400, detail="Chunks array cannot be empty")
 
-    if len(request.chunks) > 50:
-        raise HTTPException(status_code=400, detail="Max 50 chunks per request")
+    if len(request.chunks) > MAX_SWARM_CEILING_CHUNKS:
+        raise HTTPException(status_code=400, detail=f"Max {MAX_SWARM_CEILING_CHUNKS} chunks per request")
+
+    # QA-27: Local Environment 8k Context Guardrail
+    for chunk in request.chunks:
+        if len(chunk) > MAX_SAFE_CHUNK_CHARS:
+            print(f"⚠️ Developer Optimization Warning: Chunk length ({len(chunk)} chars) exceeds maximum safe size of {MAX_SAFE_CHUNK_CHARS} characters. This may degrade accuracy or exceed the local 8k context guardrail.")
+            break
 
     validate_model_string(request.model)
 
-    MAX_SANDBOX_CHUNKS = 25
+    is_truncated = False
+    warning_msg = None
  
     if not global_state.license_active:
         if len(request.chunks) > MAX_SANDBOX_CHUNKS:
             active_chunks = request.chunks[:MAX_SANDBOX_CHUNKS]
-            print(f"⚠️ Scale Throttle: Capping unvalidated run at {MAX_SANDBOX_CHUNKS} chunks.")
+            is_truncated = True
+            warning_msg = f"Scale Throttle: Capped unvalidated run at {MAX_SANDBOX_CHUNKS} chunks. Add a MEMBRANE_LICENSE_KEY to unlock higher limits."
+            print(f"⚠️ Scale Throttle: Capped unvalidated run at {MAX_SANDBOX_CHUNKS} chunks.")
         else:
             active_chunks = request.chunks
         
-        return await execute_basic_sandbox_gather(active_chunks, request, api_key_hash, background_tasks)
+        response = await execute_basic_sandbox_gather(active_chunks, request, api_key_hash, background_tasks)
     else:
-        return await execute_sliding_window_queue(request.chunks, request, api_key_hash, background_tasks)
+        response = await execute_sliding_window_queue(request.chunks, request, api_key_hash, background_tasks)
+
+    response.is_truncated = is_truncated
+    response.warning_msg = warning_msg
+    return response
 
 @app.post("/v1/chat/completions")
 async def openai_compatible_endpoint(request: Request, background_tasks: BackgroundTasks, api_key_hash: str = Security(verify_access)):
