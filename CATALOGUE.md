@@ -15,6 +15,6 @@ This file serves as the index for all operational playbooks and strategic bluepr
 - [Membrane DX Live Sandbox & Streaming Playbook]: ./CATALOGUE/membrane_dx_live_sandbox.md
 - [Membrane 2-Page Stack and Server Optimizations Blueprint]: ./CATALOGUE/membrane_2page_stack_optimizations.md
 - [Membrane Swarm Guard Repository Standardization & Consolidation Blueprint]: ./CATALOGUE/repository_standardization_blueprint.md
-- [Membrane Token Lifecycle & Asynchronous Key Rotation Grace Period Blueprint]: ./CATALOGUE/membrane_token_lifecycle_grace_period_blueprint.md
+- [Membrane Token Lifecycle, Asynchronous Key Rotation Grace Period & Stateless Trial Fallback Blueprint]: ./CATALOGUE/membrane_token_lifecycle_grace_period_blueprint.md
 
 

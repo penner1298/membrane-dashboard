@@ -423,7 +423,7 @@ def hash_api_key(api_key: str) -> str:
     return hashlib.sha256(api_key.encode()).hexdigest()
 
 async def verify_access(credentials: HTTPAuthorizationCredentials = Security(security)):
-    api_key = credentials.credentials
+    api_key = credentials.credentials.strip().strip('"').strip("'")
     hashed_key = hash_api_key(api_key)
 
     if api_key == "sk_membrane_instant_trial":

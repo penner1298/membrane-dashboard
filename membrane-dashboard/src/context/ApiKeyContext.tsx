@@ -53,18 +53,34 @@ export function ApiKeyProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateApiKey = async (newKey: string) => {
-    setApiKey(newKey);
-    const newTenant = await computeTenantId(newKey);
+    let cleanKey = newKey.trim();
+    if (cleanKey.startsWith('"') && cleanKey.endsWith('"')) {
+      cleanKey = cleanKey.slice(1, -1);
+    }
+    if (cleanKey.startsWith("'") && cleanKey.endsWith("'")) {
+      cleanKey = cleanKey.slice(1, -1);
+    }
+    cleanKey = cleanKey.trim();
+    setApiKey(cleanKey);
+    const newTenant = await computeTenantId(cleanKey);
     setTenantId(newTenant);
-    localStorage.setItem("membrane_playground_api_key", newKey);
+    localStorage.setItem("membrane_playground_api_key", cleanKey);
   };
 
   useEffect(() => {
     const initializeKey = async () => {
-      const savedKey = localStorage.getItem("membrane_playground_api_key");
+      let savedKey = localStorage.getItem("membrane_playground_api_key");
       if (savedKey) {
-        setApiKey(savedKey);
-        const tenant = await computeTenantId(savedKey);
+        let cleanKey = savedKey.trim();
+        if (cleanKey.startsWith('"') && cleanKey.endsWith('"')) {
+          cleanKey = cleanKey.slice(1, -1);
+        }
+        if (cleanKey.startsWith("'") && cleanKey.endsWith("'")) {
+          cleanKey = cleanKey.slice(1, -1);
+        }
+        cleanKey = cleanKey.trim();
+        setApiKey(cleanKey);
+        const tenant = await computeTenantId(cleanKey);
         setTenantId(tenant);
         setLoading(false);
       } else {
