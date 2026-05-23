@@ -422,16 +422,41 @@ security = HTTPBearer()
 def hash_api_key(api_key: str) -> str:
     return hashlib.sha256(api_key.encode()).hexdigest()
 
+failed_auth_logs = []
+
+@app.get("/api/debug/auth_logs")
+async def get_debug_auth_logs():
+    return failed_auth_logs
+
 async def verify_access(credentials: HTTPAuthorizationCredentials = Security(security)):
-    api_key = credentials.credentials.strip().strip('"').strip("'")
+    raw_credential = credentials.credentials
+    api_key = raw_credential.strip().strip('"').strip("'")
     hashed_key = hash_api_key(api_key)
+
+    import datetime
+    log_entry = {
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "raw_credential_repr": repr(raw_credential),
+        "raw_credential_len": len(raw_credential),
+        "sanitized_api_key_repr": repr(api_key),
+        "sanitized_api_key_len": len(api_key),
+        "prefix_ok": api_key.startswith("sk_live_") or api_key.startswith("sk_membrane_") or api_key == "local_dev_key"
+    }
+
+    if not log_entry["prefix_ok"]:
+        log_entry["status"] = "REJECTED_FORMAT"
+        failed_auth_logs.append(log_entry)
+        if len(failed_auth_logs) > 50:
+            failed_auth_logs.pop(0)
+        raise HTTPException(status_code=401, detail=f"Access Denied: Invalid API key format or prefix. Received len={len(api_key)} val={repr(api_key)}")
+
+    log_entry["status"] = "PASSED_FORMAT"
+    failed_auth_logs.append(log_entry)
+    if len(failed_auth_logs) > 50:
+        failed_auth_logs.pop(0)
 
     if api_key == "sk_membrane_instant_trial":
         return hashed_key
-
-    # Hardened prefix/key check to prevent database flooding (DoS) from arbitrary spam keys
-    if not api_key.startswith("sk_live_") and not api_key.startswith("sk_membrane_") and api_key != "local_dev_key":
-        raise HTTPException(status_code=401, detail=f"Access Denied: Invalid API key format or prefix. Received len={len(api_key)} val={repr(api_key)}")
 
     if not db_pool:
         print("⚠️ Database offline. Bypassing billing/auth check for local demo.")
