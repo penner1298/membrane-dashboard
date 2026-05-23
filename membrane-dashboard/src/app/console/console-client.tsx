@@ -446,6 +446,32 @@ export function ConsoleClient({
                 </p>
               )}
             </form>
+
+            <div className="border-t border-slate-200/60 pt-6 mt-6 space-y-4 max-w-md">
+              <div className="space-y-2">
+                <h3 className="text-sm font-bold text-slate-850 flex items-center gap-1.5">
+                  <Server className="w-4 h-4 text-emerald-600" />
+                  Production Scaling Guide
+                </h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Currently running in developer sandbox mode. To scale this instance to a multi-tenant production environment:
+                </p>
+              </div>
+
+              <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-xl space-y-3">
+                <div className="text-[11px] text-emerald-850 space-y-2 leading-relaxed">
+                  <p>
+                    1. Acquire an official license on the <a href="https://buy.polar.sh/polar_cl_xD35VJkFTyba3qNO9q8D5WZ8pemoyiMxVsEyp3xAnbu" target="_blank" rel="noopener noreferrer" className="underline font-bold text-emerald-700 hover:text-emerald-800">Polar.sh Sponsor Tiers</a>.
+                  </p>
+                  <p>
+                    2. Inject <code className="bg-emerald-100/50 px-1 rounded font-mono text-[10px]">MEMBRANE_LICENSE_KEY</code> into your production environments.
+                  </p>
+                  <p>
+                    3. Connect a distributed cache using the <code className="bg-emerald-100/50 px-1 rounded font-mono text-[10px]">REDIS_URL</code> environment variable to unlock edge Redis setups.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

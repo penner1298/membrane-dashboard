@@ -9,6 +9,7 @@ import {
   ArrowLeft, Terminal, Server, ShieldAlert, Zap, BookOpen, 
   Key, Copy, Check, Play, Cpu, AlertTriangle, Layers
 } from "lucide-react";
+import { sanitizeBearerToken } from "@/lib/utils";
 
 type CodeLang = "curl" | "python" | "javascript" | "langchain";
 
@@ -64,9 +65,10 @@ export default function DocsPage() {
     }
 
     const activeKey = (retryKey && typeof retryKey === "string") ? retryKey : apiKey;
+    const cleanKey = sanitizeBearerToken(activeKey);
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${activeKey}`,
+      "Authorization": `Bearer ${cleanKey}`,
     };
 
     if (preserveContext) {
@@ -95,9 +97,10 @@ export default function DocsPage() {
         setPlaygroundOutput("// Handshake route rejected (401). Triggering self-healing credential provisioning...\n");
         const newKey = await refreshApiKey();
         if (newKey) {
-          setPlaygroundOutput(`// Active credential provisioned: ${newKey}. Re-submitting query...\n`);
+          const cleanNewKey = sanitizeBearerToken(newKey);
+          setPlaygroundOutput(`// Active credential provisioned: ${cleanNewKey}. Re-submitting query...\n`);
           await new Promise(r => setTimeout(r, 600));
-          await runLiveTest(newKey);
+          await runLiveTest(cleanNewKey);
           return;
         }
       }
@@ -858,6 +861,68 @@ Headers:
               </div>
             </div>
 
+          </div>
+        </section>
+
+        {/* SECTION 7: PRODUCTION CONVERSION & ENTERPRISE SCALING */}
+        <section className="mb-20">
+          <div className="flex items-center gap-2.5 mb-6">
+            <Server className="w-6 h-6 text-emerald-600" />
+            <h2 className="text-2xl font-bold text-slate-900 m-0">Production Conversion & Enterprise Scaling</h2>
+          </div>
+
+          <p className="text-slate-650 text-xs leading-relaxed mb-6">
+            When transitioning Membrane Guard from local development sandboxes to a high-volume, multi-tenant cloud environment, follow these steps to unlock enterprise features:
+          </p>
+
+          <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 md:p-8 shadow-sm tilt-3d space-y-6">
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-emerald-500/20 via-blue-500/30 to-purple-500/20" />
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="space-y-2">
+                <div className="w-8 h-8 rounded-full bg-emerald-50 border border-emerald-150 flex items-center justify-center font-bold text-xs text-emerald-700">1</div>
+                <h4 className="text-xs font-bold text-slate-900">Get a Production License</h4>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Local sandboxes use <code className="bg-slate-100 px-1 border border-slate-200 rounded">test_license_key</code>. For production nodes, sponsor Membrane on <a href="https://buy.polar.sh/polar_cl_xD35VJkFTyba3qNO9q8D5WZ8pemoyiMxVsEyp3xAnbu" target="_blank" rel="noopener noreferrer" className="text-emerald-600 font-bold underline hover:text-emerald-700">Polar.sh</a> to receive your authenticated license key.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <div className="w-8 h-8 rounded-full bg-emerald-50 border border-emerald-150 flex items-center justify-center font-bold text-xs text-emerald-700">2</div>
+                <h4 className="text-xs font-bold text-slate-900">Inject License Key Variable</h4>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Provide the license string as <code className="bg-slate-100 px-1 border border-slate-200 rounded">MEMBRANE_LICENSE_KEY</code>. This activates multi-tenant database ledger isolation and disables local development refills.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <div className="w-8 h-8 rounded-full bg-emerald-50 border border-emerald-150 flex items-center justify-center font-bold text-xs text-emerald-700">3</div>
+                <h4 className="text-xs font-bold text-slate-900">Scale Caches with Redis</h4>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Inject <code className="bg-slate-100 px-1 border border-slate-200 rounded">REDIS_URL</code> to enable distributed edge caching, rate limiting locks, and synchronized tenant state stores across your swarm nodes.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-4 border-t border-slate-100">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block font-mono">Example Production Docker Run</span>
+              <div className="bg-slate-900 p-4 rounded-xl font-mono text-xs text-slate-200 relative group overflow-hidden">
+                <button 
+                  onClick={() => handleCopy('docker run -d \\\n  -p 8000:8000 \\\n  -e MEMBRANE_LICENSE_KEY="your_polar_license_key" \\\n  -e REDIS_URL="redis://your-redis-host:6379" \\\n  -e DATABASE_URL="postgres://your-db-url" \\\n  thejoshuapenner/membrane-guard', "prod_docker")}
+                  className="absolute right-4 top-4 p-1.5 rounded-lg bg-slate-800 text-slate-350 hover:bg-slate-700 hover:text-white border border-slate-700 transition"
+                >
+                  {copiedText === "prod_docker" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                </button>
+                <pre className="overflow-x-auto whitespace-pre leading-relaxed pr-10">
+                  <code>{`docker run -d \\
+  -p 8000:8000 \\
+  -e MEMBRANE_LICENSE_KEY="your_polar_license_key" \\
+  -e REDIS_URL="redis://your-redis-host:6379" \\
+  -e DATABASE_URL="postgres://your-db-url" \\
+  thejoshuapenner/membrane-guard`}</code>
+                </pre>
+              </div>
+            </div>
           </div>
         </section>
 

@@ -11,6 +11,9 @@ import {
   AlertTriangle, Lock, Shield, ArrowRight, Layers, FileText, 
   Settings, RefreshCw, CheckCircle, Database, HelpCircle
 } from "lucide-react";
+import { sanitizeBearerToken } from "@/lib/utils";
+import { PdfDropzone } from "@/app/components/PdfDropzone";
+import { ValueReceipt } from "@/app/components/ValueReceipt";
 
 // Interactive trial curl snippet
 const TRIAL_CURL_SNIPPET = `curl -X POST https://membrane-api.com/v1/chat/completions \\
@@ -86,6 +89,10 @@ export default function Home() {
   const [payloadText, setPayloadText] = useState<string>(ENGINEERING_PATTERNS[0].defaultPayload);
   const [slices, setSlices] = useState<number>(10);
   const [preserveContext, setPreserveContext] = useState<boolean>(false);
+  const [trialTab, setTrialTab] = useState<"curl" | "docker">("curl");
+  const [valueLedger, setValueLedger] = useState<any | null>(null);
+  const [inputMode, setInputMode] = useState<"json" | "document">("json");
+  const [pdfProcessing, setPdfProcessing] = useState<boolean>(false);
   
   // Consume unified API Key context
   const { apiKey: playgroundApiKey, updateApiKey, refreshApiKey } = useApiKey();
@@ -111,6 +118,20 @@ export default function Home() {
     setStreamOutput("// Awaiting execution trigger...\n");
     setSavingsCalculated({ actual: 0, gross: 0, percent: 0 });
   }, [selectedPattern]);
+  const handlePdfExtracted = (chunks: string[], fileName: string) => {
+    setSelectedPattern(ENGINEERING_PATTERNS[0]); // High-Throughput Swarm Map-Reduce
+    setSlices(chunks.length);
+    const payload = {
+      model: "membrane-engagement-layer",
+      chunks: chunks,
+      max_concurrency: 5,
+      extraction_criteria: {
+        system_persona: "Secure contract liabilities mapping.",
+        target_signals: ["liability", "indemnity", "breach"]
+      }
+    };
+    setPayloadText(JSON.stringify(payload, null, 2));
+  };
 
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -123,6 +144,7 @@ export default function Home() {
     setIsExecuting(true);
     setStreamOutput("// Initializing secure client handshake...\n");
     setSavingsCalculated({ actual: 0, gross: 0, percent: 0 });
+    setValueLedger(null);
 
     const host = typeof window !== "undefined" ? window.location.host : "";
     const apiBase = !host.includes("localhost") && !host.includes("127.0.0.1")
@@ -131,11 +153,12 @@ export default function Home() {
 
     const targetUrl = `${apiBase}${selectedPattern.endpoint}`;
     const activeKey = (retryKey && typeof retryKey === "string") ? retryKey : playgroundApiKey;
+    const cleanKey = sanitizeBearerToken(activeKey);
     
     // Setup headers
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${activeKey}`
+      "Authorization": `Bearer ${cleanKey}`
     };
 
     if (preserveContext && selectedPattern.id === "context_isolation") {
@@ -169,9 +192,10 @@ export default function Home() {
         setStreamOutput("// Handshake route rejected (401). Triggering self-healing credential provisioning...\n");
         const newKey = await refreshApiKey();
         if (newKey) {
-          setStreamOutput(`// Active credential provisioned: ${newKey}. Re-submitting query...\n`);
+          const cleanNewKey = sanitizeBearerToken(newKey);
+          setStreamOutput(`// Active credential provisioned: ${cleanNewKey}. Re-submitting query...\n`);
           await new Promise(r => setTimeout(r, 600));
-          await executePlaygroundQuery(newKey);
+          await executePlaygroundQuery(cleanNewKey);
           return;
         }
       }
@@ -194,24 +218,51 @@ export default function Home() {
       let actualCost = 0.00042;
       let unoptimizedCost = 0.00124;
 
-      if (selectedPattern.id === "swarm_map") {
-        savingsPct = 60 + (slices % 8); // Parallel optimizations savings
-        actualCost = (slices * 0.00004);
-        unoptimizedCost = actualCost / (1 - (savingsPct / 100));
-      } else if (selectedPattern.id === "context_isolation") {
-        if (preserveContext) {
-          savingsPct = 0;
-          actualCost = 0.00182;
-          unoptimizedCost = 0.00182;
-        } else {
-          savingsPct = 78.4;
-          actualCost = 0.00032;
-          unoptimizedCost = 0.00148;
+      if (resJson.membrane_metadata?.value_ledger) {
+        const ledger = resJson.membrane_metadata.value_ledger;
+        actualCost = Number(ledger.actual_cost_incurred || 0);
+        unoptimizedCost = Number(ledger.gross_unoptimized_cost || 0);
+        savingsPct = Number(ledger.net_enterprise_savings || 80.0);
+        
+        setValueLedger({
+          actualCost,
+          unoptimizedCost,
+          savingsPercent: savingsPct,
+          chunkCount: resJson.extractions?.length || bodyData.chunks?.length || 1,
+          model: resJson.model || "membrane-engagement-layer",
+          taskId: resJson.task_id || "tx_" + Math.random().toString(36).slice(2, 10),
+          timestamp: new Date().toISOString()
+        });
+      } else {
+        if (selectedPattern.id === "swarm_map") {
+          savingsPct = 60 + (slices % 8); // Parallel optimizations savings
+          actualCost = (slices * 0.00004);
+          unoptimizedCost = actualCost / (1 - (savingsPct / 100));
+        } else if (selectedPattern.id === "context_isolation") {
+          if (preserveContext) {
+            savingsPct = 0;
+            actualCost = 0.00182;
+            unoptimizedCost = 0.00182;
+          } else {
+            savingsPct = 78.4;
+            actualCost = 0.00032;
+            unoptimizedCost = 0.00148;
+          }
+        } else if (selectedPattern.id === "sandbox_ast") {
+          savingsPct = 100; // Exact match pre-scan cache hit or offline simulation
+          actualCost = 0.0000;
+          unoptimizedCost = 0.00084;
         }
-      } else if (selectedPattern.id === "sandbox_ast") {
-        savingsPct = 100; // Exact match pre-scan cache hit or offline simulation
-        actualCost = 0.0000;
-        unoptimizedCost = 0.00084;
+
+        setValueLedger({
+          actualCost,
+          unoptimizedCost,
+          savingsPercent: savingsPct,
+          chunkCount: selectedPattern.id === "swarm_map" ? slices : 1,
+          model: bodyData.model || "membrane-engagement-layer",
+          taskId: "tx_" + Math.random().toString(36).slice(2, 10),
+          timestamp: new Date().toISOString()
+        });
       }
 
       setSavingsCalculated({
@@ -236,23 +287,44 @@ export default function Home() {
   // Generate tabbed SDK text blocks
   const getSdkCode = () => {
     if (sdkTab === "python") {
-      if (selectedPattern.id === "swarm_map") {
-        return `import os\nimport requests\n\nurl = "https://membrane-api.com/v1/swarm/map"\nheaders = {\n    "Authorization": "Bearer " + os.environ.get("MEMBRANE_API_KEY"),\n    "Content-Type": "application/json",\n    # Enforce context retention on protocol gateway:\n    "X-Membrane-Preserve-Context": "true"\n}\n\npayload = {\n    "model": "membrane-engagement-layer",\n    "chunks": [\n        "log line 1...",\n        "log line 2..."\n    ],\n    "max_concurrency": 5,\n    "extraction_criteria": {\n        "system_persona": "Secure log parsing.",\n        "target_signals": ["CRITICAL", "ERROR"]\n    }\n}\n\nresponse = requests.post(url, json=payload, headers=headers)\nprint(response.json())`;
-      } else if (selectedPattern.id === "context_isolation") {
-        return `import os\nimport requests\n\nurl = "https://membrane-api.com/v1/chat/completions"\nheaders = {\n    "Authorization": "Bearer " + os.environ.get("MEMBRANE_API_KEY"),\n    "Content-Type": "application/json",\n    # Bypass defaults to run conversational context preservation:\n    "X-Membrane-Preserve-Context": "${preserveContext ? 'true' : 'false'}"\n}\n\npayload = {\n    "model": "membrane-engagement-layer",\n    "messages": [\n        {"role": "system", "content": "Analyzer DNA"},\n        {"role": "user", "content": "Scrub this log."}\n    ]\n}\n\nresponse = requests.post(url, json=payload, headers=headers)\nprint(response.json())`;
-      } else {
-        return `import os\nimport requests\n\nurl = "https://membrane-api.com/v1/swarm/state"\nheaders = {\n    "Authorization": "Bearer " + os.environ.get("MEMBRANE_API_KEY"),\n    "Content-Type": "application/json",\n    # Enforce context retention on protocol gateway:\n    "X-Membrane-Preserve-Context": "true"\n}\n\npayload = {\n    "agent_id": "executor_node",\n    "task_type": "python_code",\n    "payload": "def run(): print('sandbox evaluation')"\n}\n\nresponse = requests.post(url, json=payload, headers=headers)\nprint(response.json())`;
-      }
+      return `from openai import OpenAI
+
+# Repoint base_url to local container engine. Any key works during local evaluation!
+client = OpenAI(
+    base_url="http://localhost:8000/v1",
+    api_key="local_tinkering_key"
+)
+
+# Gateway seamlessly handles AST verification and model fallback
+completion = client.chat.completions.create(
+    model="membrane-engagement-layer",
+    messages=[{"role": "user", "content": "Extract liabilities from my contract."}]
+)`;
     } else if (sdkTab === "javascript") {
-      if (selectedPattern.id === "swarm_map") {
-        return `const apiKey = process.env.MEMBRANE_API_KEY;\n\nfetch("https://membrane-api.com/v1/swarm/map", {\n  method: "POST",\n  headers: {\n    "Authorization": \`Bearer \${apiKey}\`,\n    "Content-Type": "application/json",\n    "X-Membrane-Preserve-Context": "true"\n  },\n  body: JSON.stringify({\n    model: "membrane-engagement-layer",\n    chunks: ["log segment 1", "log segment 2"],\n    max_concurrency: 5\n  })\n})\n.then(res => res.json())\n.then(data => console.log(data));`;
-      } else if (selectedPattern.id === "context_isolation") {
-        return `const apiKey = process.env.MEMBRANE_API_KEY;\n\nfetch("https://membrane-api.com/v1/chat/completions", {\n  method: "POST",\n  headers: {\n    "Authorization": \`Bearer \${apiKey}\`,\n    "Content-Type": "application/json",\n    "X-Membrane-Preserve-Context": "${preserveContext ? 'true' : 'false'}"\n  },\n  body: JSON.stringify({\n    model: "membrane-engagement-layer",\n    messages: [{role: "user", content: "Query metadata"}]\n  })\n})\n.then(res => res.json());`;
-      } else {
-        return `const apiKey = process.env.MEMBRANE_API_KEY;\n\nfetch("https://membrane-api.com/v1/swarm/state", {\n  method: "POST",\n  headers: {\n    "Authorization": \`Bearer \${apiKey}\`,\n    "Content-Type": "application/json",\n    "X-Membrane-Preserve-Context": "true"\n  },\n  body: JSON.stringify({\n    agent_id: "js_validator",\n    task_type: "javascript_code",\n    payload: "console.log('checked')"\n  })\n})\n.then(res => res.json());`;
-      }
+      return `import OpenAI from "openai";
+
+// Repoint baseURL to local container engine. Any key works during local evaluation!
+const openai = new OpenAI({
+  baseURL: "http://localhost:8000/v1",
+  apiKey: "local_tinkering_key",
+});
+
+// Gateway seamlessly handles AST verification and model fallback
+const completion = await openai.chat.completions.create({
+  model: "membrane-engagement-layer",
+  messages: [{ role: "user", content: "Extract liabilities from my contract." }],
+});
+
+console.log(completion.choices[0].message.content);`;
     } else {
-      return `# .cursorrules - Membrane Integration Pattern Context\n\n# Rules for Membrane Lossless Agent Protocol integration:\n- Always prefer 'membrane-engagement-layer' model string for telemetry tracking\n- For conversational chat loops, prune context by default unless 'X-Membrane-Preserve-Context: true' is requested\n- Split large document extraction tasks into parallel map-reduce jobs using '/v1/swarm/map'\n- Target publicRender URL: https://membrane-api.com/v1\n- Always pass 'X-Membrane-Preserve-Context: true' header to bypass default zero-shot context pruning when conversational history is required.`;
+      return `# .cursorrules - Membrane Integration Pattern Context
+
+# Rules for Membrane Lossless Agent Protocol integration:
+- Always prefer 'membrane-engagement-layer' model string for telemetry tracking
+- For conversational chat loops, prune context by default unless 'X-Membrane-Preserve-Context: true' is requested
+- Split large document extraction tasks into parallel map-reduce jobs using '/v1/swarm/map'
+- Target local URL: http://localhost:8000/v1 (or production https://membrane-api.com/v1)
+- Always pass 'X-Membrane-Preserve-Context: true' header to bypass default zero-shot context pruning when conversational history is required.`;
     }
   };
 
@@ -287,26 +359,50 @@ export default function Home() {
 
         {/* 90-SECOND INSTANT TRIAL TERMINAL */}
         <div className="max-w-3xl mx-auto space-y-3">
-          <div className="flex items-center justify-between text-xs font-mono text-slate-500 px-1">
-            <span className="flex items-center gap-1.5"><Terminal className="w-3.5 h-3.5" /> 90-Second Instant Online Trial</span>
-            <span className="text-[10px] uppercase font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded">No signup needed</span>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between text-xs font-mono text-slate-500 px-1 gap-2">
+            <div className="flex items-center bg-slate-150 p-1 rounded-lg border border-slate-200">
+              <button
+                onClick={() => setTrialTab("curl")}
+                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all uppercase cursor-pointer ${
+                  trialTab === "curl" 
+                    ? "bg-slate-900 text-white shadow-sm" 
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                Cloud Sandbox (cURL)
+              </button>
+              <button
+                onClick={() => setTrialTab("docker")}
+                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all uppercase cursor-pointer ${
+                  trialTab === "docker" 
+                    ? "bg-slate-900 text-white shadow-sm" 
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                Local Sandbox (Docker)
+              </button>
+            </div>
+            <span className="text-[10px] uppercase font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded self-start sm:self-auto">No signup needed</span>
           </div>
           
           <div className="bg-slate-900 text-slate-100 p-4 rounded-xl shadow-lg border border-slate-800 font-mono text-sm relative group overflow-hidden tilt-3d">
             <div className="absolute top-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity">
               <button 
-                onClick={() => handleCopy(TRIAL_CURL_SNIPPET, "curl")}
+                onClick={() => handleCopy(trialTab === "curl" ? TRIAL_CURL_SNIPPET : "docker run -d -p 8000:8000 thejoshuapenner/membrane-guard", "trial")}
                 className="p-1.5 rounded-lg bg-slate-800 text-slate-350 hover:bg-slate-700 hover:text-white border border-slate-700 transition"
               >
-                {copiedIndex === "curl" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                {copiedIndex === "trial" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
               </button>
             </div>
             <pre className="overflow-x-auto whitespace-pre leading-relaxed pr-10">
-              <code>{TRIAL_CURL_SNIPPET}</code>
+              <code>{trialTab === "curl" ? TRIAL_CURL_SNIPPET : "docker run -d -p 8000:8000 thejoshuapenner/membrane-guard"}</code>
             </pre>
           </div>
           <p className="text-[11px] text-slate-500 text-center italic">
-            Copy and paste this query into your local shell terminal. The `sk_membrane_instant_trial` token triggers a stateless sandboxed run.
+            {trialTab === "curl" 
+              ? "Copy and paste this query into your local shell terminal. The `sk_membrane_instant_trial` token triggers a stateless sandboxed run."
+              : "Run this command locally to spin up the authenticated Membrane container gateway on port 8000."
+            }
           </p>
         </div>
 
@@ -346,20 +442,65 @@ export default function Home() {
             <div className="lg:col-span-5 flex flex-col space-y-6">
               <div className="bg-white/70 backdrop-blur-md rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-4 flex-1 flex flex-col justify-between tilt-3d">
                 <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-xs font-mono font-bold text-slate-400 uppercase tracking-widest">
-                    <Database className="w-4 h-4 text-emerald-600" /> RAW STREAM INPUT BAY
-                  </div>
                   
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    {selectedPattern.description}
-                  </p>
-                  
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Gateway Target URL</label>
-                    <div className="bg-slate-50 px-3 py-2 rounded-lg border border-slate-200 text-xs font-mono text-slate-600 select-all">
-                      POST {selectedPattern.endpoint}
+                  {/* Mode switcher tab header */}
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                    <div className="flex items-center gap-2 text-xs font-mono font-bold text-slate-400 uppercase tracking-widest">
+                      <Database className="w-4 h-4 text-emerald-600" /> INPUT BAY
+                    </div>
+                    <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                      <button
+                        onClick={() => setInputMode("json")}
+                        className={`px-2 py-1 text-[10px] font-bold rounded-md transition ${inputMode === "json" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                      >
+                        Raw JSON
+                      </button>
+                      <button
+                        onClick={() => setInputMode("document")}
+                        className={`px-2 py-1 text-[10px] font-bold rounded-md transition ${inputMode === "document" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                      >
+                        Doc Extract
+                      </button>
                     </div>
                   </div>
+
+                  {inputMode === "document" ? (
+                    <div className="space-y-4">
+                      <p className="text-xs text-slate-650 leading-relaxed">
+                        Drop a PDF contract. The browser extracts the text client-side, splits it into segments, and sends it to the parallel map-reduce proxy gateway.
+                      </p>
+                      
+                      <PdfDropzone
+                        onTextExtracted={handlePdfExtracted}
+                        isProcessing={pdfProcessing}
+                        setIsProcessing={setPdfProcessing}
+                      />
+                      
+                      {selectedPattern.id === "swarm_map" && slices > 0 && (
+                        <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-emerald-800 text-[11px] leading-relaxed">
+                          <p className="font-bold flex items-center gap-1">
+                            <Sparkles className="w-3.5 h-3.5 text-emerald-600" /> Document Loaded!
+                          </p>
+                          <p className="mt-0.5">
+                            Extracted <b>{slices} text segments</b>. Hit &quot;Execute Swarm Extraction&quot; below to trigger the map-reduce proxy layer.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        {selectedPattern.description}
+                      </p>
+                      
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Gateway Target URL</label>
+                        <div className="bg-slate-50 px-3 py-2 rounded-lg border border-slate-200 text-xs font-mono text-slate-600 select-all">
+                          POST {selectedPattern.endpoint}
+                        </div>
+                      </div>
+                    </>
+                  )}
 
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex justify-between items-center">
@@ -378,7 +519,7 @@ export default function Home() {
                   </div>
 
                   {/* Dynamic control options depending on selected pattern */}
-                  {selectedPattern.id === "swarm_map" && (
+                  {inputMode === "json" && selectedPattern.id === "swarm_map" && (
                     <div className="space-y-3 pt-2">
                       <div className="flex justify-between items-center text-xs">
                         <span className="font-bold text-slate-600">Slice Density:</span>
@@ -395,7 +536,7 @@ export default function Home() {
                     </div>
                   )}
 
-                  {selectedPattern.id === "context_isolation" && (
+                  {inputMode === "json" && selectedPattern.id === "context_isolation" && (
                     <div className="pt-2">
                       <label className="flex items-center gap-3 cursor-pointer select-none">
                         <input 
@@ -412,14 +553,16 @@ export default function Home() {
                     </div>
                   )}
                   
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Payload Variables (JSON)</label>
-                    <textarea
-                      value={payloadText}
-                      onChange={(e) => setPayloadText(e.target.value)}
-                      className="w-full h-44 bg-slate-50 border border-slate-200 rounded-xl p-3 font-mono text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:bg-white resize-none"
-                    />
-                  </div>
+                  {inputMode === "json" && (
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Payload Variables (JSON)</label>
+                      <textarea
+                        value={payloadText}
+                        onChange={(e) => setPayloadText(e.target.value)}
+                        className="w-full h-44 bg-slate-50 border border-slate-200 rounded-xl p-3 font-mono text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:bg-white resize-none"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* QA-24: Slice Guardrail Banner */}
@@ -470,6 +613,20 @@ export default function Home() {
                     <span className="flex items-center gap-1.5"><Terminal className="w-4 h-4 text-slate-600" /> LOSSLESS OUTPUT CANVAS</span>
                     <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100/50">COMPLETED RESPONSE</span>
                   </div>
+
+                  {valueLedger && (
+                    <div className="mb-4 animate-in fade-in duration-300">
+                      <ValueReceipt
+                        actualCost={valueLedger.actualCost}
+                        unoptimizedCost={valueLedger.unoptimizedCost}
+                        savingsPercent={valueLedger.savingsPercent}
+                        chunkCount={valueLedger.chunkCount}
+                        model={valueLedger.model}
+                        taskId={valueLedger.taskId}
+                        timestamp={valueLedger.timestamp}
+                      />
+                    </div>
+                  )}
 
                   <div className="bg-slate-900 rounded-xl p-4 border border-slate-800 font-mono text-xs text-slate-200 flex-1 min-h-[250px] overflow-y-auto max-h-[360px] relative select-text leading-relaxed">
                     <pre className="whitespace-pre-wrap">{streamOutput}</pre>

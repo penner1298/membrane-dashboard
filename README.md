@@ -49,8 +49,26 @@ Open your browser to [http://localhost:3000](http://localhost:3000) to view the 
 
 ## 🔌 Integration (AI Coworker)
 
-Point your LLM client or OpenAI SDK to the local Membrane sandbox endpoint:
-* **Base URL:** `http://localhost:8000/v1`
+Point your LLM client or OpenAI SDK to the local Membrane sandbox endpoint. You can repoint your client in exactly three lines of code:
+
+```python
+from openai import OpenAI
+
+# Repoint base_url to local container engine. Any key works during local evaluation!
+client = OpenAI(
+    base_url="http://localhost:8000/v1",
+    api_key="local_tinkering_key"
+)
+
+# Gateway seamlessly handles AST verification and model fallback
+completion = client.chat.completions.create(
+    model="membrane-engagement-layer",
+    messages=[{"role": "user", "content": "Extract liabilities from my contract."}]
+)
+```
+
+### Integration Details
+* **Base URL:** `http://localhost:8000/v1` (or `https://membrane-api.com/v1` for cloud hosted instance)
 * **Authentication:** `Authorization: Bearer sk_live_YOUR_API_KEY` (Any string to track the tenant)
 * **Model:** `membrane-engagement-layer` (Or any model name; Membrane routes dynamically)
 

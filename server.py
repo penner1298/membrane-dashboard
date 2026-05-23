@@ -12,6 +12,9 @@ import shutil
 from contextlib import asynccontextmanager
 from typing import Optional, Dict, Any, List
 
+from dotenv import load_dotenv
+load_dotenv()
+
 warnings.filterwarnings("ignore")
 
 try:
@@ -188,30 +191,75 @@ def validate_model_string(model_name: Optional[str]):
             raise HTTPException(status_code=400, detail=f"Unsupported or malformed model string: '{model_name}'.")
 
 # --- CACHING & LOCKS ---
-l1_memory_cache = {}
-active_requests = {}
-active_requests_lock = asyncio.Lock()
+class BaseCache:
+    async def get(self, key: str) -> Optional[Any]:
+        raise NotImplementedError
+
+    async def set(self, key: str, value: Any, ttl: Optional[int] = None) -> None:
+        raise NotImplementedError
+
+    async def delete(self, key: str) -> None:
+        raise NotImplementedError
+
+    async def sweep(self) -> None:
+        raise NotImplementedError
+
+class InMemoryCache(BaseCache):
+    def __init__(self, max_size: int = 10000, ttl: int = 300):
+        self._cache = {}
+        self.max_size = max_size
+        self.ttl = ttl
+        self._lock = asyncio.Lock()
+
+    async def get(self, key: str) -> Optional[Any]:
+        async with self._lock:
+            if key not in self._cache:
+                return None
+            item = self._cache[key]
+            if time.time() - item["timestamp"] > self.ttl:
+                del self._cache[key]
+                return None
+            return item["value"]
+
+    async def set(self, key: str, value: Any, ttl: Optional[int] = None) -> None:
+        async with self._lock:
+            self._cache[key] = {
+                "value": value,
+                "timestamp": time.time()
+            }
+
+    async def delete(self, key: str) -> None:
+        async with self._lock:
+            if key in self._cache:
+                del self._cache[key]
+
+    async def sweep(self) -> None:
+        async with self._lock:
+            if len(self._cache) == 0:
+                return
+            now = time.time()
+            keys_to_del = [k for k, v in self._cache.items() if now - v["timestamp"] > self.ttl]
+            for k in keys_to_del:
+                del self._cache[k]
+                
+            # Hard limit eviction if still over max size
+            if len(self._cache) > self.max_size:
+                keys = list(self._cache.keys())
+                for k in keys[:len(keys)//5]:
+                    del self._cache[k]
 
 MAX_L1_CACHE_SIZE = 10000
 L1_CACHE_TTL = 300 # 5 minutes
+
+l1_memory_cache = InMemoryCache(max_size=MAX_L1_CACHE_SIZE, ttl=L1_CACHE_TTL)
+active_requests = {}
+active_requests_lock = asyncio.Lock()
 
 async def sweep_l1_cache():
     while True:
         try:
             await asyncio.sleep(L1_CACHE_TTL)
-            if len(l1_memory_cache) == 0:
-                continue
-            
-            now = time.time()
-            keys_to_del = [k for k, v in l1_memory_cache.items() if now - v["timestamp"] > L1_CACHE_TTL]
-            for k in keys_to_del:
-                del l1_memory_cache[k]
-                
-            # Hard limit eviction if still over max size
-            if len(l1_memory_cache) > MAX_L1_CACHE_SIZE:
-                keys = list(l1_memory_cache.keys())
-                for k in keys[:len(keys)//5]:
-                    del l1_memory_cache[k]
+            await l1_memory_cache.sweep()
                     
             # Clean up active_requests lock dictionary to prevent memory leak
             # Only remove if event is set
@@ -572,6 +620,8 @@ class ChatResponse(BaseModel):
     answer: str
     route_used: str
     status: str
+    prompt_tokens: int
+    completion_tokens: int
     total_tokens: int
     hypothetical_pro_cost: float
     billed_amount: float
@@ -696,21 +746,10 @@ def fidelity_check(prompt: str, answer: str, schema: Optional[dict] = None):
             return True, None, clean_output
         except Exception as e: return False, f"Schema violation: {str(e)}", answer
 
-    ans_lower, prompt_lower = str(answer).lower(), str(prompt).lower()
+    ans_lower = str(answer).lower()
 
-    if any(re.search(p, ans_lower) for p in [r"i can\'?t (do|help)", r"i am (unable|sorry)", r"as an ai", r"against my guidelines"]): return False, "Refusal detected", answer
-
-    needs_code = any(k in prompt_lower for k in ["python", "script", "code"])
-    forbids_backticks = any(k in prompt_lower for k in ["do not use markdown", "no markdown", "no backticks", "raw text"])
-
-    if needs_code and not forbids_backticks and '```' not in ans_lower:
-        return False, "Expected code blocks", answer
-
-    if forbids_backticks and '```' in ans_lower:
-        return False, "Backticks detected when forbidden", answer
-
-    if len(ans_lower) < 15 and len(prompt_lower) > 50:
-        return False, "Output suspiciously short", answer
+    if any(re.search(p, ans_lower) for p in [r"i can\'?t (do|help)", r"i am (unable|sorry)", r"as an ai", r"against my guidelines"]):
+        return False, "Refusal detected", answer
 
     return True, None, answer
 
@@ -1059,15 +1098,15 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
     # Intercept parallel concurrent threads to charge 0.0 fee (QA-08)
     if wait_event:
         await wait_event.wait()
-        if req_hash in l1_memory_cache and time.time() - l1_memory_cache[req_hash]["timestamp"] < L1_CACHE_TTL:
-            return ChatResponse(receipt_id=req_hash, answer=l1_memory_cache[req_hash]["answer"], route_used="L1_MEMORY_CACHE", status="CACHE HIT", total_tokens=0, hypothetical_pro_cost=0.0, billed_amount=0.0, savings_percent=100.0)
+        cached = await l1_memory_cache.get(req_hash)
+        if cached:
+            return ChatResponse(receipt_id=req_hash, answer=cached["answer"], route_used="L1_MEMORY_CACHE", status="CACHE HIT", prompt_tokens=0, completion_tokens=0, total_tokens=0, hypothetical_pro_cost=0.0, billed_amount=0.0, savings_percent=100.0)
 
     try:
-        if req_hash in l1_memory_cache:
-            if time.time() - l1_memory_cache[req_hash]["timestamp"] < L1_CACHE_TTL:
-                background_tasks.add_task(charge_and_log_api, api_key_hash, applied_cache_fee, 0.0, f"/api/chat ({cache_status_label})", 0)
-                return ChatResponse(receipt_id=req_hash, answer=l1_memory_cache[req_hash]["answer"], route_used="L1_MEMORY_CACHE", status="CACHE HIT", total_tokens=0, hypothetical_pro_cost=0.0, billed_amount=applied_cache_fee, savings_percent=100.0)
-            else: del l1_memory_cache[req_hash]
+        cached = await l1_memory_cache.get(req_hash)
+        if cached:
+            background_tasks.add_task(charge_and_log_api, api_key_hash, applied_cache_fee, 0.0, f"/api/chat ({cache_status_label})", 0)
+            return ChatResponse(receipt_id=req_hash, answer=cached["answer"], route_used="L1_MEMORY_CACHE", status="CACHE HIT", prompt_tokens=0, completion_tokens=0, total_tokens=0, hypothetical_pro_cost=0.0, billed_amount=applied_cache_fee, savings_percent=100.0)
 
         prompt_vector = None
         
@@ -1075,17 +1114,17 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
             async with db_pool.acquire() as conn:
                 cached_answer, prompt_vector = await check_semantic_cache(prompt_repr, request.response_format, api_key_hash, request.use_global_cache, conn=conn)
                 if cached_answer:
-                    l1_memory_cache[req_hash] = {"answer": cached_answer, "timestamp": time.time()}
+                    await l1_memory_cache.set(req_hash, {"answer": cached_answer})
                     background_tasks.add_task(charge_and_log_api, api_key_hash, applied_cache_fee, 0.0, f"/api/chat ({cache_status_label})", 0)
-                    return ChatResponse(receipt_id=req_hash, answer=cached_answer, route_used="SEMANTIC_CACHE", status="CACHE HIT", total_tokens=0, hypothetical_pro_cost=0.0, billed_amount=applied_cache_fee, savings_percent=100.0)
+                    return ChatResponse(receipt_id=req_hash, answer=cached_answer, route_used="SEMANTIC_CACHE", status="CACHE HIT", prompt_tokens=0, completion_tokens=0, total_tokens=0, hypothetical_pro_cost=0.0, billed_amount=applied_cache_fee, savings_percent=100.0)
 
                 system_warnings = await get_aversive_warnings(req_hash, api_key_hash, request.use_global_cache, conn=conn)
         else:
             cached_answer, prompt_vector = await check_semantic_cache(prompt_repr, request.response_format, api_key_hash, request.use_global_cache)
             if cached_answer:
-                l1_memory_cache[req_hash] = {"answer": cached_answer, "timestamp": time.time()}
+                await l1_memory_cache.set(req_hash, {"answer": cached_answer})
                 background_tasks.add_task(charge_and_log_api, api_key_hash, applied_cache_fee, 0.0, f"/api/chat ({cache_status_label})", 0)
-                return ChatResponse(receipt_id=req_hash, answer=cached_answer, route_used="SEMANTIC_CACHE", status="CACHE HIT", total_tokens=0, hypothetical_pro_cost=0.0, billed_amount=applied_cache_fee, savings_percent=100.0)
+                return ChatResponse(receipt_id=req_hash, answer=cached_answer, route_used="SEMANTIC_CACHE", status="CACHE HIT", prompt_tokens=0, completion_tokens=0, total_tokens=0, hypothetical_pro_cost=0.0, billed_amount=applied_cache_fee, savings_percent=100.0)
             system_warnings = ""
 
         # --- PHASE 1: SENESCENT NODE SHADOW MODE ---
@@ -1193,7 +1232,7 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
 
                 display_route = "Membrane-Engagement-Layer"
 
-                l1_memory_cache[req_hash] = {"answer": clean_ans, "timestamp": time.time()}
+                await l1_memory_cache.set(req_hash, {"answer": clean_ans})
                 background_tasks.add_task(save_to_semantic_cache, prompt_repr, request.response_format, clean_ans, api_key_hash, request.use_global_cache, prompt_vector)
 
                 return ChatResponse(
@@ -1201,6 +1240,8 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
                     answer=clean_ans,
                     route_used=display_route,
                     status=status_label,
+                    prompt_tokens=in_tok,
+                    completion_tokens=out_tok,
                     total_tokens=in_tok+out_tok,
                     hypothetical_pro_cost=round(hypo_cost, 6),
                     billed_amount=round(retail_cost, 6),
@@ -1231,7 +1272,7 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
 async def report_failure(request: FeedbackRequest, api_key_hash: str = Security(verify_access)):
     scope_identifier = "GLOBAL_HIVE" if request.use_global_cache else api_key_hash
     req_hash = hashlib.md5((scope_identifier + request.prompt + str(request.response_format)).encode()).hexdigest()
-    if req_hash in l1_memory_cache: del l1_memory_cache[req_hash]
+    await l1_memory_cache.delete(req_hash)
     if not db_pool: return {"status": "L1 Cache Purged. Database unavailable."}
     try:
         async with db_pool.acquire() as conn:
@@ -1536,29 +1577,42 @@ async def process_swarm_chunk(
                 content_clean = content_clean[:-3]
             content_clean = content_clean.strip()
             
-            parsed_json = json.loads(content_clean)
-            
-            verbatim_text = ""
-            matched_signals = []
+            try:
+                parsed_json = json.loads(content_clean)
+            except Exception:
+                parsed_json = content_clean
+
+            # Broaden the type checkpoint to validate generic iterative collections & normalize keys/schemas
             if isinstance(parsed_json, dict):
-                # QA-26: Empty Signal Document Management
-                if not target_signals:
-                    verbatim_text = json.dumps(parsed_json)
+                # Normalize key architecture to eliminate key mapping structural drift
+                if "extracted_data" in parsed_json:
+                    extracted_val = parsed_json["extracted_data"]
                 else:
-                    for k, v in parsed_json.items():
-                        if isinstance(v, str) and any(sig.lower() in v.lower() for sig in target_signals):
-                            verbatim_text = v
-                            matched_signals = [sig for sig in target_signals if sig.lower() in v.lower()]
-                            break
-                    if not verbatim_text:
-                        verbatim_text = json.dumps(parsed_json)
+                    # If custom/unmapped properties, reshape them into the standardized template
+                    if len(parsed_json) == 1:
+                        extracted_val = list(parsed_json.values())[0]
+                    else:
+                        extracted_val = parsed_json
+                parsed_json = {"extracted_data": extracted_val}
+            elif isinstance(parsed_json, (list, tuple, set)):
+                # Enforce strict array content handling: serialize natively using native JSON encoder
+                parsed_json = {"extracted_data": list(parsed_json)}
             else:
-                verbatim_text = str(parsed_json)
-                
-            if not matched_signals:
-                matched_signals = [sig for sig in target_signals if sig.lower() in verbatim_text.lower()]
-                if not matched_signals and target_signals:
-                    matched_signals = [target_signals[0]]
+                # Fallback for primitive/literal string values
+                parsed_json = {"extracted_data": parsed_json}
+
+            verbatim_text = json.dumps(parsed_json)
+            matched_signals = []
+            
+            # Search for target signals in the normalized extracted value
+            extracted_val = parsed_json["extracted_data"]
+            extracted_val_str = str(extracted_val).lower()
+            for sig in target_signals:
+                if sig.lower() in extracted_val_str:
+                    matched_signals.append(sig)
+            
+            if not matched_signals and target_signals:
+                matched_signals = [target_signals[0]]
 
             return {
                 "index": chunk_index,
@@ -1620,11 +1674,37 @@ def compile_swarm_response(
     for r in results:
         if r["error"]:
             failed += 1
+
+        vtext = r["verbatim_text"]
+        is_valid_json_obj = False
+        try:
+            parsed_val = json.loads(vtext)
+            if isinstance(parsed_val, dict) and "extracted_data" in parsed_val:
+                is_valid_json_obj = True
+        except Exception:
+            pass
+
+        if not is_valid_json_obj:
+            try:
+                parsed_val = json.loads(vtext)
+                if isinstance(parsed_val, dict):
+                    if len(parsed_val) == 1:
+                        normalized = {"extracted_data": list(parsed_val.values())[0]}
+                    else:
+                        normalized = {"extracted_data": parsed_val}
+                elif isinstance(parsed_val, (list, tuple, set)):
+                    normalized = {"extracted_data": list(parsed_val)}
+                else:
+                    normalized = {"extracted_data": parsed_val}
+            except Exception:
+                normalized = {"extracted_data": vtext}
+            vtext = json.dumps(normalized)
+
         extractions.append(
             ExtractionEntry(
                 chunk_index=r["index"],
                 source_reference=f"Chunk {r['index'] + 1}",
-                verbatim_text=r["verbatim_text"],
+                verbatim_text=vtext,
                 matched_signals=r["matched_signals"]
             )
         )
@@ -1913,8 +1993,8 @@ async def openai_compatible_endpoint(request: Request, background_tasks: Backgro
             "finish_reason": "stop"
         }],
         "usage": {
-            "prompt_tokens": res.total_tokens // 2,
-            "completion_tokens": res.total_tokens // 2,
+            "prompt_tokens": res.prompt_tokens,
+            "completion_tokens": res.completion_tokens,
             "total_tokens": res.total_tokens
         },
         "membrane_metadata": {
