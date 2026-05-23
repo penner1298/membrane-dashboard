@@ -48,6 +48,11 @@ Integration details:
 - Endpoint: /chat/completions (OpenAI Compatible)
 ```
 
+### Context Memory Preservation (Preventing Amnesia)
+
+By default, Membrane purges intermediate assistant messages to optimize speed and context token overhead. If your multi-turn chat agents require full conversation history preservation:
+- Pass the custom HTTP request header **`X-Membrane-Preserve-Context: true`** in your client calls.
+
 ## Documentation
 
 For full API specifications, payload formats, and error handling details, simply click "Documentation" on your local dashboard or navigate to the `/docs` route (`http://localhost:3000/docs`) while the development server is running.

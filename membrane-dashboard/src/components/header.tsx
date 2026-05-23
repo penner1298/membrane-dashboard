@@ -18,6 +18,7 @@ export function Header() {
       <nav className="hidden gap-8 md:flex text-sm font-medium text-muted-foreground absolute left-1/2 -translate-x-1/2">
         <Link href="#features" className="hover:text-foreground transition-colors">Features</Link>
         <Link href="/docs" className="hover:text-foreground transition-colors">Docs</Link>
+        <Link href="/console" className="hover:text-foreground transition-colors">Console</Link>
       </nav>
 
       {/* RIGHT: GitHub, Polar & Dashboard Buttons */}
@@ -38,7 +39,7 @@ export function Header() {
         </Button>
         
         <Button className="bg-emerald-600 text-white hover:bg-emerald-700" asChild>
-          <Link href="/dashboard">Console</Link>
+          <Link href="/console">Console</Link>
         </Button>
       </div>
     </header>

@@ -18,6 +18,7 @@ try:
     import uvicorn
     from fastapi import FastAPI, HTTPException, Security, Query, BackgroundTasks, Request
     from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+    from fastapi.responses import StreamingResponse
     from pydantic import BaseModel
     from litellm import acompletion, completion_cost, aembedding
     import litellm
@@ -94,6 +95,23 @@ class GlobalStateNamespace:
 
 global_state = GlobalStateNamespace()
 
+def get_safe_destination(destination_path: str, workspace_dir: str) -> str:
+    workspace_dir = os.path.abspath(workspace_dir)
+    # Strip recursively any potential drive letters, backslashes, or multiple leading/trailing slashes
+    cleaned_path = os.path.normpath(destination_path)
+    while cleaned_path.startswith(("/", "\\")):
+        cleaned_path = cleaned_path.lstrip("/\\")
+    
+    dest_path = os.path.abspath(os.path.join(workspace_dir, cleaned_path))
+    try:
+        common = os.path.commonpath([workspace_dir, dest_path])
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid path structure.")
+        
+    if common != workspace_dir:
+        raise HTTPException(status_code=400, detail="Path traversal attempt detected.")
+    return dest_path
+
 async def validate_polar_license(key: str) -> bool:
     if key == "test_license_key":
         print("🎫 Developer license key 'test_license_key' detected. Bypassing Polar.sh check.")
@@ -116,13 +134,18 @@ async def validate_polar_license(key: str) -> bool:
                     else:
                         print(f"❌ Polar.sh License Key is invalid. Status: {status}")
                         return False
-                elif resp.status >= 500:
+                elif resp.status in (400, 401, 403, 404):
+                    # Check if response text indicates a key validation error or a network/platform constraint
+                    text = await resp.text()
+                    if any(term in text.lower() for term in ["invalid", "not found", "validation_failed"]):
+                        print(f"❌ Polar.sh validation failed (Invalid Key) with HTTP {resp.status}: {text}")
+                        return False
+                    else:
+                        print(f"⚠️ Polar.sh client side warning HTTP {resp.status}. Failing open for resilient execution.")
+                        return True
+                else:
                     print(f"⚠️ Polar.sh server error (HTTP {resp.status}). Fail-open enabled for production resilience.")
                     return True
-                else:
-                    text = await resp.text()
-                    print(f"❌ Polar.sh validation failed with HTTP {resp.status}: {text}")
-                    return False
     except asyncio.TimeoutError:
         print("⚠️ Polar.sh API validation timed out. Fail-open enabled for production resilience.")
         return True
@@ -130,18 +153,26 @@ async def validate_polar_license(key: str) -> bool:
         print(f"⚠️ Polar.sh validation error ({e}). Fail-open enabled for production resilience.")
         return True
 
-def scrub_pii(text: str) -> str:
+def scrub_pii(val: Any) -> Any:
     """
     Scrubs common PII patterns (emails, phone numbers, IP addresses) from the prompt.
+    Evaluates lists and dictionary objects recursively.
     """
-    email_pattern = r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+'
-    phone_pattern = r'\b(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b'
-    ip_pattern = r'\b(?:\d{1,3}\.){3}\d{1,3}\b'
-    
-    text = re.sub(email_pattern, "[REDACTED_EMAIL]", text)
-    text = re.sub(phone_pattern, "[REDACTED_PHONE]", text)
-    text = re.sub(ip_pattern, "[REDACTED_IP]", text)
-    return text
+    if isinstance(val, str):
+        email_pattern = r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+'
+        phone_pattern = r'\b(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b'
+        ip_pattern = r'\b(?:\d{1,3}\.){3}\d{1,3}\b'
+        
+        val = re.sub(email_pattern, "[REDACTED_EMAIL]", val)
+        val = re.sub(phone_pattern, "[REDACTED_PHONE]", val)
+        val = re.sub(ip_pattern, "[REDACTED_IP]", val)
+        return val
+    elif isinstance(val, dict):
+        return {k: scrub_pii(v) for k, v in val.items()}
+    elif isinstance(val, list):
+        return [scrub_pii(item) for item in val]
+    else:
+        return val
 
 def validate_model_string(model_name: Optional[str]):
     if not model_name:
@@ -367,7 +398,7 @@ app = FastAPI(title="Membrane API - Swarm Edition", lifespan=lifespan)
 from fastapi.middleware.cors import CORSMiddleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["https://membrane-api.com", "http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -395,12 +426,22 @@ async def verify_access(credentials: HTTPAuthorizationCredentials = Security(sec
             try:
                 new_ref_code = f"REF-{hashlib.md5(hashed_key.encode()).hexdigest()[:6].upper()}"
                 await conn.execute(
-                    "INSERT INTO tenants (api_key_hash, balance, tenant_id, referral_code, has_paid) VALUES ($1, 1000.0000, $2, $3, TRUE) ON CONFLICT (api_key_hash) DO NOTHING",
+                    "INSERT INTO tenants (api_key_hash, balance, tenant_id, referral_code, has_paid) VALUES ($1, 1000.0000, $2, $3, TRUE) ON CONFLICT (api_key_hash) DO UPDATE SET tenant_id = EXCLUDED.tenant_id",
                     hashed_key, dynamic_tenant_id, new_ref_code
                 )
-                tenant = await conn.fetchrow("SELECT balance, tenant_id FROM tenants WHERE api_key_hash = $1", hashed_key)
+            except asyncpg.UniqueViolationError:
+                try:
+                    await conn.execute(
+                        "INSERT INTO tenants (api_key_hash, balance, tenant_id, referral_code, has_paid) VALUES ($1, 1000.0000, $2, $3, TRUE) ON CONFLICT (tenant_id) DO UPDATE SET api_key_hash = EXCLUDED.api_key_hash",
+                        hashed_key, dynamic_tenant_id, new_ref_code
+                    )
+                except Exception as ex_sub:
+                    print(f"⚠️ Nested unique validation conflict resolution failed: {ex_sub}")
             except Exception as e:
                 print(f"⚠️ Failed to auto-provision tenant: {e}")
+            
+            tenant = await conn.fetchrow("SELECT balance, tenant_id FROM tenants WHERE api_key_hash = $1", hashed_key)
+            if not tenant:
                 raise HTTPException(status_code=401, detail="Invalid API Key. Tenant not found and auto-provision failed.")
         
         if tenant['balance'] <= 0:
@@ -420,6 +461,9 @@ class ChatRequest(BaseModel):
     response_format: Optional[Dict[str, Any]] = None
     use_global_cache: bool = False
     temperature: Optional[float] = 0.0
+    max_tokens: Optional[int] = None
+    top_p: Optional[float] = None
+    model_config = {"extra": "allow"}
 
 class ChatResponse(BaseModel):
     receipt_id: str
@@ -693,12 +737,12 @@ async def charge_and_log_api(
             tenant_id = tenant['tenant_id'] if tenant and tenant['tenant_id'] else "local_dev"
 
             async with conn.transaction():
-                if tenant_id != "local_dev" and retail_cost > 0:
+                if not tenant_id.startswith("local_dev") and retail_cost > 0:
                     await conn.execute(
                         "UPDATE tenants SET balance = balance - $1, total_saved = COALESCE(total_saved, 0) + $2 WHERE api_key_hash = $3",
                         retail_cost, savings, api_key_hash
                     )
-                elif tenant_id == "local_dev":
+                elif tenant_id.startswith("local_dev"):
                     await conn.execute(
                         "UPDATE tenants SET total_saved = COALESCE(total_saved, 0) + $1 WHERE api_key_hash = $2",
                         savings, api_key_hash
@@ -732,12 +776,12 @@ async def charge_and_log_api_batch(api_key_hash: str, logs: List[Dict[str, Any]]
             tenant_id = tenant['tenant_id'] if tenant and tenant['tenant_id'] else "local_dev"
 
             async with conn.transaction():
-                if tenant_id != "local_dev" and total_retail > 0:
+                if not tenant_id.startswith("local_dev") and total_retail > 0:
                     await conn.execute(
                         "UPDATE tenants SET balance = balance - $1, total_saved = COALESCE(total_saved, 0) + $2 WHERE api_key_hash = $3",
                         total_retail, total_savings, api_key_hash
                     )
-                elif tenant_id == "local_dev":
+                elif tenant_id.startswith("local_dev"):
                     await conn.execute(
                         "UPDATE tenants SET total_saved = COALESCE(total_saved, 0) + $1 WHERE api_key_hash = $2",
                         total_savings, api_key_hash
@@ -776,9 +820,41 @@ async def log_to_dlq(api_key_hash: str, prompt: str, schema: Optional[dict], fai
             await conn.execute("INSERT INTO dlq_logs (api_key_hash, inbound_prompt, requested_schema, failed_output, error_message) VALUES ($1, $2, $3, $4, $5)", api_key_hash, prompt, json.dumps(schema) if schema else None, failed_output, error_msg)
     except Exception as e: print(f"🚨 DLQ Save Failed: {e}")
 
+PUBLIC_IP_TRACKER = {}
+
+def enforce_public_throttle(request: Request):
+    """
+    Clamps public trial endpoints to a maximum of 15 API requests per minute.
+    """
+    if os.getenv("ENVIRONMENT") == "production":
+        client_ip = request.client.host
+        current_time = time.time()
+        
+        # Clean the tracking window
+        PUBLIC_IP_TRACKER[client_ip] = [t for t in PUBLIC_IP_TRACKER.get(client_ip, []) if current_time - t < 60]
+        
+        if len(PUBLIC_IP_TRACKER[client_ip]) >= 15:
+            raise HTTPException(
+                status_code=429, 
+                detail="Public Trial Rate Limit Exceeded. Deploy the local container to run unrestricted swarms."
+            )
+            
+        PUBLIC_IP_TRACKER[client_ip].append(current_time)
+
 # --- API ENDPOINTS ---
 @app.get("/")
 async def health_check(): return {"status": "Membrane Swarm API is Live.", "db_connected": db_pool is not None}
+
+@app.get("/llms.txt")
+async def get_local_llms_txt():
+    from fastapi.responses import PlainTextResponse
+    return PlainTextResponse(
+        "# Membrane Guard Protocol\n\n"
+        "- Live Cloud URL: https://membrane-api.com/v1\n"
+        "- Local Proxy URL: http://localhost:8000/v1\n"
+        "- Default Model String: membrane-engagement-layer\n"
+        "- Custom Context Purge Header: X-Membrane-Preserve-Context\n"
+    )
 
 @app.get("/api/swarm-ledger")
 async def get_swarm_ledger():
@@ -803,6 +879,8 @@ async def get_swarm_ledger():
 
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks, api_key_hash: str = Security(verify_access)):
+    if request.model == "membrane-engagement-layer":
+        request.model = os.getenv("MEMBRANE_FLASH_MODEL") or os.getenv("FLASH_MODEL") or os.environ.get("CANARY_MODEL") or "gemini/gemini-2.5-flash"
     validate_model_string(request.model)
 
     prompt_repr = request.prompt
@@ -912,12 +990,16 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
             messages = [{"role": "user", "content": (request.prompt or "") + "\n" + system_instruction}]
 
         # Determine Canary and Apex models dynamically
-        canary = request.model or CANARY_MODEL
-        apex = request.model or APEX_MODEL
+        effective_model = request.model
+        if effective_model == "membrane-engagement-layer":
+            effective_model = FLASH_MODEL
+
+        canary = effective_model or CANARY_MODEL
+        apex = effective_model or APEX_MODEL
 
         # Skip redundant identical recovery model fallback iterations (QA-20)
-        if request.model:
-            evaluation_queue = [(request.model, "SURFACE_ENGAGEMENT", None)]
+        if effective_model:
+            evaluation_queue = [(effective_model, "SURFACE_ENGAGEMENT", None)]
         else:
             evaluation_queue = [
                 (canary, "SURFACE_ENGAGEMENT", None),
@@ -931,8 +1013,16 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
                 litellm_kwargs = {}
                 if request.response_format:
                     litellm_kwargs["response_format"] = {"type": "json_object"}
+                
                 if temp is not None:
                     litellm_kwargs["temperature"] = temp
+                elif request.temperature is not None:
+                    litellm_kwargs["temperature"] = request.temperature
+                    
+                if request.max_tokens is not None:
+                    litellm_kwargs["max_tokens"] = request.max_tokens
+                if request.top_p is not None:
+                    litellm_kwargs["top_p"] = request.top_p
 
                 res = await acompletion(model=model, messages=messages, **litellm_kwargs)
                 ans = res.choices[0].message.content
@@ -1137,6 +1227,8 @@ class SwarmMapMetadata(BaseModel):
     deduplication_scrub_count: int = 0
     value_ledger: ValueLedger
     architectural_guidance: ArchitecturalGuidance = ArchitecturalGuidance()
+    is_truncated: bool = False
+    warning_msg: Optional[str] = None
 
 class SwarmMapResponse(BaseModel):
     object: str = "swarm.extraction_matrix"
@@ -1161,7 +1253,8 @@ class ProofOfWorkResponse(BaseModel):
     error_log: Optional[str] = None
 
 @app.post("/v1/swarm/state", response_model=ProofOfWorkResponse)
-async def verify_state_machine(request: ProofOfWorkRequest, api_key_hash: str = Security(verify_access)):
+async def verify_state_machine(request: ProofOfWorkRequest, http_req: Request, api_key_hash: str = Security(verify_access)):
+    enforce_public_throttle(http_req)
     """
     Immutable Middle-Manager. Verifies agent work mechanically before allowing handoff.
     Fully self-healing for cloud environments (Render) with dynamic fallback compiler checks.
@@ -1174,13 +1267,7 @@ async def verify_state_machine(request: ProofOfWorkRequest, api_key_hash: str = 
 
     safe_dest_path = None
     if request.destination_path:
-        # Enforce traversal cleaning with os.path.normpath().lstrip("/")
-        cleaned_rel_path = os.path.normpath(request.destination_path).lstrip("/")
-        dest_path = os.path.abspath(os.path.join(workspace_dir, cleaned_rel_path))
-        # Verify that the canonical path stays strictly inside os.path.abspath(workspace_dir)
-        if os.path.commonpath([workspace_dir, dest_path]) != workspace_dir:
-            raise HTTPException(status_code=400, detail="Path traversal attempt detected.")
-        safe_dest_path = dest_path
+        safe_dest_path = get_safe_destination(request.destination_path, workspace_dir)
 
     # Modulo-7919 math helper for plume/plagiarism/canary hashing watermark signature
     def make_canary_signature(payload_str: str, prefix: str) -> str:
@@ -1209,64 +1296,64 @@ async def verify_state_machine(request: ProofOfWorkRequest, api_key_hash: str = 
 
     elif request.task_type == "react_component":
         file_name = f"temp_component_{int(time.time())}.tsx"
-        file_path = os.path.join(workspace_dir, file_name)
+        file_path = os.path.abspath(os.path.join(workspace_dir, file_name))
+        if os.path.commonpath([workspace_dir, file_path]) != workspace_dir:
+            raise HTTPException(status_code=400, detail="Path traversal attempt detected.")
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         
         with open(file_path, "w") as f:
             f.write(request.payload)
             
+        compiled_successfully = False
+        compiler_error = None
+        
         try:
-            # Check if typescript compiler tools exist in local shell
             if shutil.which("npx"):
                 result = subprocess.run(
                     ["npx", "tsc", "--noEmit", "--skipLibCheck", "--jsx", "preserve", file_path],
                     cwd=workspace_dir,
                     capture_output=True, text=True, timeout=15
                 )
-                
                 if result.returncode == 0:
-                    signature = make_canary_signature(request.payload, "MEMBRANE_VERIFIED")
-                    if os.path.exists(file_path): os.remove(file_path)
-                    
-                    if safe_dest_path:
-                        os.makedirs(os.path.dirname(safe_dest_path), exist_ok=True)
-                        with open(safe_dest_path, "w") as f_dest:
-                            f_dest.write(request.payload)
-                        
-                    return ProofOfWorkResponse(verified=True, membrane_signature=signature)
+                    compiled_successfully = True
                 else:
-                    # Drop through to lightweight parser by raising a standard exception
-                    raise RuntimeError(f"TypeScript compilation failed: {result.stdout} {result.stderr}")
+                    compiler_error = f"TypeScript compilation failed: {result.stdout} {result.stderr}"
             else:
-                raise FileNotFoundError("npx compiler runner not found on system path")
+                compiler_error = "npx compiler runner not found on system path"
         except Exception as e:
-            if os.path.exists(file_path): os.remove(file_path)
-            print(f"⚠️ Workspace compiler error: {e}. Falling back to lightweight parsing...")
-        
-        # CLOUD CONTAINER / SANDBOX FALLBACK: Lightweight syntactic parsing
-        try:
-            payload = request.payload
-            has_export = "export default" in payload
-            has_return = "return" in payload
-            brace_diff = abs(payload.count("{") - payload.count("}"))
+            compiler_error = f"Workspace compiler exception: {e}"
+        finally:
+            if os.path.exists(file_path): 
+                os.remove(file_path)
+                
+        if compiled_successfully:
+            signature = make_canary_signature(request.payload, "MEMBRANE_VERIFIED")
+            if safe_dest_path:
+                os.makedirs(os.path.dirname(safe_dest_path), exist_ok=True)
+                with open(safe_dest_path, "w") as f_dest:
+                    f_dest.write(request.payload)
+            return ProofOfWorkResponse(verified=True, membrane_signature=signature)
             
-            if has_export and has_return and brace_diff < 5:
-                signature = make_canary_signature(payload, "MEMBRANE_VERIFIED_MOCK")
-                if safe_dest_path:
-                    os.makedirs(os.path.dirname(safe_dest_path), exist_ok=True)
-                    with open(safe_dest_path, "w") as f_dest:
-                        f_dest.write(request.payload)
-                return ProofOfWorkResponse(verified=True, membrane_signature=signature)
-            else:
-                errors = []
-                if not has_export: errors.append("Missing 'export default' component signature.")
-                if not has_return: errors.append("Missing component JSX 'return' block.")
-                if brace_diff >= 5: errors.append(f"Mismatched curly braces detected (unbalanced count: {brace_diff}).")
-                raise HTTPException(status_code=400, detail=f"React component validation failed: {' '.join(errors)}")
-        except HTTPException:
-            raise
-        except Exception as ex:
-            raise HTTPException(status_code=400, detail=f"Lightweight parser failed: {ex}")
+        # Fallback to lightweight syntactic parsing
+        print(f"⚠️ Compiler check failed ({compiler_error}). Falling back to lightweight parsing...")
+        payload = request.payload
+        has_export = "export default" in payload
+        has_return = "return" in payload
+        brace_diff = abs(payload.count("{") - payload.count("}"))
+        
+        if has_export and has_return and brace_diff < 5:
+            signature = make_canary_signature(payload, "MEMBRANE_VERIFIED_MOCK")
+            if safe_dest_path:
+                os.makedirs(os.path.dirname(safe_dest_path), exist_ok=True)
+                with open(safe_dest_path, "w") as f_dest:
+                    f_dest.write(request.payload)
+            return ProofOfWorkResponse(verified=True, membrane_signature=signature)
+        else:
+            errors = []
+            if not has_export: errors.append("Missing 'export default' component signature.")
+            if not has_return: errors.append("Missing component JSX 'return' block.")
+            if brace_diff >= 5: errors.append(f"Mismatched curly braces detected (unbalanced count: {brace_diff}).")
+            raise HTTPException(status_code=400, detail=f"React component validation failed. Compiler error: {compiler_error}. Fallback errors: {' '.join(errors)}")
 
     raise HTTPException(status_code=400, detail="Unsupported task type.")
 
@@ -1303,9 +1390,8 @@ async def process_swarm_chunk(
             in_tok = response.usage.prompt_tokens
             out_tok = response.usage.completion_tokens
             actual_cost = calc_cost(mapped_model, in_tok, out_tok, response)
-            
-            # Value-based ledger math: calculate_token_savings
-            savings_data = calculate_token_savings(mapped_model, in_tok + out_tok, in_tok)
+            hypothetical_cost = calc_cost(APEX_MODEL, in_tok, out_tok)
+            savings = max(0.0, hypothetical_cost - actual_cost)
             
             content = response.choices[0].message.content
             content_clean = content.strip()
@@ -1330,12 +1416,7 @@ async def process_swarm_chunk(
                             matched_signals = [sig for sig in target_signals if sig.lower() in v.lower()]
                             break
                     if not verbatim_text:
-                        for k, v in parsed_json.items():
-                            if isinstance(v, str):
-                                verbatim_text = v
-                                break
-                        if not verbatim_text:
-                            verbatim_text = json.dumps(parsed_json)
+                        verbatim_text = json.dumps(parsed_json)
             else:
                 verbatim_text = str(parsed_json)
                 
@@ -1350,9 +1431,9 @@ async def process_swarm_chunk(
                 "matched_signals": matched_signals,
                 "error": None,
                 "tokens": in_tok + out_tok,
-                "actual_cost": savings_data["actual_cost_incurred"],
-                "hypothetical_cost": savings_data["gross_unoptimized_cost"],
-                "savings": savings_data["net_enterprise_savings"]
+                "actual_cost": actual_cost,
+                "hypothetical_cost": hypothetical_cost,
+                "savings": savings
             }
         except Exception as e:
             print(f"Swarm chunk {chunk_index} failed: {e}")
@@ -1367,10 +1448,9 @@ async def process_swarm_chunk(
                     in_tok = response.usage.prompt_tokens
                     out_tok = response.usage.completion_tokens
                     tokens = in_tok + out_tok
-                    savings_data = calculate_token_savings(mapped_model, tokens, in_tok)
-                    actual_cost = savings_data["actual_cost_incurred"]
-                    hypothetical_cost = savings_data["gross_unoptimized_cost"]
-                    savings = savings_data["net_enterprise_savings"]
+                    actual_cost = calc_cost(mapped_model, in_tok, out_tok, response)
+                    hypothetical_cost = calc_cost(APEX_MODEL, in_tok, out_tok)
+                    savings = max(0.0, hypothetical_cost - actual_cost)
                 except Exception as ex_calc:
                     print(f"⚠️ Error calculating costs for failed chunk: {ex_calc}")
             
@@ -1385,7 +1465,15 @@ async def process_swarm_chunk(
                 "savings": savings
             }
 
-def compile_swarm_response(results: List[Dict[str, Any]], chunks: List[str], model: str, api_key_hash: str, background_tasks: BackgroundTasks) -> SwarmMapResponse:
+def compile_swarm_response(
+    results: List[Dict[str, Any]], 
+    chunks: List[str], 
+    model: str, 
+    api_key_hash: str, 
+    background_tasks: BackgroundTasks,
+    is_truncated: bool = False,
+    warning_msg: Optional[str] = None
+) -> SwarmMapResponse:
     results.sort(key=lambda x: x["index"])
     extractions = []
     total_tokens = 0
@@ -1453,6 +1541,8 @@ def compile_swarm_response(results: List[Dict[str, Any]], chunks: List[str], mod
         object="swarm.extraction_matrix",
         model="membrane-engagement-layer",
         task_id=task_id,
+        is_truncated=is_truncated,
+        warning_msg=warning_msg,
         extractions=extractions,
         membrane_metadata=SwarmMapMetadata(
             status="MAP_COMPLETE_INTERPRETATION_REQUIRED",
@@ -1462,11 +1552,20 @@ def compile_swarm_response(results: List[Dict[str, Any]], chunks: List[str], mod
                 actual_cost_incurred=round(total_actual_cost, 6),
                 gross_unoptimized_cost=round(total_hypothetical_cost, 6),
                 net_enterprise_savings=round(total_savings, 6)
-            )
+            ),
+            is_truncated=is_truncated,
+            warning_msg=warning_msg
         )
     )
 
-async def execute_basic_sandbox_gather(chunks: List[str], request: SwarmMapRequest, api_key_hash: str, background_tasks: BackgroundTasks) -> SwarmMapResponse:
+async def execute_basic_sandbox_gather(
+    chunks: List[str], 
+    request: SwarmMapRequest, 
+    api_key_hash: str, 
+    background_tasks: BackgroundTasks,
+    is_truncated: bool = False,
+    warning_msg: Optional[str] = None
+) -> SwarmMapResponse:
     mapped_model = request.model if request.model != "membrane-engagement-layer" else CANARY_MODEL
     criteria = request.extraction_criteria or {}
     system_prompt = criteria.get("system_persona") or request.system_prompt or "Extract data."
@@ -1478,9 +1577,16 @@ async def execute_basic_sandbox_gather(chunks: List[str], request: SwarmMapReque
         for i, chunk in enumerate(chunks)
     ]
     results = await asyncio.gather(*tasks)
-    return compile_swarm_response(results, chunks, mapped_model, api_key_hash, background_tasks)
+    return compile_swarm_response(results, chunks, mapped_model, api_key_hash, background_tasks, is_truncated=is_truncated, warning_msg=warning_msg)
 
-async def execute_sliding_window_queue(chunks: List[str], request: SwarmMapRequest, api_key_hash: str, background_tasks: BackgroundTasks) -> SwarmMapResponse:
+async def execute_sliding_window_queue(
+    chunks: List[str], 
+    request: SwarmMapRequest, 
+    api_key_hash: str, 
+    background_tasks: BackgroundTasks,
+    is_truncated: bool = False,
+    warning_msg: Optional[str] = None
+) -> SwarmMapResponse:
     mapped_model = request.model if request.model != "membrane-engagement-layer" else CANARY_MODEL
     criteria = request.extraction_criteria or {}
     system_prompt = criteria.get("system_persona") or request.system_prompt or "Extract data."
@@ -1492,10 +1598,11 @@ async def execute_sliding_window_queue(chunks: List[str], request: SwarmMapReque
         for i, chunk in enumerate(chunks)
     ]
     results = await asyncio.gather(*tasks)
-    return compile_swarm_response(results, chunks, mapped_model, api_key_hash, background_tasks)
+    return compile_swarm_response(results, chunks, mapped_model, api_key_hash, background_tasks, is_truncated=is_truncated, warning_msg=warning_msg)
 
 @app.post("/v1/swarm/map", response_model=SwarmMapResponse)
-async def swarm_map(request: SwarmMapRequest, background_tasks: BackgroundTasks, api_key_hash: str = Security(verify_access)):
+async def swarm_map(request: SwarmMapRequest, background_tasks: BackgroundTasks, http_req: Request, api_key_hash: str = Security(verify_access)):
+    enforce_public_throttle(http_req)
     """
     Membrane Native Swarm: Parallel Map-Reduce for bulk data extraction.
     Accepts an array of text chunks, processes them concurrently, and merges the JSON output.
@@ -1526,23 +1633,95 @@ async def swarm_map(request: SwarmMapRequest, background_tasks: BackgroundTasks,
         else:
             active_chunks = request.chunks
         
-        response = await execute_basic_sandbox_gather(active_chunks, request, api_key_hash, background_tasks)
+        response = await execute_basic_sandbox_gather(active_chunks, request, api_key_hash, background_tasks, is_truncated=is_truncated, warning_msg=warning_msg)
     else:
-        response = await execute_sliding_window_queue(request.chunks, request, api_key_hash, background_tasks)
+        response = await execute_sliding_window_queue(request.chunks, request, api_key_hash, background_tasks, is_truncated=is_truncated, warning_msg=warning_msg)
 
-    response.is_truncated = is_truncated
-    response.warning_msg = warning_msg
     return response
+
+async def stream_openai_response(res, model_name, context_status):
+    content = res.answer
+    import re
+    import json
+    # Split by whitespace, preserving the whitespaces
+    words = re.split(r'(\s+)', content)
+    completion_id = f"chatcmpl-{res.receipt_id}"
+    created_time = int(time.time())
+    
+    first_chunk = {
+        "id": completion_id,
+        "object": "chat.completion.chunk",
+        "created": created_time,
+        "model": model_name,
+        "choices": [{
+            "index": 0,
+            "delta": {
+                "role": "assistant",
+                "content": ""
+            },
+            "finish_reason": None
+        }],
+        "membrane_metadata": {
+            "billed_amount": res.billed_amount,
+            "savings_percent": res.savings_percent,
+            "status": res.status,
+            "context_status": context_status
+        }
+    }
+    yield f"data: {json.dumps(first_chunk)}\n\n"
+    
+    for word in words:
+        if not word:
+            continue
+        chunk_data = {
+            "id": completion_id,
+            "object": "chat.completion.chunk",
+            "created": created_time,
+            "model": model_name,
+            "choices": [{
+                "index": 0,
+                "delta": {
+                    "content": word
+                },
+                "finish_reason": None
+            }]
+        }
+        yield f"data: {json.dumps(chunk_data)}\n\n"
+        await asyncio.sleep(0.005)
+        
+    final_chunk = {
+        "id": completion_id,
+        "object": "chat.completion.chunk",
+        "created": created_time,
+        "model": model_name,
+        "choices": [{
+            "index": 0,
+            "delta": {},
+            "finish_reason": "stop"
+        }]
+    }
+    yield f"data: {json.dumps(final_chunk)}\n\n"
+    yield "data: [DONE]\n\n"
 
 @app.post("/v1/chat/completions")
 async def openai_compatible_endpoint(request: Request, background_tasks: BackgroundTasks, api_key_hash: str = Security(verify_access)):
+    enforce_public_throttle(request)
     body = await request.json()
     messages = body.get("messages", [])
     model_override = body.get("model")
+    if model_override == "membrane-engagement-layer":
+        model_override = os.getenv("MEMBRANE_FLASH_MODEL") or os.getenv("FLASH_MODEL") or os.environ.get("CANARY_MODEL") or "gemini/gemini-2.5-flash"
     response_format = body.get("response_format")
+    
+    # Extract standard OpenAI parameters
+    temperature = body.get("temperature", 0.0)
+    max_tokens = body.get("max_tokens") or body.get("max_completion_tokens")
+    top_p = body.get("top_p")
+    stream = body.get("stream", False)
 
     # X-Membrane-Preserve-Context: true header check
     preserve_context = request.headers.get("X-Membrane-Preserve-Context", "").lower() == "true"
+    context_purged = False
 
     if not preserve_context and len(messages) > 2:
         # Strip middle conversational blocks, keeping only the first system message and the immediate last user message
@@ -1565,16 +1744,27 @@ async def openai_compatible_endpoint(request: Request, background_tasks: Backgro
             new_messages.append(last_user)
         
         messages = new_messages
+        context_purged = True
 
     internal_req = ChatRequest(
         prompt=None,
         messages=messages,
         model=model_override,
         response_format=response_format,
-        use_global_cache=False
+        use_global_cache=False,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        top_p=top_p
     )
 
     res = await chat_endpoint(internal_req, background_tasks, api_key_hash)
+    context_status = "PURGED_BY_DESIGN" if context_purged else "PRESERVED"
+
+    if stream:
+        return StreamingResponse(
+            stream_openai_response(res, "membrane-engagement-layer", context_status),
+            media_type="text/event-stream"
+        )
 
     return {
         "id": f"chatcmpl-{res.receipt_id}",
@@ -1597,7 +1787,8 @@ async def openai_compatible_endpoint(request: Request, background_tasks: Backgro
         "membrane_metadata": {
             "billed_amount": res.billed_amount,
             "savings_percent": res.savings_percent,
-            "status": res.status
+            "status": res.status,
+            "context_status": context_status
         }
     }
 

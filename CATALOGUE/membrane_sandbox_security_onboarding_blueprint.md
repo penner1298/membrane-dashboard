@@ -242,3 +242,87 @@ def make_canary_signature(payload_str: str, prefix: str) -> str:
     watermark = payload_int % 7919
     return f"{prefix}_{watermark}_{payload_hash[:16]}"
 ```
+
+---
+
+## 🔒 9. Recursive Multimodal PII Parsing
+
+### The Problem
+When client applications submit messages containing rich multimodal content (such as images, files, or structured arrays of object data) instead of plain text strings, the PII filter `scrub_pii()` will throw a `TypeError` if it attempts string replacement on a list or dict structure. This crashes the API gateway with an HTTP 500 server error.
+
+### The Methodology & Implementation
+To prevent crashes on non-text elements and recursively scrub PII from structured messages:
+1. **Dynamic Type Selection:** Inspect the incoming value type.
+2. **Recursive List/Dict Traversal:** If the node is a list or dictionary, iterate and map the `scrub_pii()` function recursively down the child elements/values.
+3. **Regex Application:** Only apply regular expressions (`re.sub`) to actual string primitives. Return other primitive values (such as integers, booleans, or nulls) intact.
+
+```python
+def scrub_pii(val: Any) -> Any:
+    if isinstance(val, str):
+        email_pattern = r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+'
+        phone_pattern = r'\b(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b'
+        ip_pattern = r'\b(?:\d{1,3}\.){3}\d{1,3}\b'
+        
+        val = re.sub(email_pattern, "[REDACTED_EMAIL]", val)
+        val = re.sub(phone_pattern, "[REDACTED_PHONE]", val)
+        val = re.sub(ip_pattern, "[REDACTED_IP]", val)
+        return val
+    elif isinstance(val, dict):
+        return {k: scrub_pii(v) for k, v in val.items()}
+    elif isinstance(val, list):
+        return [scrub_pii(item) for item in val]
+    else:
+        return val
+```
+
+---
+
+## 🔑 10. Next.js Key Rotator Hashing & Database Cleanup
+
+### The Problem
+When rotating API keys, the dashboard generates a new key hash and inserts a new tenant row in the PostgreSQL database. If old developer records remain in the table, the database becomes bloated with abandoned, unused keys. Furthermore, concurrent requests could trigger race conditions or unique constraint violations on the `tenant_id` unique column if they try to auto-provision with duplicate values.
+
+### The Methodology & Implementation
+1. **Transaction Isolation:** Execute key rotation as a database transaction.
+2. **Abandoned Row Purge:** Delete existing `local_dev_` records from the table prior to inserting the new credential.
+3. **Index Conflict Protection:** Wrap backend database operations in try-except blocks, intercepting unique violation errors on the `tenant_id` unique column and falling back to a reciprocal conflict target update.
+
+```typescript
+// Next.js reset key route transaction example
+await pool.query("BEGIN");
+await pool.query(`
+  DELETE FROM tenants 
+  WHERE tenant_id LIKE 'local_dev_%' AND tenant_id != $1
+`, [dynamicTenantId]);
+await pool.query(`
+  INSERT INTO tenants (tenant_id, api_key_hash, balance, total_saved, has_paid)
+  VALUES ($1, $2, 1000.00, 0, TRUE)
+  ON CONFLICT (api_key_hash) 
+  DO UPDATE SET tenant_id = EXCLUDED.tenant_id
+`, [dynamicTenantId, hashedKey]);
+await pool.query("COMMIT");
+```
+
+---
+
+## 📖 11. Unified docs /llms.txt plaintext handler
+
+### The Problem
+Automated AI and LLM codebase scrapers require structured plaintext documentation to consume the API specifications.
+
+### The Methodology & Implementation
+Add a public plaintext handler returning a `/llms.txt` file at the root port:
+```python
+@app.get("/llms.txt")
+async def get_llms_txt():
+    from fastapi.responses import PlainTextResponse
+    import os
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    llms_path = os.path.join(base_dir, "membrane-dashboard", "public", "llms.txt")
+    if os.path.exists(llms_path):
+        with open(llms_path, "r", encoding="utf-8") as f:
+            return PlainTextResponse(f.read())
+    # Fallback to local hardcoded markdown if file is not found
+    return PlainTextResponse(fallback)
+```
+```

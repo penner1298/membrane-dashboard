@@ -13,4 +13,5 @@ This file serves as the index for all operational playbooks and strategic bluepr
 - [Air-Gap Repository Migration, Entrypoint Standardization, and Asset Cleanup Playbook]: /Users/thejoshuapenner/.openclaw/workspace/CATALOGUE/membrane_airgap_migration_cleanup.md
 - [Membrane Adversarial Testing & White-Box Auditing Blueprint]: /Users/thejoshuapenner/.openclaw/workspace/CATALOGUE/membrane_adversarial_testing_blueprint.md
 - [Membrane Sandbox Security & JIT Onboarding Blueprint]: /Users/thejoshuapenner/.openclaw/workspace/CATALOGUE/membrane_sandbox_security_onboarding_blueprint.md
+- [Membrane DX Live Sandbox & Streaming Playbook]: /Users/thejoshuapenner/.openclaw/workspace/CATALOGUE/membrane_dx_live_sandbox.md
 

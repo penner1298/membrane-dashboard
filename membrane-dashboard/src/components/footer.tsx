@@ -15,10 +15,12 @@ export function Footer() {
           &copy; {new Date().getFullYear()} Membrane. All rights reserved.
         </p>
         
-        <nav className="flex gap-4">
-          {/* 👇 Updated to point to /docs */}
+        <nav className="flex gap-6">
           <Link href="/docs" className="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">
             Documentation
+          </Link>
+          <Link href="/cookbook" className="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">
+            Cookbook
           </Link>
         </nav>
       </div>
