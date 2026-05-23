@@ -29,3 +29,5 @@ __pycache__/
 node_modules/
 .next/
 
+# Ignore OS metadata files
+.DS_Store
