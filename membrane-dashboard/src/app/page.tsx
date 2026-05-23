@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
+import { useApiKey } from "@/context/ApiKeyContext";
 import { FeaturesSection } from "@/components/features-section";
 import { 
   Play, Copy, Check, Terminal, Sliders, Sparkles, Cpu, 
@@ -85,7 +86,9 @@ export default function Home() {
   const [payloadText, setPayloadText] = useState<string>(ENGINEERING_PATTERNS[0].defaultPayload);
   const [slices, setSlices] = useState<number>(10);
   const [preserveContext, setPreserveContext] = useState<boolean>(false);
-  const [playgroundApiKey, setPlaygroundApiKey] = useState<string>("sk_membrane_instant_trial");
+  
+  // Consume unified API Key context
+  const { apiKey: playgroundApiKey, updateApiKey, refreshApiKey } = useApiKey();
   
   // Terminal / execute state
   const [isExecuting, setIsExecuting] = useState<boolean>(false);
@@ -108,25 +111,6 @@ export default function Home() {
     setStreamOutput("// Awaiting execution trigger...\n");
     setSavingsCalculated({ actual: 0, gross: 0, percent: 0 });
   }, [selectedPattern]);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedKey = localStorage.getItem("membrane_playground_api_key");
-      if (savedKey) {
-        setTimeout(() => setPlaygroundApiKey(savedKey), 0);
-      } else {
-        fetch("/api/keys/provision", { method: "POST" })
-          .then(res => res.ok ? res.json() : null)
-          .then(data => {
-            if (data && data.apiKey) {
-              setPlaygroundApiKey(data.apiKey);
-              localStorage.setItem("membrane_playground_api_key", data.apiKey);
-            }
-          })
-          .catch(err => console.warn("Failed to pre-provision session key:", err));
-      }
-    }
-  }, []);
 
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -183,17 +167,12 @@ export default function Home() {
 
       if (response.status === 401 && !retryKey) {
         setStreamOutput("// Handshake route rejected (401). Triggering self-healing credential provisioning...\n");
-        const provRes = await fetch("/api/keys/provision", { method: "POST" });
-        if (provRes.ok) {
-          const data = await provRes.json();
-          if (data.apiKey) {
-            setPlaygroundApiKey(data.apiKey);
-            localStorage.setItem("membrane_playground_api_key", data.apiKey);
-            setStreamOutput(`// Active credential provisioned: ${data.apiKey}. Re-submitting query...\n`);
-            await new Promise(r => setTimeout(r, 600));
-            await executePlaygroundQuery(data.apiKey);
-            return;
-          }
+        const newKey = await refreshApiKey();
+        if (newKey) {
+          setStreamOutput(`// Active credential provisioned: ${newKey}. Re-submitting query...\n`);
+          await new Promise(r => setTimeout(r, 600));
+          await executePlaygroundQuery(newKey);
+          return;
         }
       }
 
@@ -392,7 +371,7 @@ export default function Home() {
                     <input
                       type="text"
                       value={playgroundApiKey}
-                      onChange={(e) => setPlaygroundApiKey(e.target.value)}
+                      onChange={(e) => updateApiKey(e.target.value)}
                       placeholder="sk_membrane_..."
                       className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-mono text-xs text-slate-705 focus:outline-none focus:bg-white focus:ring-1 focus:ring-slate-300"
                     />

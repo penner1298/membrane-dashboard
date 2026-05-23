@@ -5,6 +5,7 @@ import {
   Key, RefreshCw, Database, Terminal, ShieldAlert, 
   Search, Copy, Check, Info, AlertTriangle, FileCode, Server
 } from "lucide-react";
+import { useApiKey } from "@/context/ApiKeyContext";
 
 interface LogEntry {
   id: number;
@@ -55,41 +56,14 @@ export function ConsoleClient({
   const [copied, setCopied] = useState(false);
   const [inspectingDlq, setInspectingDlq] = useState<DqlEntry | null>(null);
 
-  // Dynamic state to avoid full-page reloads on mutation
-  const [currentApiKey, setCurrentApiKey] = useState(apiKey);
-  const [currentTenantId, setCurrentTenantId] = useState(tenantId);
+  // Consume unified API Key context
+  const { apiKey: currentApiKey, tenantId: currentTenantId, updateApiKey } = useApiKey();
+
   const [rotating, setRotating] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const [redeemCode, setRedeemCode] = useState("");
   const [redeemStatus, setRedeemStatus] = useState<{ type: "success" | "error" | "loading"; message: string } | null>(null);
-
-  // Pre-load from and sync with localStorage
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedKey = localStorage.getItem("membrane_playground_api_key");
-      // If we have a local key and the page mounted with the default mock key, update state to use the active local key
-      if (savedKey && apiKey === "sk_live_local_dev_key") {
-        setCurrentApiKey(savedKey);
-        // Compute tenant ID using Web Crypto API to avoid Node crypto imports in client bundle
-        const msgBuffer = new TextEncoder().encode(savedKey);
-        window.crypto.subtle.digest("SHA-256", msgBuffer).then((hashBuffer) => {
-          const hashArray = Array.from(new Uint8Array(hashBuffer));
-          const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-          setCurrentTenantId(`local_dev_${hashHex.slice(0, 8)}`);
-        }).catch((err) => {
-          console.warn("Failed to hash key in client:", err);
-          setCurrentTenantId("local_dev_active");
-        });
-      }
-    }
-  }, [apiKey]);
-
-  // Synchronize key changes to localStorage
-  useEffect(() => {
-    if (currentApiKey && currentApiKey !== "sk_live_local_dev_key" && typeof window !== "undefined") {
-      localStorage.setItem("membrane_playground_api_key", currentApiKey);
-    }
-  }, [currentApiKey]);
 
   const handleCopyKey = () => {
     navigator.clipboard.writeText(currentApiKey);
@@ -97,10 +71,13 @@ export function ConsoleClient({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleRotateKey = async (e: React.FormEvent) => {
+  const handleRotateKey = (e: React.FormEvent) => {
     e.preventDefault();
-    const confirmed = window.confirm("⚠️ WARNING: This will immediately invalidate active SDK integrations. Proceed?");
-    if (!confirmed) return;
+    setShowConfirmModal(true);
+  };
+
+  const confirmRotateKey = async () => {
+    setShowConfirmModal(false);
     setRotating(true);
     try {
       const res = await fetch("/api/keys/reset", {
@@ -112,8 +89,7 @@ export function ConsoleClient({
       if (res.ok) {
         const data = await res.json();
         if (data.apiKey) {
-          setCurrentApiKey(data.apiKey);
-          setCurrentTenantId(data.tenantId);
+          await updateApiKey(data.apiKey);
         }
       }
     } catch (err) {
@@ -473,6 +449,38 @@ export function ConsoleClient({
           </div>
         )}
       </div>
+
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-white/90 border border-slate-200/85 rounded-2xl p-6 shadow-2xl max-w-md w-full space-y-4 relative transform scale-100 transition-all duration-300 shadow-emerald-500/5 select-none text-slate-800">
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-600 shrink-0">
+                <AlertTriangle className="w-6 h-6 animate-pulse" />
+              </div>
+              <div className="space-y-1.5">
+                <h3 className="text-base font-extrabold text-slate-950 tracking-tight">Rotate Gateway Key?</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Warning: Rotating this credential will immediately deprecate active integrations. Old pipelines will have a 5-minute sliding grace period to transition before requests are blocked.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end pt-2 border-t border-slate-100">
+              <button
+                onClick={() => setShowConfirmModal(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-200/60 rounded-xl text-xs font-bold text-slate-650 transition active:scale-[0.98]"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmRotateKey}
+                className="px-4 py-2 bg-slate-950 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition active:scale-[0.98] shadow-sm flex items-center gap-1.5"
+              >
+                <RefreshCw className="w-3.5 h-3.5" /> Confirm Rotation
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

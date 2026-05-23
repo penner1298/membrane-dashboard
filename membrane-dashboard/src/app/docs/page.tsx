@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
+import { useApiKey } from "@/context/ApiKeyContext";
 import { 
   ArrowLeft, Terminal, Server, ShieldAlert, Zap, BookOpen, 
   Key, Copy, Check, Play, Cpu, AlertTriangle, Layers
@@ -16,8 +17,8 @@ export default function DocsPage() {
   const [activeLang, setActiveLang] = useState<CodeLang>("python");
   const [copiedText, setCopiedText] = useState<string | null>(null);
 
-  // Live Test Bench Playground states
-  const [apiKey, setApiKey] = useState("sk_live_local_dev_key");
+  // Live Test Bench Playground states using unified API Key context
+  const { apiKey, updateApiKey, refreshApiKey } = useApiKey();
   const [testPrompt, setTestPrompt] = useState("Write a three-word motto for an AI proxy");
   const [testModel, setTestModel] = useState("membrane-engagement-layer");
   const [preserveContext, setPreserveContext] = useState(false);
@@ -44,22 +45,6 @@ export default function DocsPage() {
       setTimeout(() => {
         setCompletionsUrl(`${window.location.origin}/v1/chat/completions`);
       }, 0);
-
-      // Pre-load key from localStorage to keep credentials synchronized
-      const savedKey = localStorage.getItem("membrane_playground_api_key");
-      if (savedKey) {
-        setApiKey(savedKey);
-      } else {
-        fetch("/api/keys/provision", { method: "POST" })
-          .then(res => res.ok ? res.json() : null)
-          .then(data => {
-            if (data && data.apiKey) {
-              setApiKey(data.apiKey);
-              localStorage.setItem("membrane_playground_api_key", data.apiKey);
-            }
-          })
-          .catch(err => console.warn("Failed to pre-provision session key in docs:", err));
-      }
     }
   }, []);
 
@@ -108,17 +93,12 @@ export default function DocsPage() {
       // Self-healing: if we get a 401 Unauthorized, automatically provision a new key and retry the query
       if (response.status === 401 && !retryKey) {
         setPlaygroundOutput("// Handshake route rejected (401). Triggering self-healing credential provisioning...\n");
-        const provRes = await fetch("/api/keys/provision", { method: "POST" });
-        if (provRes.ok) {
-          const data = await provRes.json();
-          if (data.apiKey) {
-            setApiKey(data.apiKey);
-            localStorage.setItem("membrane_playground_api_key", data.apiKey);
-            setPlaygroundOutput(`// Active credential provisioned: ${data.apiKey}. Re-submitting query...\n`);
-            await new Promise(r => setTimeout(r, 600));
-            await runLiveTest(data.apiKey);
-            return;
-          }
+        const newKey = await refreshApiKey();
+        if (newKey) {
+          setPlaygroundOutput(`// Active credential provisioned: ${newKey}. Re-submitting query...\n`);
+          await new Promise(r => setTimeout(r, 600));
+          await runLiveTest(newKey);
+          return;
         }
       }
 
@@ -582,7 +562,7 @@ Headers:
                   <input
                     type="password"
                     value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
+                    onChange={(e) => updateApiKey(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 pl-9 font-mono text-xs text-slate-700 focus:outline-none focus:bg-white focus:ring-1 focus:ring-slate-300"
                     placeholder="sk_live_..."
                   />

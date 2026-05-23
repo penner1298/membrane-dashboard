@@ -275,6 +275,17 @@ async def lifespan(app: FastAPI):
                 """)
 
                 await conn.execute("""
+                CREATE TABLE IF NOT EXISTS deprecated_keys (
+                    api_key_hash VARCHAR(255) PRIMARY KEY,
+                    tenant_id VARCHAR(255),
+                    balance NUMERIC(10, 4) DEFAULT 0.0000,
+                    deprecated_at TIMESTAMPTZ DEFAULT NOW()
+                );
+                """)
+                # Automated TTL pruning for expired deprecated keys
+                await conn.execute("DELETE FROM deprecated_keys WHERE deprecated_at < NOW() - INTERVAL '5 minutes';")
+
+                await conn.execute("""
                 CREATE TABLE IF NOT EXISTS api_logs (
                     id SERIAL PRIMARY KEY,
                     tenant_id VARCHAR(255),
@@ -428,6 +439,23 @@ async def verify_access(credentials: HTTPAuthorizationCredentials = Security(sec
 
     async with db_pool.acquire() as conn:
         tenant = await conn.fetchrow("SELECT balance, tenant_id FROM tenants WHERE api_key_hash = $1", hashed_key)
+        is_deprecated = False
+        if not tenant:
+            deprecated = await conn.fetchrow("SELECT tenant_id, balance, deprecated_at FROM deprecated_keys WHERE api_key_hash = $1", hashed_key)
+            if deprecated:
+                import datetime
+                dep_time = deprecated['deprecated_at']
+                if dep_time.tzinfo is None:
+                    dep_time = dep_time.replace(tzinfo=datetime.timezone.utc)
+                now = datetime.datetime.now(datetime.timezone.utc)
+                if (now - dep_time).total_seconds() < 300:
+                    remaining_sec = 300 - (now - dep_time).total_seconds()
+                    print(f"⚠️ Warning: Request used deprecated API key. Key will fully expire in {remaining_sec:.0f} seconds.")
+                    tenant = dict(deprecated)
+                    is_deprecated = True
+                else:
+                    raise HTTPException(status_code=401, detail="Access Denied: Deprecated key has expired.")
+
         if not tenant:
             # Check if running on a production/Render environment
             is_prod = (
@@ -466,7 +494,10 @@ async def verify_access(credentials: HTTPAuthorizationCredentials = Security(sec
             # Refill automatic local dev accounts so developers don't get blocked
             t_id = tenant.get('tenant_id') or ""
             if t_id.startswith('local_dev') or api_key == "local_dev_key":
-                await conn.execute("UPDATE tenants SET balance = 1000.0000 WHERE api_key_hash = $1", hashed_key)
+                if is_deprecated:
+                    await conn.execute("UPDATE deprecated_keys SET balance = 1000.0000 WHERE api_key_hash = $1", hashed_key)
+                else:
+                    await conn.execute("UPDATE tenants SET balance = 1000.0000 WHERE api_key_hash = $1", hashed_key)
                 print(f"🔄 Auto-refilled exhausted local dev balance to $1000.00.")
             else:
                 raise HTTPException(status_code=402, detail=f"Insufficient Credits (Balance: ${tenant['balance']:.4f}). Please top up.")
@@ -752,19 +783,31 @@ async def charge_and_log_api(
     try:
         async with db_pool.acquire() as conn:
             tenant = await conn.fetchrow("SELECT tenant_id FROM tenants WHERE api_key_hash = $1", api_key_hash)
+            is_deprecated = False
+            if not tenant:
+                tenant = await conn.fetchrow("SELECT tenant_id FROM deprecated_keys WHERE api_key_hash = $1", api_key_hash)
+                if tenant:
+                    is_deprecated = True
             tenant_id = tenant['tenant_id'] if tenant and tenant['tenant_id'] else "local_dev"
 
             async with conn.transaction():
                 if not tenant_id.startswith("local_dev") and retail_cost > 0:
-                    await conn.execute(
-                        "UPDATE tenants SET balance = balance - $1, total_saved = COALESCE(total_saved, 0) + $2 WHERE api_key_hash = $3",
-                        retail_cost, savings, api_key_hash
-                    )
+                    if is_deprecated:
+                        await conn.execute(
+                            "UPDATE deprecated_keys SET balance = balance - $1 WHERE api_key_hash = $2",
+                            retail_cost, api_key_hash
+                        )
+                    else:
+                        await conn.execute(
+                            "UPDATE tenants SET balance = balance - $1, total_saved = COALESCE(total_saved, 0) + $2 WHERE api_key_hash = $3",
+                            retail_cost, savings, api_key_hash
+                        )
                 elif tenant_id.startswith("local_dev"):
-                    await conn.execute(
-                        "UPDATE tenants SET total_saved = COALESCE(total_saved, 0) + $1 WHERE api_key_hash = $2",
-                        savings, api_key_hash
-                    )
+                    if not is_deprecated:
+                        await conn.execute(
+                            "UPDATE tenants SET total_saved = COALESCE(total_saved, 0) + $1 WHERE api_key_hash = $2",
+                            savings, api_key_hash
+                        )
 
                 await conn.execute(
                     """
@@ -791,19 +834,31 @@ async def charge_and_log_api_batch(api_key_hash: str, logs: List[Dict[str, Any]]
     try:
         async with db_pool.acquire() as conn:
             tenant = await conn.fetchrow("SELECT tenant_id FROM tenants WHERE api_key_hash = $1", api_key_hash)
+            is_deprecated = False
+            if not tenant:
+                tenant = await conn.fetchrow("SELECT tenant_id FROM deprecated_keys WHERE api_key_hash = $1", api_key_hash)
+                if tenant:
+                    is_deprecated = True
             tenant_id = tenant['tenant_id'] if tenant and tenant['tenant_id'] else "local_dev"
 
             async with conn.transaction():
                 if not tenant_id.startswith("local_dev") and total_retail > 0:
-                    await conn.execute(
-                        "UPDATE tenants SET balance = balance - $1, total_saved = COALESCE(total_saved, 0) + $2 WHERE api_key_hash = $3",
-                        total_retail, total_savings, api_key_hash
-                    )
+                    if is_deprecated:
+                        await conn.execute(
+                            "UPDATE deprecated_keys SET balance = balance - $1 WHERE api_key_hash = $2",
+                            total_retail, api_key_hash
+                        )
+                    else:
+                        await conn.execute(
+                            "UPDATE tenants SET balance = balance - $1, total_saved = COALESCE(total_saved, 0) + $2 WHERE api_key_hash = $3",
+                            total_retail, total_savings, api_key_hash
+                        )
                 elif tenant_id.startswith("local_dev"):
-                    await conn.execute(
-                        "UPDATE tenants SET total_saved = COALESCE(total_saved, 0) + $1 WHERE api_key_hash = $2",
-                        total_savings, api_key_hash
-                    )
+                    if not is_deprecated:
+                        await conn.execute(
+                            "UPDATE tenants SET total_saved = COALESCE(total_saved, 0) + $1 WHERE api_key_hash = $2",
+                            total_savings, api_key_hash
+                        )
                 
                 # Highly optimized PostgreSQL batch inserts using asyncpg
                 await conn.executemany(

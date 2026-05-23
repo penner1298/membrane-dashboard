@@ -14,7 +14,33 @@ export async function POST(req: Request) {
     const dynamicTenantId = `local_dev_${hashedKey.slice(0, 8)}`;
     if (process.env.DATABASE_URL) {
       try {
+        // Ensure deprecated_keys table exists
+        await pool.query(`
+          CREATE TABLE IF NOT EXISTS deprecated_keys (
+            api_key_hash VARCHAR(255) PRIMARY KEY,
+            tenant_id VARCHAR(255),
+            balance NUMERIC(10, 4) DEFAULT 0.0000,
+            deprecated_at TIMESTAMPTZ DEFAULT NOW()
+          );
+        `);
+
         await pool.query("BEGIN");
+
+        // Find existing local dev keys that will be deleted
+        const oldKeysRes = await pool.query(`
+          SELECT api_key_hash, tenant_id, balance FROM tenants
+          WHERE tenant_id LIKE 'local_dev_%' AND tenant_id != $1
+        `, [dynamicTenantId]);
+
+        // Insert them into deprecated_keys
+        for (const row of oldKeysRes.rows) {
+          await pool.query(`
+            INSERT INTO deprecated_keys (api_key_hash, tenant_id, balance, deprecated_at)
+            VALUES ($1, $2, $3, NOW())
+            ON CONFLICT (api_key_hash) 
+            DO UPDATE SET deprecated_at = NOW(), balance = EXCLUDED.balance
+          `, [row.api_key_hash, row.tenant_id, row.balance]);
+        }
         
         // Delete older local dev keys to prevent abandoned rows
         await pool.query(`
@@ -32,7 +58,9 @@ export async function POST(req: Request) {
 
         await pool.query("COMMIT");
       } catch (dbError) {
-        await pool.query("ROLLBACK").catch(() => {});
+        try {
+          await pool.query("ROLLBACK");
+        } catch (_) {}
         console.warn("⚠️ Database is offline or timed out during key rotation. Using mock fallback.", dbError);
       }
     } else {
