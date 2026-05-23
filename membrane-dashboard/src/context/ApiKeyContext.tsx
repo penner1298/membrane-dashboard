@@ -76,13 +76,19 @@ export function ApiKeyProvider({ children }: { children: React.ReactNode }) {
       const savedKey = localStorage.getItem("membrane_playground_api_key");
       if (savedKey) {
         const sanitized = cleanKey(savedKey);
-        setApiKey(sanitized);
-        const tenant = await computeTenantId(sanitized);
-        setTenantId(tenant);
-        setLoading(false);
-      } else {
-        await refreshApiKey();
+        if (
+          sanitized.startsWith("sk_live_") ||
+          sanitized.startsWith("sk_membrane_") ||
+          sanitized === "local_dev_key"
+        ) {
+          setApiKey(sanitized);
+          const tenant = await computeTenantId(sanitized);
+          setTenantId(tenant);
+          setLoading(false);
+          return;
+        }
       }
+      await refreshApiKey();
     };
     initializeKey();
   }, []);
