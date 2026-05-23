@@ -438,6 +438,24 @@ async def verify_access(credentials: HTTPAuthorizationCredentials = Security(sec
         api_key = "local_dev_key"
     else:
         api_key = raw_credential.strip().strip('"').strip("'").strip('“').strip('”')
+        
+    if api_key in ["[object Object]", "undefined", "null", ""]:
+        # Log this specific event and raise clear UX remediation instruction
+        import datetime
+        failed_auth_logs.append({
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "raw_credential_repr": repr(raw_credential),
+            "raw_credential_len": len(raw_credential),
+            "sanitized_api_key_repr": repr(api_key),
+            "sanitized_api_key_len": len(api_key),
+            "prefix_ok": False,
+            "status": "REJECTED_STALE_CACHE"
+        })
+        raise HTTPException(
+            status_code=401,
+            detail="Access Denied: Stale local storage credentials detected. Please hard-refresh your browser (Cmd+Shift+R or Ctrl+F5) to clear your browser cache and self-heal your sandbox session."
+        )
+        
     hashed_key = hash_api_key(api_key)
 
     import datetime
