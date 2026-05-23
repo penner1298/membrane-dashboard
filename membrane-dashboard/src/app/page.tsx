@@ -109,6 +109,25 @@ export default function Home() {
     setSavingsCalculated({ actual: 0, gross: 0, percent: 0 });
   }, [selectedPattern]);
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedKey = localStorage.getItem("membrane_playground_api_key");
+      if (savedKey) {
+        setPlaygroundApiKey(savedKey);
+      } else {
+        fetch("/api/keys/provision", { method: "POST" })
+          .then(res => res.ok ? res.json() : null)
+          .then(data => {
+            if (data && data.apiKey) {
+              setPlaygroundApiKey(data.apiKey);
+              localStorage.setItem("membrane_playground_api_key", data.apiKey);
+            }
+          })
+          .catch(err => console.warn("Failed to pre-provision session key:", err));
+      }
+    }
+  }, []);
+
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     setCopiedIndex(label);
@@ -116,7 +135,7 @@ export default function Home() {
   };
 
   // Run the playground API query
-  const executePlaygroundQuery = async () => {
+  const executePlaygroundQuery = async (retryKey?: string) => {
     setIsExecuting(true);
     setStreamOutput("// Initializing secure client handshake...\n");
     setSavingsCalculated({ actual: 0, gross: 0, percent: 0 });
@@ -127,11 +146,12 @@ export default function Home() {
       : "http://localhost:8000";
 
     const targetUrl = `${apiBase}${selectedPattern.endpoint}`;
+    const activeKey = retryKey || playgroundApiKey;
     
     // Setup headers
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${playgroundApiKey}`
+      "Authorization": `Bearer ${activeKey}`
     };
 
     if (preserveContext && selectedPattern.id === "context_isolation") {
@@ -160,6 +180,22 @@ export default function Home() {
         headers,
         body: JSON.stringify(bodyData)
       });
+
+      if (response.status === 401 && !retryKey) {
+        setStreamOutput("// Handshake route rejected (401). Triggering self-healing credential provisioning...\n");
+        const provRes = await fetch("/api/keys/provision", { method: "POST" });
+        if (provRes.ok) {
+          const data = await provRes.json();
+          if (data.apiKey) {
+            setPlaygroundApiKey(data.apiKey);
+            localStorage.setItem("membrane_playground_api_key", data.apiKey);
+            setStreamOutput(`// Active credential provisioned: ${data.apiKey}. Re-submitting query...\n`);
+            await new Promise(r => setTimeout(r, 600));
+            await executePlaygroundQuery(data.apiKey);
+            return;
+          }
+        }
+      }
 
       if (!response.ok) {
         const errText = await response.text();
@@ -293,8 +329,6 @@ export default function Home() {
             Copy and paste this query into your local shell terminal. The `sk_membrane_instant_trial` token triggers a stateless sandboxed run.
           </p>
         </div>
-
-        <FeaturesSection />
 
         <hr className="border-slate-200" />
 
@@ -541,6 +575,9 @@ export default function Home() {
           </div>
         </div>
 
+        <hr className="border-slate-200" />
+
+        <FeaturesSection />
       </main>
 
       <Footer />
