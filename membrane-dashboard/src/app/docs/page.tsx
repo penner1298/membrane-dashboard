@@ -44,6 +44,22 @@ export default function DocsPage() {
       setTimeout(() => {
         setCompletionsUrl(`${window.location.origin}/v1/chat/completions`);
       }, 0);
+
+      // Pre-load key from localStorage to keep credentials synchronized
+      const savedKey = localStorage.getItem("membrane_playground_api_key");
+      if (savedKey) {
+        setApiKey(savedKey);
+      } else {
+        fetch("/api/keys/provision", { method: "POST" })
+          .then(res => res.ok ? res.json() : null)
+          .then(data => {
+            if (data && data.apiKey) {
+              setApiKey(data.apiKey);
+              localStorage.setItem("membrane_playground_api_key", data.apiKey);
+            }
+          })
+          .catch(err => console.warn("Failed to pre-provision session key in docs:", err));
+      }
     }
   }, []);
 
@@ -54,15 +70,18 @@ export default function DocsPage() {
   };
 
   // Run the Live Chat Completion Request
-  const runLiveTest = async () => {
+  const runLiveTest = async (retryKey?: string) => {
     setPlaygroundLoading(true);
     setPlaygroundError(null);
-    setPlaygroundOutput("");
-    setTelemetryROI(null);
+    if (!retryKey) {
+      setPlaygroundOutput("");
+      setTelemetryROI(null);
+    }
 
+    const activeKey = retryKey || apiKey;
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`,
+      "Authorization": `Bearer ${activeKey}`,
     };
 
     if (preserveContext) {
@@ -85,6 +104,23 @@ export default function DocsPage() {
         headers,
         body: JSON.stringify(payload),
       });
+
+      // Self-healing: if we get a 401 Unauthorized, automatically provision a new key and retry the query
+      if (response.status === 401 && !retryKey) {
+        setPlaygroundOutput("// Handshake route rejected (401). Triggering self-healing credential provisioning...\n");
+        const provRes = await fetch("/api/keys/provision", { method: "POST" });
+        if (provRes.ok) {
+          const data = await provRes.json();
+          if (data.apiKey) {
+            setApiKey(data.apiKey);
+            localStorage.setItem("membrane_playground_api_key", data.apiKey);
+            setPlaygroundOutput(`// Active credential provisioned: ${data.apiKey}. Re-submitting query...\n`);
+            await new Promise(r => setTimeout(r, 600));
+            await runLiveTest(data.apiKey);
+            return;
+          }
+        }
+      }
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -255,6 +291,9 @@ console.log(completion.choices[0].message.content);`,
 const chat = new ChatOpenAI({
   configuration: {
     baseURL: "https://membrane-api.com/v1",
+    defaultHeaders: {
+      "X-Membrane-Preserve-Context": "true"
+    }
   },
   openAIApiKey: "sk_live_YOUR_API_KEY",
   modelName: "membrane-engagement-layer",

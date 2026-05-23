@@ -31,3 +31,10 @@ node_modules/
 
 # Ignore OS metadata files
 .DS_Store
+
+# Ignore runtime diagnostic files, logs, and scratch scripts
+*.log
+gearbox_gemma.log
+test_*.py
+fix_*.py
+.trash/

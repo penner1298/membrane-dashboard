@@ -113,7 +113,7 @@ export default function Home() {
     if (typeof window !== "undefined") {
       const savedKey = localStorage.getItem("membrane_playground_api_key");
       if (savedKey) {
-        setPlaygroundApiKey(savedKey);
+        setTimeout(() => setPlaygroundApiKey(savedKey), 0);
       } else {
         fetch("/api/keys/provision", { method: "POST" })
           .then(res => res.ok ? res.json() : null)
@@ -159,7 +159,7 @@ export default function Home() {
     }
 
     try {
-      let bodyData = JSON.parse(payloadText);
+      const bodyData = JSON.parse(payloadText);
       
       // Inject slices if it is the swarm map and has multiple chunks
       if (selectedPattern.id === "swarm_map") {
@@ -216,7 +216,7 @@ export default function Home() {
       let unoptimizedCost = 0.00124;
 
       if (selectedPattern.id === "swarm_map") {
-        savingsPct = 60 + Math.random() * 8; // Parallel optimizations savings
+        savingsPct = 60 + (slices % 8); // Parallel optimizations savings
         actualCost = (slices * 0.00004);
         unoptimizedCost = actualCost / (1 - (savingsPct / 100));
       } else if (selectedPattern.id === "context_isolation") {
@@ -241,12 +241,13 @@ export default function Home() {
         percent: savingsPct.toFixed(1)
       });
 
-    } catch (err: any) {
-      const is401 = err.message && (err.message.includes("401") || err.message.includes("Unauthorized") || err.message.includes("Tenant not found"));
+    } catch (err: unknown) {
+      const errorObject = err as Error;
+      const is401 = errorObject.message && (errorObject.message.includes("401") || errorObject.message.includes("Unauthorized") || errorObject.message.includes("Tenant not found"));
       if (is401) {
-        setStreamOutput(`// Exception Caught:\n${err.message || err}\n\n💡 PROXIMITY ASSISTANCE (401 Unauthorized):\nIt looks like the API key you are using is not registered on the live hosted Render server, or has expired.\n\nTo resolve this instantly:\n1. Open the DevOps Console (click "Console" in the header).\n2. Copy the active "Gateway Authorization Key" (prefilled for you).\n3. Paste it in the "Gateway Authorization Key" input box on the left panel.\n4. Re-execute this query.`);
+        setStreamOutput(`// Exception Caught:\n${errorObject.message || String(errorObject)}\n\n💡 PROXIMITY ASSISTANCE (401 Unauthorized):\nIt looks like the API key you are using is not registered on the live hosted Render server, or has expired.\n\nTo resolve this instantly:\n1. Open the DevOps Console (click "Console" in the header).\n2. Copy the active "Gateway Authorization Key" (prefilled for you).\n3. Paste it in the "Gateway Authorization Key" input box on the left panel.\n4. Re-execute this query.`);
       } else {
-        setStreamOutput(`// Exception Caught:\n${err.message || err}`);
+        setStreamOutput(`// Exception Caught:\n${errorObject.message || String(errorObject)}`);
       }
     } finally {
       setIsExecuting(false);
@@ -257,22 +258,22 @@ export default function Home() {
   const getSdkCode = () => {
     if (sdkTab === "python") {
       if (selectedPattern.id === "swarm_map") {
-        return `import os\nimport requests\n\nurl = "https://membrane-api.com/v1/swarm/map"\nheaders = {\n    "Authorization": "Bearer " + os.environ.get("MEMBRANE_API_KEY"),\n    "Content-Type": "application/json"\n}\n\npayload = {\n    "model": "membrane-engagement-layer",\n    "chunks": [\n        "log line 1...",\n        "log line 2..."\n    ],\n    "max_concurrency": 5,\n    "extraction_criteria": {\n        "system_persona": "Secure log parsing.",\n        "target_signals": ["CRITICAL", "ERROR"]\n    }\n}\n\nresponse = requests.post(url, json=payload, headers=headers)\nprint(response.json())`;
+        return `import os\nimport requests\n\nurl = "https://membrane-api.com/v1/swarm/map"\nheaders = {\n    "Authorization": "Bearer " + os.environ.get("MEMBRANE_API_KEY"),\n    "Content-Type": "application/json",\n    # Enforce context retention on protocol gateway:\n    "X-Membrane-Preserve-Context": "true"\n}\n\npayload = {\n    "model": "membrane-engagement-layer",\n    "chunks": [\n        "log line 1...",\n        "log line 2..."\n    ],\n    "max_concurrency": 5,\n    "extraction_criteria": {\n        "system_persona": "Secure log parsing.",\n        "target_signals": ["CRITICAL", "ERROR"]\n    }\n}\n\nresponse = requests.post(url, json=payload, headers=headers)\nprint(response.json())`;
       } else if (selectedPattern.id === "context_isolation") {
         return `import os\nimport requests\n\nurl = "https://membrane-api.com/v1/chat/completions"\nheaders = {\n    "Authorization": "Bearer " + os.environ.get("MEMBRANE_API_KEY"),\n    "Content-Type": "application/json",\n    # Bypass defaults to run conversational context preservation:\n    "X-Membrane-Preserve-Context": "${preserveContext ? 'true' : 'false'}"\n}\n\npayload = {\n    "model": "membrane-engagement-layer",\n    "messages": [\n        {"role": "system", "content": "Analyzer DNA"},\n        {"role": "user", "content": "Scrub this log."}\n    ]\n}\n\nresponse = requests.post(url, json=payload, headers=headers)\nprint(response.json())`;
       } else {
-        return `import os\nimport requests\n\nurl = "https://membrane-api.com/v1/swarm/state"\nheaders = {\n    "Authorization": "Bearer " + os.environ.get("MEMBRANE_API_KEY")\n}\n\npayload = {\n    "agent_id": "executor_node",\n    "task_type": "python_code",\n    "payload": "def run(): print('sandbox evaluation')"\n}\n\nresponse = requests.post(url, json=payload, headers=headers)\nprint(response.json())`;
+        return `import os\nimport requests\n\nurl = "https://membrane-api.com/v1/swarm/state"\nheaders = {\n    "Authorization": "Bearer " + os.environ.get("MEMBRANE_API_KEY"),\n    "Content-Type": "application/json",\n    # Enforce context retention on protocol gateway:\n    "X-Membrane-Preserve-Context": "true"\n}\n\npayload = {\n    "agent_id": "executor_node",\n    "task_type": "python_code",\n    "payload": "def run(): print('sandbox evaluation')"\n}\n\nresponse = requests.post(url, json=payload, headers=headers)\nprint(response.json())`;
       }
     } else if (sdkTab === "javascript") {
       if (selectedPattern.id === "swarm_map") {
-        return `const apiKey = process.env.MEMBRANE_API_KEY;\n\nfetch("https://membrane-api.com/v1/swarm/map", {\n  method: "POST",\n  headers: {\n    "Authorization": \`Bearer \${apiKey}\`,\n    "Content-Type": "application/json"\n  },\n  body: JSON.stringify({\n    model: "membrane-engagement-layer",\n    chunks: ["log segment 1", "log segment 2"],\n    max_concurrency: 5\n  })\n})\n.then(res => res.json())\n.then(data => console.log(data));`;
+        return `const apiKey = process.env.MEMBRANE_API_KEY;\n\nfetch("https://membrane-api.com/v1/swarm/map", {\n  method: "POST",\n  headers: {\n    "Authorization": \`Bearer \${apiKey}\`,\n    "Content-Type": "application/json",\n    "X-Membrane-Preserve-Context": "true"\n  },\n  body: JSON.stringify({\n    model: "membrane-engagement-layer",\n    chunks: ["log segment 1", "log segment 2"],\n    max_concurrency: 5\n  })\n})\n.then(res => res.json())\n.then(data => console.log(data));`;
       } else if (selectedPattern.id === "context_isolation") {
         return `const apiKey = process.env.MEMBRANE_API_KEY;\n\nfetch("https://membrane-api.com/v1/chat/completions", {\n  method: "POST",\n  headers: {\n    "Authorization": \`Bearer \${apiKey}\`,\n    "Content-Type": "application/json",\n    "X-Membrane-Preserve-Context": "${preserveContext ? 'true' : 'false'}"\n  },\n  body: JSON.stringify({\n    model: "membrane-engagement-layer",\n    messages: [{role: "user", content: "Query metadata"}]\n  })\n})\n.then(res => res.json());`;
       } else {
-        return `const apiKey = process.env.MEMBRANE_API_KEY;\n\nfetch("https://membrane-api.com/v1/swarm/state", {\n  method: "POST",\n  headers: {\n    "Authorization": \`Bearer \${apiKey}\`,\n    "Content-Type": "application/json"\n  },\n  body: JSON.stringify({\n    agent_id: "js_validator",\n    task_type: "javascript_code",\n    payload: "console.log('checked')"\n  })\n})\n.then(res => res.json());`;
+        return `const apiKey = process.env.MEMBRANE_API_KEY;\n\nfetch("https://membrane-api.com/v1/swarm/state", {\n  method: "POST",\n  headers: {\n    "Authorization": \`Bearer \${apiKey}\`,\n    "Content-Type": "application/json",\n    "X-Membrane-Preserve-Context": "true"\n  },\n  body: JSON.stringify({\n    agent_id: "js_validator",\n    task_type: "javascript_code",\n    payload: "console.log('checked')"\n  })\n})\n.then(res => res.json());`;
       }
     } else {
-      return `# .cursorrules - Membrane Integration Pattern Context\n\n# Rules for Membrane Lossless Agent Protocol integration:\n- Always prefer 'membrane-engagement-layer' model string for telemetry tracking\n- For conversational chat loops, prune context by default unless 'X-Membrane-Preserve-Context: true' is requested\n- Split large document extraction tasks into parallel map-reduce jobs using '/v1/swarm/map'\n- Target publicRender URL: https://membrane-api.com/v1`;
+      return `# .cursorrules - Membrane Integration Pattern Context\n\n# Rules for Membrane Lossless Agent Protocol integration:\n- Always prefer 'membrane-engagement-layer' model string for telemetry tracking\n- For conversational chat loops, prune context by default unless 'X-Membrane-Preserve-Context: true' is requested\n- Split large document extraction tasks into parallel map-reduce jobs using '/v1/swarm/map'\n- Target publicRender URL: https://membrane-api.com/v1\n- Always pass 'X-Membrane-Preserve-Context: true' header to bypass default zero-shot context pruning when conversational history is required.`;
     }
   };
 

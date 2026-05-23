@@ -39,7 +39,12 @@ export async function POST(req: Request) {
       console.warn("⚠️ DATABASE_URL is not set. Skipping key database write.");
     }
 
-    // 4. Redirect back to the console, passing the key in a self-destructing cookie
+    // 4. Return JSON if caller expects it (for zero-friction async updates), else redirect
+    const acceptHeader = req.headers.get("accept") || "";
+    if (acceptHeader.includes("application/json")) {
+      return NextResponse.json({ apiKey: rawKey, tenantId: dynamicTenantId });
+    }
+
     const response = NextResponse.redirect(new URL("/console", req.url), { status: 303 });
     response.cookies.set("new_api_key", rawKey, { 
       maxAge: 10, // ⏳ Self-destructs in 10 seconds!
@@ -53,6 +58,12 @@ export async function POST(req: Request) {
     console.error("Key Generator Error:", error);
     // Even if everything fails, self-heal by returning a mock key to the user!
     const mockKey = "sk_live_mock_local_dev_key_rotated";
+    
+    const acceptHeader = req.headers.get("accept") || "";
+    if (acceptHeader.includes("application/json")) {
+      return NextResponse.json({ apiKey: mockKey, tenantId: "local_dev_mock" });
+    }
+
     const response = NextResponse.redirect(new URL("/console", req.url), { status: 303 });
     response.cookies.set("new_api_key", mockKey, { 
       maxAge: 10,

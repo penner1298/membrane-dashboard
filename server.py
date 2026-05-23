@@ -400,13 +400,8 @@ app = FastAPI(title="Membrane API - Swarm Edition", lifespan=lifespan)
 from fastapi.middleware.cors import CORSMiddleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://membrane-api.com",
-        "http://localhost:3000",
-        "https://membrane-wh1g.onrender.com",
-        "http://membrane-wh1g.onrender.com"
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -422,6 +417,10 @@ async def verify_access(credentials: HTTPAuthorizationCredentials = Security(sec
 
     if api_key == "sk_membrane_instant_trial":
         return hashed_key
+
+    # Hardened prefix/key check to prevent database flooding (DoS) from arbitrary spam keys
+    if not api_key.startswith("sk_live_") and not api_key.startswith("sk_membrane_") and api_key != "local_dev_key":
+        raise HTTPException(status_code=401, detail="Access Denied: Invalid API key format or prefix.")
 
     if not db_pool:
         print("⚠️ Database offline. Bypassing billing/auth check for local demo.")
@@ -1014,16 +1013,18 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
         if effective_model == "membrane-engagement-layer":
             effective_model = FLASH_MODEL
 
-        if is_general_protocol:
-            canary = FLASH_MODEL
-            apex = APEX_MODEL
-        else:
-            canary = effective_model or CANARY_MODEL
-            apex = effective_model or APEX_MODEL
-
-        # Skip redundant identical recovery model fallback iterations (QA-20)
+        # Set canary & apex dynamically to support cascade fallback on standard client integrations
+        canary = effective_model or CANARY_MODEL
+        apex = APEX_MODEL
         if effective_model and not is_general_protocol:
-            evaluation_queue = [(effective_model, "SURFACE_ENGAGEMENT", None)]
+            if "flash" in effective_model.lower() or "mini" in effective_model.lower():
+                if "gemini" in effective_model.lower():
+                    apex = os.getenv("MEMBRANE_APEX_MODEL") or os.getenv("APEX_MODEL") or "gemini/gemini-2.5-pro"
+                elif "gpt" in effective_model.lower():
+                    apex = "openai/gpt-4o"
+
+        if canary == apex:
+            evaluation_queue = [(canary, "SURFACE_ENGAGEMENT", None)]
         else:
             evaluation_queue = [
                 (canary, "SURFACE_ENGAGEMENT", None),
@@ -1319,11 +1320,13 @@ async def verify_state_machine(request: ProofOfWorkRequest, http_req: Request, a
             os.remove(temp_path)
 
     elif request.task_type == "react_component":
+        # Write react temporary components inside the secure sandbox directory to maintain workspace cleanliness
+        sandbox_dir = os.path.abspath(os.path.join(workspace_dir, "sandbox_scratch"))
+        os.makedirs(sandbox_dir, exist_ok=True)
         file_name = f"temp_component_{int(time.time())}.tsx"
-        file_path = os.path.abspath(os.path.join(workspace_dir, file_name))
-        if os.path.commonpath([workspace_dir, file_path]) != workspace_dir:
+        file_path = os.path.abspath(os.path.join(sandbox_dir, file_name))
+        if os.path.commonpath([sandbox_dir, file_path]) != sandbox_dir:
             raise HTTPException(status_code=400, detail="Path traversal attempt detected.")
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
         
         with open(file_path, "w") as f:
             f.write(request.payload)

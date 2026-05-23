@@ -7,7 +7,7 @@ import { promisify } from "util";
 const execAsync = promisify(exec);
 
 // Dynamically resolve workspace dir to prevent absolute machine path lock
-const WORKSPACE_DIR = process.env.MEMBRANE_WORKSPACE_DIR || "/Users/thejoshuapenner/.openclaw/workspace";
+const WORKSPACE_DIR = process.env.MEMBRANE_WORKSPACE_DIR || process.cwd();
 const DAILY_JOURNAL_DIR = path.join(WORKSPACE_DIR, "daily-journal");
 const INBOX_DIR = path.join(WORKSPACE_DIR, "INBOX");
 const SCRIPTS_DIR = path.join(WORKSPACE_DIR, "scripts");

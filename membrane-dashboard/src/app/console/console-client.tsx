@@ -55,10 +55,97 @@ export function ConsoleClient({
   const [copied, setCopied] = useState(false);
   const [inspectingDlq, setInspectingDlq] = useState<DqlEntry | null>(null);
 
+  // Dynamic state to avoid full-page reloads on mutation
+  const [currentApiKey, setCurrentApiKey] = useState(apiKey);
+  const [currentTenantId, setCurrentTenantId] = useState(tenantId);
+  const [rotating, setRotating] = useState(false);
+
+  const [redeemCode, setRedeemCode] = useState("");
+  const [redeemStatus, setRedeemStatus] = useState<{ type: "success" | "error" | "loading"; message: string } | null>(null);
+
+  // Pre-load from and sync with localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedKey = localStorage.getItem("membrane_playground_api_key");
+      // If we have a local key and the page mounted with the default mock key, update state to use the active local key
+      if (savedKey && apiKey === "sk_live_local_dev_key") {
+        setCurrentApiKey(savedKey);
+        // Compute tenant ID using Web Crypto API to avoid Node crypto imports in client bundle
+        const msgBuffer = new TextEncoder().encode(savedKey);
+        window.crypto.subtle.digest("SHA-256", msgBuffer).then((hashBuffer) => {
+          const hashArray = Array.from(new Uint8Array(hashBuffer));
+          const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+          setCurrentTenantId(`local_dev_${hashHex.slice(0, 8)}`);
+        }).catch((err) => {
+          console.warn("Failed to hash key in client:", err);
+          setCurrentTenantId("local_dev_active");
+        });
+      }
+    }
+  }, [apiKey]);
+
+  // Synchronize key changes to localStorage
+  useEffect(() => {
+    if (currentApiKey && currentApiKey !== "sk_live_local_dev_key" && typeof window !== "undefined") {
+      localStorage.setItem("membrane_playground_api_key", currentApiKey);
+    }
+  }, [currentApiKey]);
+
   const handleCopyKey = () => {
-    navigator.clipboard.writeText(apiKey);
+    navigator.clipboard.writeText(currentApiKey);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleRotateKey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const confirmed = window.confirm("⚠️ WARNING: This will immediately invalidate active SDK integrations. Proceed?");
+    if (!confirmed) return;
+    setRotating(true);
+    try {
+      const res = await fetch("/api/keys/reset", {
+        method: "POST",
+        headers: {
+          "Accept": "application/json"
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.apiKey) {
+          setCurrentApiKey(data.apiKey);
+          setCurrentTenantId(data.tenantId);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to rotate key asynchronously:", err);
+    } finally {
+      setRotating(false);
+    }
+  };
+
+  const handleRedeem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!redeemCode.trim()) return;
+    setRedeemStatus({ type: "loading", message: "Redeeming referral code..." });
+    try {
+      const formData = new FormData();
+      formData.append("code", redeemCode);
+      formData.append("token", currentApiKey);
+
+      const res = await fetch("/api/referral/redeem", {
+        method: "POST",
+        body: formData
+      });
+
+      if (res.ok) {
+        setRedeemStatus({ type: "success", message: "Code redeemed successfully! $10.00 sandbox bonus credited." });
+        setRedeemCode("");
+      } else {
+        setRedeemStatus({ type: "error", message: "Redemption rejected by server." });
+      }
+    } catch (err) {
+      setRedeemStatus({ type: "error", message: "Error contacting gateway." });
+    }
   };
 
   // Filter logs based on search query
@@ -80,7 +167,7 @@ export function ConsoleClient({
         <div className="space-y-1">
           <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider">Active System Tenant</h2>
           <div className="flex items-center gap-2">
-            <span className="font-mono font-black text-slate-900 text-lg">{tenantId}</span>
+            <span className="font-mono font-black text-slate-900 text-lg">{currentTenantId}</span>
             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
               dbStatus === "Online" 
                 ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
@@ -96,7 +183,7 @@ export function ConsoleClient({
           <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Gateway Authorization Key</label>
           <div className="flex gap-2">
             <div className="flex-1 md:w-64 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-mono text-xs text-slate-600 truncate flex items-center justify-between">
-              <span className="truncate select-all">{apiKey}</span>
+              <span className="truncate select-all">{currentApiKey}</span>
               <button 
                 onClick={handleCopyKey}
                 className="ml-2 p-1 hover:bg-slate-200 rounded text-slate-500 transition"
@@ -105,14 +192,15 @@ export function ConsoleClient({
               </button>
             </div>
             
-            <form action="/api/keys/reset" method="POST">
-              <button 
-                type="submit"
-                className="px-3 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition flex items-center gap-1.5 shadow-sm"
-              >
-                <RefreshCw className="w-3.5 h-3.5" /> Rotate Key
-              </button>
-            </form>
+            <button 
+              onClick={handleRotateKey}
+              disabled={rotating}
+              className={`px-3 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition flex items-center gap-1.5 shadow-sm ${
+                rotating ? "animate-pulse opacity-50" : ""
+              }`}
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${rotating ? "animate-spin" : ""}`} /> Rotate Key
+            </button>
           </div>
         </div>
       </div>
@@ -353,22 +441,34 @@ export function ConsoleClient({
               </p>
             </div>
             
-            <form action="/api/referral/redeem" method="POST" className="space-y-4">
-              <input type="hidden" name="token" value={apiKey} />
+            <form onSubmit={handleRedeem} className="space-y-4">
               <div className="flex gap-2">
                 <input
                   type="text"
-                  name="code"
                   placeholder="REF-XXXXXX"
+                  value={redeemCode}
+                  onChange={(e) => setRedeemCode(e.target.value)}
                   className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:bg-white flex-1"
                 />
                 <button
                   type="submit"
+                  disabled={redeemStatus?.type === "loading"}
                   className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition shadow-sm"
                 >
                   Redeem
                 </button>
               </div>
+              {redeemStatus && (
+                <p className={`text-xs font-semibold ${
+                  redeemStatus.type === "success" 
+                    ? "text-emerald-600" 
+                    : redeemStatus.type === "error" 
+                    ? "text-rose-600" 
+                    : "text-slate-500"
+                }`}>
+                  {redeemStatus.message}
+                </p>
+              )}
             </form>
           </div>
         )}
