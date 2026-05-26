@@ -38,3 +38,4 @@ gearbox_gemma.log
 test_*.py
 fix_*.py
 .trash/
+sandbox_scratch/

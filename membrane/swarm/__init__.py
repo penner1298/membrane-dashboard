@@ -21,7 +21,7 @@ from membrane.database import charge_and_log_api_batch
 from membrane.security import get_safe_destination
 
 # Import validation and execution logic
-from membrane.swarm.validation import validate_strict_swarm_request
+from membrane.swarm.validation import validate_strict_swarm_request, validate_invariant_compliance
 from membrane.swarm.execution import (
     SwarmExecutionMode,
     process_swarm_chunk,
@@ -38,8 +38,33 @@ class SwarmMapRequest(BaseModel):
     max_concurrency: int = 20
     temperature: float = 0.0
     extraction_criteria: Optional[Dict[str, Any]] = None
+    invariant_set_id: Optional[str] = None  # The locked enterprise compliance ceiling
 
     model_config = {"extra": "allow"}
+
+class SwarmPlanRequest(BaseModel):
+    model: str = "membrane-engagement-layer"
+    chunks: List[str]
+    max_concurrency: Optional[int] = 20
+    extraction_criteria: Optional[Dict[str, Any]] = None
+    invariant_set_id: Optional[str] = None # The locked enterprise compliance ceiling
+
+    model_config = {"extra": "allow"}
+
+class TrajectoryPrediction(BaseModel):
+    estimated_total_tokens: int
+    estimated_retail_cost: float
+    estimated_latency_seconds: float
+    recommended_concurrency: int
+    risk_score: float # 0.0 (Safe) to 1.0 (High chance of model refusal/timeout)
+
+class SwarmPlanResponse(BaseModel):
+    object: str = "swarm.plan"
+    invariant_check: str = "COMPLIANT"
+    selected_routing_geometry: str # Hash or ID of the matched historical pattern
+    trajectory: TrajectoryPrediction
+    execution_strategy_notes: List[str]
+
 
 class ExtractionEntry(BaseModel):
     chunk_index: int

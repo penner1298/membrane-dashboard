@@ -7,27 +7,55 @@ import { Footer } from "@/components/footer";
 import { useApiKey } from "@/context/ApiKeyContext";
 import { 
   ArrowLeft, Terminal, Server, ShieldAlert, Zap, BookOpen, 
-  Key, Copy, Check, Play, Cpu, AlertTriangle, Layers
+  Key, Copy, Check, Play, Cpu, AlertTriangle, Layers,
+  Compass, ShieldCheck, Activity, Database
 } from "lucide-react";
 import { sanitizeBearerToken } from "@/lib/utils";
 
 type CodeLang = "curl" | "python" | "javascript" | "langchain";
+type EndpointTab = "chat" | "swarm-plan" | "swarm-map" | "swarm-state";
 
 export default function DocsPage() {
   // Navigation & Active Tab states
   const [activeLang, setActiveLang] = useState<CodeLang>("python");
+  const [activeEndpointCode, setActiveEndpointCode] = useState<EndpointTab>("chat");
   const [copiedText, setCopiedText] = useState<string | null>(null);
 
   // Live Test Bench Playground states using unified API Key context
   const { apiKey, updateApiKey, refreshApiKey } = useApiKey();
+  const [activePlaygroundRoute, setActivePlaygroundRoute] = useState<EndpointTab>("chat");
+  
+  // Chat Completion specific states
   const [testPrompt, setTestPrompt] = useState("Write a three-word motto for an AI proxy");
   const [testModel, setTestModel] = useState("membrane-engagement-layer");
   const [preserveContext, setPreserveContext] = useState(false);
   const [useStreaming, setUseStreaming] = useState(false);
   
+  // Swarm Plan & Map specific states
+  const [testChunks, setTestChunks] = useState(
+    "Page 1 of report: User acquisition increased 40%.\n" +
+    "Page 2 of report: Q1 revenue was $250,000.\n" +
+    "Page 3 of report: Operations budget capped at $50,000."
+  );
+  const [invariantSetId, setInvariantSetId] = useState("ent_compliance_lock_v1");
+  const [maxConcurrency, setMaxConcurrency] = useState("20");
+  const [systemPersona, setSystemPersona] = useState("You are an analyst extracting key business metrics.");
+  const [targetSignals, setTargetSignals] = useState("acquisition_growth, revenue_amount, budget_cap");
+  const [swarmModeHeader, setSwarmModeHeader] = useState("canary");
+  
+  // Swarm State Verification specific states
+  const [agentId, setAgentId] = useState("sentinel_agent");
+  const [targetAgentId, setTargetAgentId] = useState("verification_node");
+  const [taskType, setTaskType] = useState("python_code");
+  const [powPayload, setPowPayload] = useState(
+    "def main():\n    print(\"Processing swarm validation payload...\")\n    return True"
+  );
+  const [destinationPath, setDestinationPath] = useState("scratch/validation_check.py");
+
   const [playgroundLoading, setPlaygroundLoading] = useState(false);
   const [playgroundOutput, setPlaygroundOutput] = useState("");
   const [playgroundError, setPlaygroundError] = useState<string | null>(null);
+  
   interface TelemetryData {
     latency: number;
     billed_amount: number;
@@ -38,7 +66,7 @@ export default function DocsPage() {
 
   const [telemetryROI, setTelemetryROI] = useState<TelemetryData | null>(null);
 
-  // Auto-detect backend completions URL
+  // Auto-detect backend URL (falls back to window origin)
   const [completionsUrl, setCompletionsUrl] = useState("/v1/chat/completions");
 
   useEffect(() => {
@@ -55,7 +83,7 @@ export default function DocsPage() {
     setTimeout(() => setCopiedText(null), 2000);
   };
 
-  // Run the Live Chat Completion Request
+  // Run the Live API Test Requests
   const runLiveTest = async (retryKey?: string) => {
     setPlaygroundLoading(true);
     setPlaygroundError(null);
@@ -71,22 +99,61 @@ export default function DocsPage() {
       "Authorization": `Bearer ${cleanKey}`,
     };
 
-    if (preserveContext) {
-      headers["X-Membrane-Preserve-Context"] = "true";
-    }
+    let fetchUrl = "";
+    let payload: any = {};
 
-    const payload = {
-      model: testModel,
-      stream: useStreaming,
-      messages: [
-        { role: "system", content: "You are a helpful assistant." },
-        { role: "user", content: testPrompt }
-      ]
-    };
+    if (activePlaygroundRoute === "chat") {
+      fetchUrl = completionsUrl;
+      if (preserveContext) {
+        headers["X-Membrane-Preserve-Context"] = "true";
+      }
+      payload = {
+        model: testModel,
+        stream: useStreaming,
+        messages: [
+          { role: "system", content: "You are a helpful assistant." },
+          { role: "user", content: testPrompt }
+        ]
+      };
+    } else if (activePlaygroundRoute === "swarm-plan") {
+      fetchUrl = `${window.location.origin}/v1/swarm/plan`;
+      payload = {
+        model: testModel,
+        chunks: testChunks.split("\n").map(c => c.trim()).filter(Boolean),
+        invariant_set_id: invariantSetId || undefined,
+        max_concurrency: maxConcurrency ? parseInt(maxConcurrency) : 20,
+        extraction_criteria: {
+          system_persona: systemPersona,
+          target_signals: targetSignals.split(",").map(s => s.trim()).filter(Boolean)
+        }
+      };
+    } else if (activePlaygroundRoute === "swarm-map") {
+      fetchUrl = `${window.location.origin}/v1/swarm/map`;
+      headers["X-Membrane-Swarm-Mode"] = swarmModeHeader;
+      payload = {
+        model: testModel,
+        chunks: testChunks.split("\n").map(c => c.trim()).filter(Boolean),
+        max_concurrency: maxConcurrency ? parseInt(maxConcurrency) : 20,
+        extraction_criteria: {
+          system_persona: systemPersona,
+          target_signals: targetSignals.split(",").map(s => s.trim()).filter(Boolean)
+        },
+        invariant_set_id: invariantSetId || undefined
+      };
+    } else if (activePlaygroundRoute === "swarm-state") {
+      fetchUrl = `${window.location.origin}/v1/swarm/state`;
+      payload = {
+        agent_id: agentId,
+        task_type: taskType,
+        payload: powPayload,
+        target_agent_id: targetAgentId,
+        destination_path: destinationPath || undefined
+      };
+    }
 
     try {
       const startTime = Date.now();
-      const response = await fetch(completionsUrl, {
+      const response = await fetch(fetchUrl, {
         method: "POST",
         headers,
         body: JSON.stringify(payload),
@@ -110,7 +177,7 @@ export default function DocsPage() {
         throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`);
       }
 
-      if (useStreaming) {
+      if (activePlaygroundRoute === "chat" && useStreaming) {
         // SSE Streaming Handler
         const reader = response.body?.getReader();
         const decoder = new TextDecoder("utf-8");
@@ -128,7 +195,7 @@ export default function DocsPage() {
 
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split("\n");
-          buffer = lines.pop() || ""; // keep incomplete line in buffer
+          buffer = lines.pop() || "";
 
           for (const line of lines) {
             const cleaned = line.trim();
@@ -149,7 +216,6 @@ export default function DocsPage() {
 
                 setPlaygroundOutput(prev => prev + token);
 
-                // If response contains custom metadata
                 if (parsed.membrane_metadata) {
                   setTelemetryROI({
                     latency: ttfb,
@@ -166,7 +232,6 @@ export default function DocsPage() {
           }
         }
 
-        // Mock telemetry in streaming if API metadata didn't output to payload directly
         if (!telemetryROI) {
           setTelemetryROI({
             latency: ttfb || (Date.now() - startTime),
@@ -181,23 +246,51 @@ export default function DocsPage() {
         // Standard JSON Request
         const data = await response.json();
         const latency = Date.now() - startTime;
-        setPlaygroundOutput(data.choices?.[0]?.message?.content || JSON.stringify(data, null, 2));
+        setPlaygroundOutput(JSON.stringify(data, null, 2));
 
-        if (data.membrane_metadata) {
+        if (activePlaygroundRoute === "chat") {
+          if (data.membrane_metadata) {
+            setTelemetryROI({
+              latency,
+              billed_amount: data.membrane_metadata.billed_amount,
+              savings_percent: data.membrane_metadata.savings_percent,
+              status: data.membrane_metadata.status,
+              streamed: false
+            });
+          } else {
+            setTelemetryROI({
+              latency,
+              billed_amount: 0.0002,
+              savings_percent: 66.7,
+              status: "LOCAL_DEV_PASS",
+              streamed: false
+            });
+          }
+        } else if (activePlaygroundRoute === "swarm-plan") {
           setTelemetryROI({
             latency,
-            billed_amount: data.membrane_metadata.billed_amount,
-            savings_percent: data.membrane_metadata.savings_percent,
-            status: data.membrane_metadata.status,
+            billed_amount: data.trajectory?.estimated_retail_cost || 0.0,
+            savings_percent: 0.0,
+            status: `PLAN_${data.selected_routing_geometry ? "RESOLVED" : "DEFAULT"}`,
             streamed: false
           });
-        } else {
-          // Calculate mock metrics locally if backend is running locally with db off
+        } else if (activePlaygroundRoute === "swarm-map") {
+          const valueLedger = data.membrane_metadata?.value_ledger;
+          const gross = valueLedger?.gross_unoptimized_cost || 1.0;
+          const savings = valueLedger?.net_enterprise_savings || 0.0;
           setTelemetryROI({
             latency,
-            billed_amount: 0.0002,
-            savings_percent: 66.7,
-            status: "LOCAL_DEV_PASS",
+            billed_amount: valueLedger?.actual_cost_incurred || 0.0,
+            savings_percent: gross > 0 ? Math.round((savings / gross) * 1000) / 10 : 0.0,
+            status: data.membrane_metadata?.status || "MAP_COMPLETE",
+            streamed: false
+          });
+        } else if (activePlaygroundRoute === "swarm-state") {
+          setTelemetryROI({
+            latency,
+            billed_amount: 0.0,
+            savings_percent: 0.0,
+            status: data.verified ? "POW_VERIFIED" : "POW_FAILED",
             streamed: false
           });
         }
@@ -211,8 +304,9 @@ export default function DocsPage() {
     }
   };
 
-  const codeSnippets = {
-    python: `from openai import OpenAI
+  const codeSnippets: Record<EndpointTab, Record<CodeLang, string>> = {
+    chat: {
+      python: `from openai import OpenAI
 
 client = OpenAI(
     # Point to the Membrane API gateway
@@ -234,7 +328,7 @@ response = client.chat.completions.create(
 )
 
 print(response.choices[0].message.content)`,
-    javascript: `import OpenAI from "openai";
+      javascript: `import OpenAI from "openai";
 
 const openai = new OpenAI({
   baseURL: "https://membrane-api.com/v1",
@@ -257,10 +351,10 @@ const completion = await openai.chat.completions.create(
 );
 
 console.log(completion.choices[0].message.content);`,
-    curl: `curl -X POST https://membrane-api.com/v1/chat/completions \\
-  -H "Content-Type: application/json" \\
-  -H "Authorization: Bearer local_dev_key" \\
-  -H "X-Membrane-Preserve-Context: true" \\
+      curl: `curl -X POST https://membrane-api.com/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer local_dev_key" \
+  -H "X-Membrane-Preserve-Context: true" \
   -d '{
     "model": "membrane-engagement-layer",
     "messages": [
@@ -269,7 +363,7 @@ console.log(completion.choices[0].message.content);`,
     ],
     "stream": false
   }'`,
-    langchain: `import { ChatOpenAI } from "@langchain/openai";
+      langchain: `import { ChatOpenAI } from "@langchain/openai";
 
 const chat = new ChatOpenAI({
   configuration: {
@@ -289,6 +383,205 @@ const response = await chat.invoke([
 ]);
 
 console.log(response.content);`
+    },
+    "swarm-plan": {
+      python: `import requests
+
+url = "https://membrane-api.com/v1/swarm/plan"
+headers = {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer local_dev_key"
+}
+payload = {
+    "chunks": [
+        "Page 1 of report: User acquisition increased 40%.",
+        "Page 2 of report: Q1 revenue was $250,000."
+    ],
+    "invariant_set_id": "ent_compliance_lock_v1",
+    "max_concurrency": 20
+}
+
+response = requests.post(url, headers=headers, json=payload)
+print(response.json())`,
+      javascript: `const response = await fetch("https://membrane-api.com/v1/swarm/plan", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer local_dev_key"
+  },
+  body: JSON.stringify({
+    chunks: [
+      "Page 1 of report: User acquisition increased 40%.",
+      "Page 2 of report: Q1 revenue was $250,000."
+    ],
+    invariant_set_id: "ent_compliance_lock_v1",
+    max_concurrency: 20
+  })
+});
+const data = await response.json();
+console.log(data);`,
+      curl: `curl -X POST https://membrane-api.com/v1/swarm/plan \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer local_dev_key" \\
+  -d '{
+    "chunks": [
+      "Page 1 of report: User acquisition increased 40%.",
+      "Page 2 of report: Q1 revenue was $250,000."
+    ],
+    "invariant_set_id": "ent_compliance_lock_v1",
+    "max_concurrency": 20
+  }'`,
+      langchain: `# You can query the plan route to preview cost and latency metrics before starting your LangChain swarm run:
+import requests
+
+plan = requests.post(
+    "https://membrane-api.com/v1/swarm/plan",
+    headers={"Authorization": "Bearer local_dev_key"},
+    json={"chunks": ["Page 1...", "Page 2..."], "invariant_set_id": "ent_compliance_lock_v1"}
+).json()
+
+print(f"Optimal Concurrency: {plan['trajectory']['recommended_concurrency']}")
+print(f"Estimated Cost: \${plan['trajectory']['estimated_retail_cost']}")`
+    },
+    "swarm-map": {
+      python: `import requests
+
+url = "https://membrane-api.com/v1/swarm/map"
+headers = {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer local_dev_key",
+    "X-Membrane-Swarm-Mode": "canary"  # Options: legacy, early_gate, canary
+}
+payload = {
+    "model": "membrane-engagement-layer",
+    "chunks": [
+        "Page 1 text to process...",
+        "Page 2 text to process..."
+    ],
+    "extraction_criteria": {
+        "system_persona": "You are a professional auditor.",
+        "target_signals": ["due_date", "amount_due"]
+    },
+    "max_concurrency": 15
+}
+
+response = requests.post(url, headers=headers, json=payload)
+print(response.json())`,
+      javascript: `const response = await fetch("https://membrane-api.com/v1/swarm/map", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer local_dev_key",
+    "X-Membrane-Swarm-Mode": "canary" // Options: legacy, early_gate, canary
+  },
+  body: JSON.stringify({
+    model: "membrane-engagement-layer",
+    chunks: [
+      "Page 1 text to process...",
+      "Page 2 text to process..."
+    ],
+    extraction_criteria: {
+      system_persona: "You are a professional auditor.",
+      target_signals: ["due_date", "amount_due"]
+    },
+    max_concurrency: 15
+  })
+});
+const data = await response.json();
+console.log(data);`,
+      curl: `curl -X POST https://membrane-api.com/v1/swarm/map \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer local_dev_key" \\
+  -H "X-Membrane-Swarm-Mode: canary" \\
+  -d '{
+    "model": "membrane-engagement-layer",
+    "chunks": [
+      "Page 1 text to process...",
+      "Page 2 text to process..."
+    ],
+    "extraction_criteria": {
+      "system_persona": "You are a professional auditor.",
+      "target_signals": ["due_date", "amount_due"]
+    }
+  }'`,
+      langchain: `# Swarm extraction maps can be loaded as documents inside LangChain to run fast distributed retrievals.
+import requests
+
+results = requests.post(
+    "https://membrane-api.com/v1/swarm/map",
+    headers={"Authorization": "Bearer local_dev_key", "X-Membrane-Swarm-Mode": "canary"},
+    json={
+        "chunks": ["Text chunk 1...", "Text chunk 2..."],
+        "extraction_criteria": {
+            "system_persona": "Extractor",
+            "target_signals": ["entity"]
+        }
+    }
+).json()
+
+# Feed clean extractions directly into LangChain documents:
+# docs = [Document(page_content=e['verbatim_text'], metadata={"chunk": e['chunk_index']}) for e in results['extractions']]`
+    },
+    "swarm-state": {
+      python: `import requests
+
+url = "https://membrane-api.com/v1/swarm/state"
+headers = {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer local_dev_key"
+}
+payload = {
+    "agent_id": "auditor_alpha",
+    "task_type": "python_code", # Options: python_code, react_component
+    "payload": "def verify():\\n    return True",
+    "target_agent_id": "orchestrator",
+    "destination_path": "scratch/verify.py"
+}
+
+response = requests.post(url, headers=headers, json=payload)
+print(response.json())`,
+      javascript: `const response = await fetch("https://membrane-api.com/v1/swarm/state", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer local_dev_key"
+  },
+  body: JSON.stringify({
+    agent_id: "auditor_alpha",
+    task_type: "python_code", // Options: python_code, react_component
+    payload: "def verify():\\n    return True",
+    target_agent_id: "orchestrator",
+    destination_path: "scratch/verify.py"
+  })
+});
+const data = await response.json();
+console.log(data);`,
+      curl: `curl -X POST https://membrane-api.com/v1/swarm/state \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer local_dev_key" \\
+  -d '{
+    "agent_id": "auditor_alpha",
+    "task_type": "python_code",
+    "payload": "def verify():\\n    return True",
+    "target_agent_id": "orchestrator",
+    "destination_path": "scratch/verify.py"
+  }'`,
+      langchain: `# Proof-of-work state verification can be executed as a custom Tool inside your LangChain agent loops:
+import requests
+
+def verify_code_tool(code: str) -> str:
+    res = requests.post(
+        "https://membrane-api.com/v1/swarm/state",
+        headers={"Authorization": "Bearer local_dev_key"},
+        json={
+            "agent_id": "langchain_agent",
+            "task_type": "python_code",
+            "payload": code,
+            "target_agent_id": "compiler"
+        }
+    ).json()
+    return f"Verification: {res['verified']}. Signature: {res.get('membrane_signature')}"`
+    }
   };
 
   const cursorRulesSnippet = `When configuring an LLM client, OpenAI SDK, or API routing in this project:
@@ -303,7 +596,7 @@ Configuration Parameters:
 - Agent Docs: Readily available at https://membrane-api.com/llms.txt
 
 Headers:
-- Pass \\\`X-Membrane-Preserve-Context: true\\\` to bypass default zero-shot context pruning when full multi-turn conversational history is required.`;
+- Pass \`X-Membrane-Preserve-Context: true\` to bypass default zero-shot context pruning when full multi-turn conversational history is required.`;
 
   return (
     <div className="min-h-screen bg-[#fafbfc] text-[#0f172a] selection:bg-emerald-100 selection:text-emerald-800 font-sans antialiased relative overflow-hidden flex flex-col justify-between">
@@ -328,10 +621,10 @@ Headers:
         <div className="mb-12">
           <div className="flex flex-wrap items-center gap-2 mb-4">
             <span className="text-[10px] font-black tracking-widest text-emerald-700 uppercase bg-emerald-50 border border-emerald-250 px-2.5 py-1 rounded-md">
-              ACTIVE API SPEC v1.0
+              ACTIVE API SPEC v2.0
             </span>
             <span className="text-[10px] font-black tracking-widest text-blue-700 uppercase bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-md">
-              HTTPS ENCRYPTED
+              SWARM INGESTION READY
             </span>
             <a 
               href="/llms.txt" 
@@ -347,7 +640,7 @@ Headers:
             API Specification & Integration
           </h1>
           <p className="text-base text-slate-600 max-w-3xl leading-relaxed mt-4">
-            Membrane operates as a drop-in, zero-latency proxy. Point your existing OpenAI or LangChain clients to the Membrane gateway, inject your API key, and instantly benefit from semantic caching and parallel swarm ingestion.
+            Membrane operates as a drop-in, zero-latency proxy. Point your existing OpenAI or LangChain clients to the Membrane gateway, inject your API key, and instantly benefit from semantic caching, proof-of-work code validation, and parallel swarm ingestion.
           </p>
         </div>
 
@@ -421,102 +714,196 @@ Headers:
           </div>
         </section>
 
-        {/* SECTION 2: STEP BY STEP QUICK START */}
-        <section className="mb-20">
+        {/* SECTION 2: SWARM EXECUTION MODES & EARLY REJECTION */}
+        <section className="mb-16">
           <div className="flex items-center gap-2.5 mb-6">
-            <Layers className="w-6 h-6 text-emerald-600" />
-            <h2 className="text-2xl font-serif font-black text-slate-950 m-0">Quick Start Integration</h2>
+            <Compass className="w-6 h-6 text-emerald-600" />
+            <h2 className="text-2xl font-serif font-black text-slate-950 m-0">Swarm Execution Modes & Guardrails</h2>
           </div>
 
-          <p className="text-slate-600 text-xs leading-relaxed mb-8">
-            Integrating Membrane is mathematically simple. Follow these three steps to redirect your existing logic blocks:
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
+          <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 md:p-8 shadow-sm space-y-6 tilt-3d">
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-emerald-500/20 via-blue-500/30 to-purple-500/20" />
             
-            {/* Step 1 */}
-            <div className="flex flex-col justify-between p-6 bg-white border border-slate-200/80 rounded-xl relative hover:border-emerald-500/50 transition-all duration-300 shadow-sm tilt-3d">
-              <span className="absolute -top-7 right-2 text-8xl font-black text-slate-100 select-none font-serif tracking-tighter">01</span>
-              <div>
-                <span className="text-[10px] font-bold text-emerald-600 tracking-wider uppercase block mb-1">STEP ONE</span>
-                <h3 className="text-base font-bold text-slate-900 mb-2 mt-0">Point the Base URL</h3>
-                <p className="text-xs text-slate-500 leading-relaxed mb-6">
-                  Replace your client library&apos;s standard API base URL with the Membrane gateway host.
+            <p className="text-xs text-slate-650 leading-relaxed">
+              Membrane supports specialized execution strategies for multi-agent swarm parallel map-reduce processing, designed to eliminate token waste on malformed queries. Control execution by setting the <code className="bg-slate-100 px-1 border border-slate-200 rounded">X-Membrane-Swarm-Mode</code> HTTP header or the <code className="bg-slate-100 px-1 border border-slate-200 rounded">MEMBRANE_SWARM_MODE</code> environment variable:
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/60">
+                <span className="text-[9px] font-black bg-slate-200 text-slate-600 px-2 py-0.5 rounded uppercase font-mono tracking-wider">legacy</span>
+                <h4 className="text-xs font-bold text-slate-900 mt-2 mb-1">Standard Fan-Out</h4>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Processes all chunks concurrently using parallel model invocations. Runtime exceptions on syntax or model parsing errors fail only during final compilation.
                 </p>
               </div>
-              <div className="p-3 bg-slate-50 rounded font-mono text-[10px] text-slate-600 border border-slate-200 overflow-x-auto">
-                <code>https://membrane-api.com/v1</code>
+
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/60">
+                <span className="text-[9px] font-black bg-blue-55 text-blue-700 px-2 py-0.5 rounded uppercase font-mono tracking-wider">early_gate</span>
+                <h4 className="text-xs font-bold text-slate-900 mt-2 mb-1">Structural Gate Check</h4>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Performs a zero-cost structural gate check before any LLM calls are spawned. If payload shapes, limits, or parameters violate structural guidelines, rejects instantly with <code className="text-amber-700">HTTP 422</code>.
+                </p>
+              </div>
+
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/60">
+                <span className="text-[9px] font-black bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded uppercase font-mono tracking-wider">canary</span>
+                <h4 className="text-xs font-bold text-slate-900 mt-2 mb-1">Sentinel Probe (Canary)</h4>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Executes the structural check, then executes only **chunk 0** serially. If chunk 0 fails schema checks, aborts execution immediately, saving up to 90% of token consumption.
+                </p>
               </div>
             </div>
 
-            {/* Step 2 */}
-            <div className="flex flex-col justify-between p-6 bg-white border border-slate-200/80 rounded-xl relative hover:border-emerald-500/50 transition-all duration-300 shadow-sm tilt-3d">
-              <span className="absolute -top-7 right-2 text-8xl font-black text-slate-100 select-none font-serif tracking-tighter">02</span>
-              <div>
-                <span className="text-[10px] font-bold text-emerald-600 tracking-wider uppercase block mb-1">STEP TWO</span>
-                <h3 className="text-base font-bold text-slate-900 mb-2 mt-0">Provide Bearer Token</h3>
-                <p className="text-xs text-slate-500 leading-relaxed mb-6">
-                  Provide an optional API key to track and organize your logs. You can use any custom string or get a structured key from the{" "}
-                  <Link href="/console" className="text-emerald-600 font-bold underline hover:text-emerald-700">
-                    DevOps Console
-                  </Link>.
-                </p>
-              </div>
-              <div className="p-3 bg-slate-50 rounded font-mono text-[10px] text-slate-600 border border-slate-200 overflow-x-auto">
-                <code>Authorization: Bearer local_dev_key</code>
-              </div>
+            <div className="pt-4 border-t border-slate-100">
+              <h4 className="text-xs font-bold text-slate-900 mb-2">Strict Gate Rules (for early_gate & canary modes)</h4>
+              <ul className="text-[11px] text-slate-650 list-disc pl-5 space-y-1">
+                <li><strong>Chunks Count:</strong> Must contain between 1 and 25 chunks.</li>
+                <li><strong>Per-Chunk Size:</strong> Individual chunks must be strings and must not exceed 25,000 characters.</li>
+                <li><strong>Total Size Ceiling:</strong> Cumulative character volume of all chunks must not exceed 200,000 characters.</li>
+                <li><strong>Extraction Criteria:</strong> Must contain <code className="bg-slate-100 px-1 border border-slate-200 rounded">system_persona</code> (string) and <code className="bg-slate-100 px-1 border border-slate-200 rounded">target_signals</code> (list of strings).</li>
+              </ul>
             </div>
-
-            {/* Step 3 */}
-            <div className="flex flex-col justify-between p-6 bg-white border border-slate-200/80 rounded-xl relative hover:border-emerald-500/50 transition-all duration-300 shadow-sm tilt-3d">
-              <span className="absolute -top-7 right-2 text-8xl font-black text-slate-100 select-none font-serif tracking-tighter">03</span>
-              <div>
-                <span className="text-[10px] font-bold text-emerald-600 tracking-wider uppercase block mb-1">STEP THREE</span>
-                <h3 className="text-base font-bold text-slate-900 mb-2 mt-0">Zero-Shot Messages</h3>
-                <p className="text-xs text-slate-500 leading-relaxed mb-6">
-                  Pack guidelines in `system` and the current query in the final `user` message.
-                </p>
-              </div>
-              <div className="p-3 bg-slate-50 rounded font-mono text-[10px] text-slate-600 border border-slate-200 overflow-x-auto">
-                <code>[sys_instr, ..., final_user]</code>
-              </div>
-            </div>
-
           </div>
         </section>
 
-        {/* SECTION 3: CODE SNIPPETS WITH TABS */}
+        {/* SECTION 3: SWARM ARCHITECTURE DETAILS */}
+        <section className="mb-16">
+          <div className="flex items-center gap-2.5 mb-6">
+            <Layers className="w-6 h-6 text-emerald-600" />
+            <h2 className="text-2xl font-serif font-black text-slate-950 m-0">Swarm Architectural Framework</h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Planning Layer */}
+            <div className="p-6 bg-white border border-slate-200/80 rounded-xl relative hover:border-emerald-500/50 transition-all duration-300 shadow-sm">
+              <span className="absolute -top-7 right-2 text-8xl font-black text-slate-100 select-none font-serif tracking-tighter">4D</span>
+              <div className="relative z-10">
+                <span className="text-[10px] font-bold text-emerald-600 tracking-wider uppercase block mb-1">COMPLIANCE LAYER</span>
+                <h3 className="text-base font-bold text-slate-900 mb-2 mt-0">Invariant Validation</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Checks incoming swarm payloads against locked organizational schema structures or budget caps. If violations are detected, execution halts before hitting upstream endpoints.
+                </p>
+              </div>
+            </div>
+
+            {/* Geometry Layer */}
+            <div className="p-6 bg-white border border-slate-200/80 rounded-xl relative hover:border-emerald-500/50 transition-all duration-300 shadow-sm">
+              <span className="absolute -top-7 right-2 text-8xl font-black text-slate-100 select-none font-serif tracking-tighter">2D</span>
+              <div className="relative z-10">
+                <span className="text-[10px] font-bold text-emerald-600 tracking-wider uppercase block mb-1">ROUTING GEOMETRY</span>
+                <h3 className="text-base font-bold text-slate-900 mb-2 mt-0">Platonia Lookup</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Retrieves previously cached historical routing patterns or data geometries from database records to select optimal sliding-window chunk structures and dispatch paths.
+                </p>
+              </div>
+            </div>
+
+            {/* Trajectory Layer */}
+            <div className="p-6 bg-white border border-slate-200/80 rounded-xl relative hover:border-emerald-500/50 transition-all duration-300 shadow-sm">
+              <span className="absolute -top-7 right-2 text-8xl font-black text-slate-100 select-none font-serif tracking-tighter">3D</span>
+              <div className="relative z-10">
+                <span className="text-[10px] font-bold text-emerald-600 tracking-wider uppercase block mb-1">PREDICTIVE STAGE</span>
+                <h3 className="text-base font-bold text-slate-900 mb-2 mt-0">Trajectory Estimation</h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Estimates token consumption, retail cost, processing latency, recommended concurrency level, and risk scores prior to parallel execution.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* SECTION 4: STATE VERIFICATION (PROOF OF WORK) */}
+        <section className="mb-16">
+          <div className="flex items-center gap-2.5 mb-6">
+            <ShieldCheck className="w-6 h-6 text-emerald-600" />
+            <h2 className="text-2xl font-serif font-black text-slate-950 m-0">State Verification (Proof of Work)</h2>
+          </div>
+
+          <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 md:p-8 shadow-sm space-y-4 tilt-3d">
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-emerald-500/20 via-blue-500/30 to-purple-500/20" />
+            
+            <p className="text-xs text-slate-650 leading-relaxed">
+              Membrane includes an execution sandbox at <code className="bg-slate-100 px-1 border border-slate-200 rounded">/v1/swarm/state</code>. Multi-agent workflows use this endpoint to execute compile-time code checks and generate cryptographic proof-of-work watermarks prior to committing scripts to storage.
+            </p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/60">
+                <h4 className="text-xs font-bold text-slate-900 mb-1">1. Sandboxed Compilation</h4>
+                <p className="text-[11px] text-slate-550 leading-relaxed">
+                  For Python code (`python_code`), scripts compile to bytecode via <code className="bg-white px-1 py-0.5 border border-slate-200 rounded">py_compile</code>. For React components (`react_component`), scripts build using the TypeScript compiler (<code className="bg-white px-1 py-0.5 border border-slate-200 rounded">tsc</code>) to verify strict syntactic and type soundness.
+                </p>
+              </div>
+
+              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/60">
+                <h4 className="text-xs font-bold text-slate-900 mb-1">2. Cryptographic Signatures</h4>
+                <p className="text-[11px] text-slate-550 leading-relaxed">
+                  Upon compilation success, Membrane stamps the verified script, writing it to destination storage, and returns a verified signature based on modulo-7919 hashing of the payload:
+                  <br />
+                  <code className="block mt-2 text-[10px] text-slate-600 bg-white p-1.5 border border-slate-200 rounded font-mono">
+                    MEMBRANE_VERIFIED_[watermark]_[sha256_prefix]
+                  </code>
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* SECTION 5: CODE SNIPPETS WITH TABS */}
         <section className="mb-20">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-2.5">
               <Terminal className="w-6 h-6 text-emerald-600" />
               <h2 className="text-2xl font-serif font-black text-slate-950 m-0">Standard SDK Integrations</h2>
             </div>
             
-            {/* Lang Tabs */}
-            <div className="flex bg-slate-100 border border-slate-200 p-1 rounded-lg">
-              {(["python", "javascript", "curl", "langchain"] as CodeLang[]).map((lang) => (
-                <button
-                  key={lang}
-                  onClick={() => setActiveLang(lang)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all uppercase cursor-pointer ${
-                    activeLang === lang 
-                      ? "bg-slate-900 text-white shadow-sm" 
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  {lang === "javascript" ? "JS/Node" : lang}
-                </button>
-              ))}
+            <div className="flex flex-wrap gap-2">
+              {/* Endpoint Selector Tabs */}
+              <div className="flex bg-slate-100 border border-slate-200 p-0.5 rounded-lg">
+                {([
+                  { id: "chat", label: "Chat" },
+                  { id: "swarm-plan", label: "Swarm Plan" },
+                  { id: "swarm-map", label: "Swarm Map" },
+                  { id: "swarm-state", label: "PoW State" }
+                ] as const).map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveEndpointCode(tab.id)}
+                    className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all uppercase cursor-pointer ${
+                      activeEndpointCode === tab.id 
+                        ? "bg-slate-950 text-white shadow-sm" 
+                        : "text-slate-600 hover:text-slate-950"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Lang Selector Tabs */}
+              <div className="flex bg-slate-100 border border-slate-200 p-0.5 rounded-lg">
+                {(["python", "javascript", "curl", "langchain"] as CodeLang[]).map((lang) => (
+                  <button
+                    key={lang}
+                    onClick={() => setActiveLang(lang)}
+                    className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all uppercase cursor-pointer ${
+                      activeLang === lang 
+                        ? "bg-emerald-600 text-white shadow-sm" 
+                        : "text-slate-600 hover:text-slate-950"
+                    }`}
+                  >
+                    {lang === "javascript" ? "JS" : lang}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
           {/* Code Showcase Card */}
-          <div className="bg-slate-900 border border-slate-950 rounded-xl overflow-hidden relative group tilt-3d">
+          <div className="bg-slate-900 border border-slate-955 rounded-xl overflow-hidden relative group tilt-3d">
             {/* Clipboard copy button */}
             <button
-              onClick={() => handleCopy(codeSnippets[activeLang], "snippet")}
-              className="absolute right-4 top-4 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded text-slate-300 hover:text-white transition-all text-[10px] font-bold flex items-center gap-1.5 z-10"
+              onClick={() => handleCopy(codeSnippets[activeEndpointCode][activeLang], "snippet")}
+              className="absolute right-4 top-4 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-705 rounded text-slate-350 hover:text-white transition-all text-[10px] font-bold flex items-center gap-1.5 z-10"
             >
               {copiedText === "snippet" ? (
                 <>
@@ -536,112 +923,309 @@ Headers:
 
             <div className="p-5 overflow-x-auto">
               <pre className="text-xs text-slate-300 font-mono leading-relaxed select-all">
-                <code>{codeSnippets[activeLang]}</code>
+                <code>{codeSnippets[activeEndpointCode][activeLang]}</code>
               </pre>
             </div>
           </div>
         </section>
 
-        {/* SECTION 4: LIVE ENDPOINT TEST BENCH */}
+        {/* SECTION 6: LIVE ENDPOINT TEST BENCH */}
         <section className="mb-20 relative">
           <div className="flex items-center gap-2.5 mb-2">
             <Zap className="w-6 h-6 text-emerald-600" />
             <h2 className="text-2xl font-serif font-black text-slate-950 m-0">Live Completions Test Bench</h2>
           </div>
-          <p className="text-slate-600 text-xs leading-relaxed mb-8">
-            Test the live API endpoint directly from your browser. Modify parameters below and observe the compiled request structure and execution return values.
+          <p className="text-slate-650 text-xs leading-relaxed mb-6">
+            Test and diagnose raw API responses directly from the dashboard sandbox environment. Select an endpoint tab, modify payload fields, and observe execution latency, billing ledger entries, and compiled return schemas.
           </p>
+
+          {/* Playground Route Tabs */}
+          <div className="flex bg-slate-100 border border-slate-200 p-1 rounded-xl mb-6 max-w-xl">
+            {([
+              { id: "chat", label: "Chat Completions (/v1/chat/completions)" },
+              { id: "swarm-plan", label: "Swarm Planning (/v1/swarm/plan)" },
+              { id: "swarm-map", label: "Swarm Map-Reduce (/v1/swarm/map)" },
+              { id: "swarm-state", label: "Proof of Work (/v1/swarm/state)" }
+            ] as const).map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setActivePlaygroundRoute(tab.id);
+                  setPlaygroundOutput("");
+                  setPlaygroundError(null);
+                  setTelemetryROI(null);
+                }}
+                className={`flex-1 py-2 px-3 rounded-lg text-[10px] font-black tracking-wider transition-all text-center uppercase cursor-pointer ${
+                  activePlaygroundRoute === tab.id 
+                    ? "bg-slate-900 text-white shadow-sm" 
+                    : "text-slate-600 hover:text-slate-950"
+                }`}
+              >
+                {tab.label.split(" (")[0]}
+              </button>
+            ))}
+          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             
             {/* Left: Interactive Controls (5 cols) */}
-            <div className="lg:col-span-5 space-y-5 bg-white border border-slate-200/80 p-5 rounded-2xl shadow-sm relative tilt-3d">
+            <div className="lg:col-span-5 space-y-4 bg-white border border-slate-200/80 p-5 rounded-2xl shadow-sm relative tilt-3d">
               <div className="absolute top-0 left-0 w-1.5 h-full bg-emerald-600/40 rounded-l-2xl" />
               
+              {/* Universal Auth Key (Always shown) */}
               <div>
-                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 font-mono">
                   Sandbox Authorization Key
                 </label>
                 <div className="relative">
-                  <Key className="w-3.5 h-3.5 absolute left-3 top-3.5 text-slate-400" />
+                  <Key className="w-3.5 h-3.5 absolute left-3 top-3 text-slate-400" />
                   <input
                     type="password"
                     value={apiKey}
                     onChange={(e) => updateApiKey(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 pl-9 font-mono text-xs text-slate-700 focus:outline-none focus:bg-white focus:ring-1 focus:ring-slate-300"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 pl-9 font-mono text-xs text-slate-700 focus:outline-none focus:bg-white focus:ring-1 focus:ring-slate-350"
                     placeholder="local_dev_key (Optional)"
                   />
                 </div>
-                <span className="text-[9px] text-slate-400 mt-1 block font-serif italic">
-                  * API keys are completely optional during development.
-                </span>
               </div>
 
-              <div>
-                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
-                  Test prompt
-                </label>
-                <textarea
-                  value={testPrompt}
-                  onChange={(e) => setTestPrompt(e.target.value)}
-                  rows={2}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 font-mono text-xs text-slate-700 focus:outline-none focus:bg-white focus:ring-1 focus:ring-slate-300 resize-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
-                    Model Layer
-                  </label>
-                  <select
-                    value={testModel}
-                    onChange={(e) => setTestModel(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-700 focus:outline-none focus:bg-white"
-                  >
-                    <option value="membrane-engagement-layer">membrane-engagement</option>
-                    <option value="openai/gpt-4o-mini">gpt-4o-mini</option>
-                    <option value="gemini/gemini-2.5-flash">gemini-2.5-flash</option>
-                  </select>
-                </div>
-                
-                <div className="flex flex-col justify-end pb-1.5">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="use-streaming"
-                      checked={useStreaming}
-                      onChange={(e) => setUseStreaming(e.target.checked)}
-                      className="accent-emerald-600 rounded border-slate-300 cursor-pointer"
-                    />
-                    <label htmlFor="use-streaming" className="text-xs font-bold text-slate-700 cursor-pointer select-none">
-                      Stream (SSE)
+              {/* --- ROUTE SPECIFIC RENDERERS --- */}
+              {activePlaygroundRoute === "chat" && (
+                <>
+                  <div>
+                    <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 font-mono">
+                      Test Prompt
                     </label>
+                    <textarea
+                      value={testPrompt}
+                      onChange={(e) => setTestPrompt(e.target.value)}
+                      rows={2}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-mono text-xs text-slate-700 focus:outline-none focus:bg-white focus:ring-1 focus:ring-slate-350 resize-none"
+                    />
                   </div>
-                </div>
-              </div>
 
-              <div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="preserve-context"
-                    checked={preserveContext}
-                    onChange={(e) => setPreserveContext(e.target.checked)}
-                    className="accent-emerald-600 rounded border-slate-300 cursor-pointer"
-                  />
-                  <label htmlFor="preserve-context" className="text-xs font-bold text-slate-700 cursor-pointer select-none">
-                    Preserve Context (Bypass Pruning)
-                  </label>
-                </div>
-                <span className="text-[9px] text-slate-400 mt-1 block">
-                  Adds: <code className="bg-slate-100 px-1 border border-slate-200 rounded">X-Membrane-Preserve-Context: true</code>
-                </span>
-              </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 font-mono">
+                        Model Layer
+                      </label>
+                      <select
+                        value={testModel}
+                        onChange={(e) => setTestModel(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-700 focus:outline-none focus:bg-white"
+                      >
+                        <option value="membrane-engagement-layer">membrane-engagement</option>
+                        <option value="openai/gpt-4o-mini">gpt-4o-mini</option>
+                        <option value="gemini/gemini-2.5-flash">gemini-2.5-flash</option>
+                      </select>
+                    </div>
+                    
+                    <div className="flex flex-col justify-end pb-1.5">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="use-streaming"
+                          checked={useStreaming}
+                          onChange={(e) => setUseStreaming(e.target.checked)}
+                          className="accent-emerald-600 rounded border-slate-350 cursor-pointer"
+                        />
+                        <label htmlFor="use-streaming" className="text-xs font-bold text-slate-750 cursor-pointer select-none">
+                          Stream (SSE)
+                        </label>
+                      </div>
+                    </div>
+                  </div>
 
+                  <div className="pt-1">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="preserve-context"
+                        checked={preserveContext}
+                        onChange={(e) => setPreserveContext(e.target.checked)}
+                        className="accent-emerald-600 rounded border-slate-350 cursor-pointer"
+                      />
+                      <label htmlFor="preserve-context" className="text-xs font-bold text-slate-750 cursor-pointer select-none">
+                        Preserve Context (Bypass Pruning)
+                      </label>
+                    </div>
+                    <span className="text-[9px] text-slate-400 mt-1 block">
+                      Adds: <code className="bg-slate-100 px-1 border border-slate-200 rounded">X-Membrane-Preserve-Context: true</code>
+                    </span>
+                  </div>
+                </>
+              )}
+
+              {(activePlaygroundRoute === "swarm-plan" || activePlaygroundRoute === "swarm-map") && (
+                <>
+                  <div>
+                    <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 font-mono flex justify-between">
+                      <span>Chunks Input (One per line)</span>
+                      <span className="text-[8px] text-slate-400 font-sans font-normal">Splits list of strings</span>
+                    </label>
+                    <textarea
+                      value={testChunks}
+                      onChange={(e) => setTestChunks(e.target.value)}
+                      rows={3}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-mono text-xs text-slate-750 focus:outline-none focus:bg-white focus:ring-1 focus:ring-slate-350 resize-none"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 font-mono">
+                        Invariant Set ID
+                      </label>
+                      <input
+                        type="text"
+                        value={invariantSetId}
+                        onChange={(e) => setInvariantSetId(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-mono text-xs text-slate-755 focus:outline-none focus:bg-white"
+                        placeholder="e.g. ent_compliance_lock_v1"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 font-mono">
+                        Max Concurrency
+                      </label>
+                      <input
+                        type="number"
+                        value={maxConcurrency}
+                        onChange={(e) => setMaxConcurrency(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-mono text-xs text-slate-755 focus:outline-none focus:bg-white"
+                        placeholder="20"
+                      />
+                    </div>
+                  </div>
+
+                  {activePlaygroundRoute === "swarm-map" && (
+                    <>
+                      <div>
+                        <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 font-mono">
+                          Swarm Mode Header (X-Membrane-Swarm-Mode)
+                        </label>
+                        <select
+                          value={swarmModeHeader}
+                          onChange={(e) => setSwarmModeHeader(e.target.value)}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-755 focus:outline-none focus:bg-white"
+                        >
+                          <option value="legacy">legacy (Concurrent Fan-out)</option>
+                          <option value="early_gate">early_gate (Zero-token Gate Validation)</option>
+                          <option value="canary">canary (Sentinel Probe Chunk 0)</option>
+                        </select>
+                      </div>
+
+                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                        <span className="text-[8px] font-bold text-slate-400 block mb-1 font-mono uppercase">Extraction Criteria Configuration</span>
+                        <div className="space-y-2">
+                          <div>
+                            <label className="block text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-1">System Persona</label>
+                            <input
+                              type="text"
+                              value={systemPersona}
+                              onChange={(e) => setSystemPersona(e.target.value)}
+                              className="w-full bg-white border border-slate-200 rounded p-1.5 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-350"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-1">Target Signals (Comma Separated)</label>
+                            <input
+                              type="text"
+                              value={targetSignals}
+                              onChange={(e) => setTargetSignals(e.target.value)}
+                              className="w-full bg-white border border-slate-200 rounded p-1.5 text-xs text-slate-755 focus:outline-none focus:ring-1 focus:ring-slate-350 font-mono"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+
+              {activePlaygroundRoute === "swarm-state" && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 font-mono">
+                        Agent ID
+                      </label>
+                      <input
+                        type="text"
+                        value={agentId}
+                        onChange={(e) => setAgentId(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-mono text-xs text-slate-755 focus:outline-none focus:bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 font-mono">
+                        Target Agent ID
+                      </label>
+                      <input
+                        type="text"
+                        value={targetAgentId}
+                        onChange={(e) => setTargetAgentId(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-mono text-xs text-slate-755 focus:outline-none focus:bg-white"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 font-mono">
+                        Task Type
+                      </label>
+                      <select
+                        value={taskType}
+                        onChange={(e) => {
+                          setTaskType(e.target.value);
+                          if (e.target.value === "python_code") {
+                            setPowPayload("def main():\n    print(\"Processing swarm validation payload...\")\n    return True");
+                            setDestinationPath("scratch/validation_check.py");
+                          } else {
+                            setPowPayload("export default function MyWidget() {\n  return (\n    <div>\n      <h1>Proof of Work React Widget</h1>\n    </div>\n  );\n}");
+                            setDestinationPath("scratch/MyWidget.tsx");
+                          }
+                        }}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-755 focus:outline-none focus:bg-white"
+                      >
+                        <option value="python_code">python_code (Compilation)</option>
+                        <option value="react_component">react_component (TS check)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 font-mono">
+                        Destination Path
+                      </label>
+                      <input
+                        type="text"
+                        value={destinationPath}
+                        onChange={(e) => setDestinationPath(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-mono text-xs text-slate-755 focus:outline-none focus:bg-white"
+                        placeholder="Optional"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 font-mono">
+                      State Payload (Code)
+                    </label>
+                    <textarea
+                      value={powPayload}
+                      onChange={(e) => setPowPayload(e.target.value)}
+                      rows={5}
+                      className="w-full bg-slate-55 border border-slate-200 rounded-lg p-2 font-mono text-xs text-slate-755 focus:outline-none focus:bg-white resize-y"
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Run Query Button */}
               <button
                 onClick={() => runLiveTest()}
-                disabled={playgroundLoading || !testPrompt}
+                disabled={playgroundLoading}
                 className={`w-full py-3 px-6 rounded-xl flex items-center justify-center gap-2 font-bold uppercase tracking-wider text-xs border transition-all tilt-3d ${
                   playgroundLoading
                     ? "bg-slate-200 text-slate-400 border-slate-200 cursor-not-allowed"
@@ -656,7 +1240,7 @@ Headers:
                 ) : (
                   <>
                     <Play className="w-3.5 h-3.5 text-white fill-current" />
-                    Execute Live Query
+                    Execute Sandbox Call
                   </>
                 )}
               </button>
@@ -671,36 +1255,43 @@ Headers:
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 font-mono shadow-sm animate-fade-in tilt-3d">
                   <div className="flex justify-between items-center border-b border-slate-250 pb-2 mb-3">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                      Ledger Telemetry
+                      <Activity className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
+                      Sandbox Telemetry Diagnostics
                     </span>
                     <span className="text-[9px] font-bold bg-emerald-50 border border-emerald-250 text-emerald-600 px-1.5 py-0.5 rounded">
                       {telemetryROI.status}
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2.5 text-center">
+                  <div className="grid grid-cols-3 gap-2.5 text-center">
                     <div className="p-2.5 bg-white rounded-lg border border-slate-250 shadow-sm">
-                      <p className="text-[9px] text-slate-450 uppercase font-sans font-bold">Latency</p>
+                      <p className="text-[9px] text-slate-450 uppercase font-sans font-bold">Execution Latency</p>
                       <p className="text-xs font-bold text-slate-900 mt-1">
                         {telemetryROI.latency}ms
                       </p>
                     </div>
+
                     <div className="p-2.5 bg-white rounded-lg border border-slate-250 shadow-sm">
-                      <p className="text-[9px] text-slate-450 uppercase font-sans font-bold">Diversion</p>
+                      <p className="text-[9px] text-slate-450 uppercase font-sans font-bold">
+                        {activePlaygroundRoute === "swarm-state" ? "Validation Status" : "Enterprise Ledger Cost"}
+                      </p>
                       <p className="text-xs font-bold text-slate-900 mt-1">
-                        {(() => {
-                          const status = telemetryROI.status.toUpperCase();
-                          if (status.includes("CACHE")) {
-                            return "100% (Cached)";
-                          } else if (status.includes("SURFACE") || status.includes("LOCAL_DEV_PASS") || status.includes("STREAM_COMPLETED")) {
-                            return "90% (Canary)";
-                          } else if (status.includes("DEEP") || status.includes("HEURISTIC")) {
-                            return "0% (Apex)";
-                          } else {
-                            return "100% (Local)";
-                          }
-                        })()}
+                        {activePlaygroundRoute === "swarm-state" 
+                          ? (telemetryROI.status === "POW_VERIFIED" ? "Verified Code" : "Failed Verification") 
+                          : `$${telemetryROI.billed_amount.toFixed(5)}`}
+                      </p>
+                    </div>
+
+                    <div className="p-2.5 bg-white rounded-lg border border-slate-250 shadow-sm">
+                      <p className="text-[9px] text-slate-450 uppercase font-sans font-bold">
+                        {activePlaygroundRoute === "swarm-plan" ? "Routing Plan" : activePlaygroundRoute === "swarm-state" ? "POW Watermark" : "Optimized Savings"}
+                      </p>
+                      <p className="text-xs font-bold text-slate-900 mt-1">
+                        {activePlaygroundRoute === "swarm-plan" 
+                          ? "Sliding-Window"
+                          : activePlaygroundRoute === "swarm-state"
+                            ? (telemetryROI.status === "POW_VERIFIED" ? "Modulo-7919" : "N/A")
+                            : `${telemetryROI.savings_percent.toFixed(1)}%`}
                       </p>
                     </div>
                   </div>
@@ -712,10 +1303,10 @@ Headers:
                 <div className="bg-rose-50 border border-rose-100 text-rose-800 rounded-xl p-4 flex items-start gap-3">
                   <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0" />
                   <div className="text-xs">
-                    <p className="font-bold text-rose-900">Request Rejected</p>
+                    <p className="font-bold text-rose-900">Sandbox Request Rejected</p>
                     <p className="mt-1 leading-relaxed">{playgroundError}</p>
                     <p className="mt-2 text-slate-400 leading-normal font-sans">
-                      Ensure the API proxy server is running. On Render, local dev endpoints fall back to cloud.
+                      Ensure the API proxy server is running locally on port 8000. In strict modes, check that the payloads satisfy character volume bounds and array shapes.
                     </p>
                   </div>
                 </div>
@@ -725,9 +1316,12 @@ Headers:
               <div className="border border-slate-200 bg-slate-900 rounded-xl overflow-hidden shadow-sm flex flex-col min-h-[220px] tilt-3d">
                 {/* Header */}
                 <div className="bg-slate-950 px-4 py-2 border-b border-slate-990 flex items-center justify-between text-xs text-slate-400">
-                  <span className="font-mono">completions-response-data</span>
-                  <span className="font-mono text-[9px] text-slate-650">
-                    {useStreaming ? "SSE (text/event-stream)" : "application/json"}
+                  <span className="font-mono flex items-center gap-1.5">
+                    <Terminal className="w-3.5 h-3.5 text-slate-500" />
+                    {activePlaygroundRoute === "chat" ? "completions-response-data" : activePlaygroundRoute === "swarm-plan" ? "swarm-planning-prediction" : activePlaygroundRoute === "swarm-map" ? "swarm-extraction-matrix" : "state-verification-proof"}
+                  </span>
+                  <span className="font-mono text-[9px] text-slate-600">
+                    {activePlaygroundRoute === "chat" && useStreaming ? "SSE (text/event-stream)" : "application/json"}
                   </span>
                 </div>
 
@@ -735,13 +1329,13 @@ Headers:
                   {playgroundLoading && !playgroundOutput ? (
                     <div className="flex flex-col items-center justify-center h-full text-slate-500 gap-2.5 mt-8">
                       <div className="w-5 h-5 border-2 border-slate-700 border-t-emerald-500 rounded-full animate-spin" />
-                      <span>Negotiating handshake routes...</span>
+                      <span>Negotiating sandbox connection...</span>
                     </div>
                   ) : playgroundOutput ? (
                     <pre className="whitespace-pre-wrap">{playgroundOutput}</pre>
                   ) : (
                     <span className="text-slate-500 italic">
-                      Configure parameters and execute the query to trigger live diagnostics.
+                      Configure payload inputs and execute the query to trigger live diagnostics from the local API gateway.
                     </span>
                   )}
                 </div>
@@ -752,62 +1346,205 @@ Headers:
           </div>
         </section>
 
-        {/* SECTION 5: PARAMETERS REFERENCE TABLE */}
+        {/* SECTION 7: PARAMETERS REFERENCE TABLES */}
         <section className="mb-20">
           <div className="flex items-center gap-2.5 mb-6">
             <Server className="w-6 h-6 text-emerald-600" />
-            <h2 className="text-2xl font-serif font-black text-slate-950 m-0">JSON Payload Parameters</h2>
+            <h2 className="text-2xl font-serif font-black text-slate-950 m-0">JSON Payload Schema Definitions</h2>
           </div>
-          
-          <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white">
-            <table className="w-full text-left text-xs m-0 border-collapse">
-              <thead className="bg-slate-50 border-b border-slate-200 text-slate-700">
-                <tr>
-                  <th className="px-5 py-3.5 font-bold uppercase tracking-wider text-[10px]">Parameter</th>
-                  <th className="px-5 py-3.5 font-bold uppercase tracking-wider text-[10px]">Type</th>
-                  <th className="px-5 py-3.5 font-bold uppercase tracking-wider text-[10px]">Default</th>
-                  <th className="px-5 py-3.5 font-bold uppercase tracking-wider text-[10px]">Description</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-750 font-mono">
-                <tr className="hover:bg-slate-55 bg-white">
-                  <td className="px-5 py-4 text-slate-900 font-bold">messages <span className="text-rose-500">*</span></td>
-                  <td className="px-5 py-4 text-slate-500">array</td>
-                  <td className="px-5 py-4 text-slate-400">n/a</td>
-                  <td className="px-5 py-4 text-slate-650 font-sans leading-relaxed">
-                    OpenAI SDK standard messages array. System instructions reside in `system`; final query must occupy the last `user` position.
-                  </td>
-                </tr>
-                <tr className="hover:bg-slate-55 bg-white">
-                  <td className="px-5 py-4 text-slate-900 font-bold">model</td>
-                  <td className="px-5 py-4 text-slate-500">string</td>
-                  <td className="px-5 py-4 text-slate-650">membrane-engagement-layer</td>
-                  <td className="px-5 py-4 text-slate-650 font-sans leading-relaxed">
-                    Routing layer identifier. Auto-routes complex logic demands to high-density models, routing simple tasks to canary.
-                  </td>
-                </tr>
-                <tr className="hover:bg-slate-55 bg-white">
-                  <td className="px-5 py-4 text-slate-900 font-bold">stream</td>
-                  <td className="px-5 py-4 text-slate-500">boolean</td>
-                  <td className="px-5 py-4 text-slate-400">false</td>
-                  <td className="px-5 py-4 text-slate-650 font-sans leading-relaxed">
-                    Toggles Server-Sent Events (SSE). Intercepts and formats output to comply with standard token-streaming readers.
-                  </td>
-                </tr>
-                <tr className="hover:bg-slate-55 bg-white">
-                  <td className="px-5 py-4 text-slate-900 font-bold">X-Membrane-Preserve-Context</td>
-                  <td className="px-5 py-4 text-slate-500">header</td>
-                  <td className="px-5 py-4 text-slate-400">false</td>
-                  <td className="px-5 py-4 text-slate-650 font-sans leading-relaxed">
-                    Custom HTTP request header. Set to `true` to skip default context compression filters when executing conversational dialogue.
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+
+          <div className="space-y-8">
+            {/* Completions */}
+            <div>
+              <h4 className="text-xs font-bold text-slate-900 mb-2 font-mono uppercase">/v1/chat/completions</h4>
+              <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white">
+                <table className="w-full text-left text-xs m-0 border-collapse">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-705">
+                    <tr>
+                      <th className="px-5 py-3 font-bold uppercase tracking-wider text-[9px] w-1/4">Parameter</th>
+                      <th className="px-5 py-3 font-bold uppercase tracking-wider text-[9px] w-1/6">Type</th>
+                      <th className="px-5 py-3 font-bold uppercase tracking-wider text-[9px] w-1/6">Default</th>
+                      <th className="px-5 py-3 font-bold uppercase tracking-wider text-[9px]">Description</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-750 font-mono">
+                    <tr className="hover:bg-slate-50 bg-white">
+                      <td className="px-5 py-3 text-slate-900 font-bold">messages <span className="text-rose-500">*</span></td>
+                      <td className="px-5 py-3 text-slate-500 font-mono">array</td>
+                      <td className="px-5 py-3 text-slate-400 font-mono">n/a</td>
+                      <td className="px-5 py-3 text-slate-600 font-sans leading-relaxed">
+                        OpenAI SDK messages array. System instructions reside in <code className="bg-slate-100 px-1 rounded">system</code>; final query must occupy the last <code className="bg-slate-100 px-1 rounded">user</code> position.
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-slate-50 bg-white">
+                      <td className="px-5 py-3 text-slate-900 font-bold">model</td>
+                      <td className="px-5 py-3 text-slate-500 font-mono">string</td>
+                      <td className="px-5 py-3 text-slate-600 font-mono">membrane-engagement-layer</td>
+                      <td className="px-5 py-3 text-slate-600 font-sans leading-relaxed">
+                        Routing layer identifier. Auto-routes complex requests to deep models and simple ones to canary.
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-slate-50 bg-white">
+                      <td className="px-5 py-3 text-slate-900 font-bold">stream</td>
+                      <td className="px-5 py-3 text-slate-500 font-mono">boolean</td>
+                      <td className="px-5 py-3 text-slate-400 font-mono">false</td>
+                      <td className="px-5 py-3 text-slate-600 font-sans leading-relaxed">
+                        Toggles Server-Sent Events (SSE) token-by-token streaming compatible with standard OpenAI client readers.
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-slate-50 bg-white">
+                      <td className="px-5 py-3 text-slate-900 font-bold">X-Membrane-Preserve-Context</td>
+                      <td className="px-5 py-3 text-slate-500 font-mono">header</td>
+                      <td className="px-5 py-3 text-slate-450 font-mono">false</td>
+                      <td className="px-5 py-3 text-slate-600 font-sans leading-relaxed">
+                        Custom request header. Set to `true` to skip default context compression filters when executing multi-turn conversational dialogue.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Swarm Plan */}
+            <div>
+              <h4 className="text-xs font-bold text-slate-900 mb-2 font-mono uppercase">/v1/swarm/plan</h4>
+              <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white">
+                <table className="w-full text-left text-xs m-0 border-collapse">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-705">
+                    <tr>
+                      <th className="px-5 py-3 font-bold uppercase tracking-wider text-[9px] w-1/4">Parameter</th>
+                      <th className="px-5 py-3 font-bold uppercase tracking-wider text-[9px] w-1/6">Type</th>
+                      <th className="px-5 py-3 font-bold uppercase tracking-wider text-[9px] w-1/6">Default</th>
+                      <th className="px-5 py-3 font-bold uppercase tracking-wider text-[9px]">Description</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-750 font-mono">
+                    <tr className="hover:bg-slate-50 bg-white">
+                      <td className="px-5 py-3 text-slate-900 font-bold">chunks <span className="text-rose-500">*</span></td>
+                      <td className="px-5 py-3 text-slate-500 font-mono">array of strings</td>
+                      <td className="px-5 py-3 text-slate-400 font-mono">n/a</td>
+                      <td className="px-5 py-3 text-slate-600 font-sans leading-relaxed">
+                        List of page text slices or logical document blocks. Character length bounds apply when in strict compliance modes.
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-slate-50 bg-white">
+                      <td className="px-5 py-3 text-slate-900 font-bold">invariant_set_id</td>
+                      <td className="px-5 py-3 text-slate-500 font-mono">string</td>
+                      <td className="px-5 py-3 text-slate-400 font-mono">null</td>
+                      <td className="px-5 py-3 text-slate-600 font-sans leading-relaxed">
+                        Optional ID of the locked enterprise compliance schema rules. If provided, checks chunks volume limits before proceeding.
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-slate-50 bg-white">
+                      <td className="px-5 py-3 text-slate-900 font-bold">max_concurrency</td>
+                      <td className="px-5 py-3 text-slate-500 font-mono">integer</td>
+                      <td className="px-5 py-3 text-slate-600 font-mono">20</td>
+                      <td className="px-5 py-3 text-slate-600 font-sans leading-relaxed">
+                        Maximum concurrent requests allowable for routing geometry dispatch. Recommends downscaling if risk bounds are high.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Swarm Map */}
+            <div>
+              <h4 className="text-xs font-bold text-slate-900 mb-2 font-mono uppercase">/v1/swarm/map</h4>
+              <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white">
+                <table className="w-full text-left text-xs m-0 border-collapse">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-705">
+                    <tr>
+                      <th className="px-5 py-3 font-bold uppercase tracking-wider text-[9px] w-1/4">Parameter</th>
+                      <th className="px-5 py-3 font-bold uppercase tracking-wider text-[9px] w-1/6">Type</th>
+                      <th className="px-5 py-3 font-bold uppercase tracking-wider text-[9px] w-1/6">Default</th>
+                      <th className="px-5 py-3 font-bold uppercase tracking-wider text-[9px]">Description</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-750 font-mono">
+                    <tr className="hover:bg-slate-50 bg-white">
+                      <td className="px-5 py-3 text-slate-900 font-bold">chunks <span className="text-rose-500">*</span></td>
+                      <td className="px-5 py-3 text-slate-500 font-mono">array of strings</td>
+                      <td className="px-5 py-3 text-slate-400 font-mono">n/a</td>
+                      <td className="px-5 py-3 text-slate-600 font-sans leading-relaxed">
+                        Array of document text segments. Evaluated concurrently using map-reduce workers.
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-slate-50 bg-white">
+                      <td className="px-5 py-3 text-slate-900 font-bold">extraction_criteria <span className="text-rose-500">*</span></td>
+                      <td className="px-5 py-3 text-slate-500 font-mono">object</td>
+                      <td className="px-5 py-3 text-slate-400 font-mono">n/a</td>
+                      <td className="px-5 py-3 text-slate-600 font-sans leading-relaxed">
+                        Dictionary containing extraction rules: <code className="bg-slate-100 px-1 rounded">system_persona</code> (string) and <code className="bg-slate-100 px-1 rounded">target_signals</code> (list of strings).
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-slate-50 bg-white">
+                      <td className="px-5 py-3 text-slate-900 font-bold">invariant_set_id</td>
+                      <td className="px-5 py-3 text-slate-500 font-mono">string</td>
+                      <td className="px-5 py-3 text-slate-400 font-mono">null</td>
+                      <td className="px-5 py-3 text-slate-600 font-sans leading-relaxed">
+                        Locked compliance lock ID. Runs the 4D Invariant gate check if set.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Swarm State */}
+            <div>
+              <h4 className="text-xs font-bold text-slate-900 mb-2 font-mono uppercase">/v1/swarm/state</h4>
+              <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white">
+                <table className="w-full text-left text-xs m-0 border-collapse">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-705">
+                    <tr>
+                      <th className="px-5 py-3 font-bold uppercase tracking-wider text-[9px] w-1/4">Parameter</th>
+                      <th className="px-5 py-3 font-bold uppercase tracking-wider text-[9px] w-1/6">Type</th>
+                      <th className="px-5 py-3 font-bold uppercase tracking-wider text-[9px] w-1/6">Default</th>
+                      <th className="px-5 py-3 font-bold uppercase tracking-wider text-[9px]">Description</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-750 font-mono">
+                    <tr className="hover:bg-slate-50 bg-white">
+                      <td className="px-5 py-3 text-slate-900 font-bold">agent_id <span className="text-rose-500">*</span></td>
+                      <td className="px-5 py-3 text-slate-500 font-mono">string</td>
+                      <td className="px-5 py-3 text-slate-400 font-mono">n/a</td>
+                      <td className="px-5 py-3 text-slate-600 font-sans leading-relaxed">
+                        Unique string identifying the requesting agent.
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-slate-50 bg-white">
+                      <td className="px-5 py-3 text-slate-900 font-bold">task_type <span className="text-rose-500">*</span></td>
+                      <td className="px-5 py-3 text-slate-500 font-mono">string</td>
+                      <td className="px-5 py-3 text-slate-400 font-mono">n/a</td>
+                      <td className="px-5 py-3 text-slate-600 font-sans leading-relaxed">
+                        Type of compiler sandbox to spin up: <code className="bg-slate-100 px-1 rounded">python_code</code> or <code className="bg-slate-100 px-1 rounded">react_component</code>.
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-slate-50 bg-white">
+                      <td className="px-5 py-3 text-slate-900 font-bold">payload <span className="text-rose-500">*</span></td>
+                      <td className="px-5 py-3 text-slate-500 font-mono">string</td>
+                      <td className="px-5 py-3 text-slate-400 font-mono">n/a</td>
+                      <td className="px-5 py-3 text-slate-600 font-sans leading-relaxed">
+                        The code file contents to compile and test.
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-slate-50 bg-white">
+                      <td className="px-5 py-3 text-slate-900 font-bold">destination_path</td>
+                      <td className="px-5 py-3 text-slate-500 font-mono">string</td>
+                      <td className="px-5 py-3 text-slate-450 font-mono">null</td>
+                      <td className="px-5 py-3 text-slate-600 font-sans leading-relaxed">
+                        Optional output path inside the agent workspace directory to save the file upon validation success.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </section>
 
-        {/* SECTION 6: POLICY & ERROR REFERENCE */}
+        {/* SECTION 8: POLICY & ERROR REFERENCE */}
         <section className="mb-20">
           <div className="flex items-center gap-2.5 mb-6">
             <ShieldAlert className="w-6 h-6 text-emerald-600" />
@@ -815,7 +1552,7 @@ Headers:
           </div>
 
           <p className="text-slate-650 text-xs leading-relaxed mb-6">
-            Membrane filters incoming requests based on safety policies. Prompt injections or policy violations return structured rejections:
+            Membrane filters incoming requests based on safety policies. Prompt injections or structural failures return clean, informative error payloads:
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -826,7 +1563,7 @@ Headers:
               </div>
               <div className="text-xs">
                 <h4 className="font-bold text-slate-900 mb-1">Bad Request (Policy Rejection)</h4>
-                <p className="text-slate-500 leading-relaxed">
+                <p className="text-slate-550 leading-relaxed">
                   System detected prompt injection, guideline bypass attempts, or jailbreak keywords. The request is rejected without hitting upstream providers.
                 </p>
               </div>
@@ -837,9 +1574,9 @@ Headers:
                 422
               </div>
               <div className="text-xs">
-                <h4 className="font-bold text-slate-900 mb-1">Unprocessable Entity (JSON Hallucination)</h4>
-                <p className="text-slate-500 leading-relaxed">
-                  FastAPI validation error, or the model repeatedly failed JSON structure checks and recovery routines when outputting structured schemas.
+                <h4 className="font-bold text-slate-900 mb-1">Unprocessable Entity (Gate Rejection / Hallucination)</h4>
+                <p className="text-slate-550 leading-relaxed">
+                  FastAPI validation error, or a swarm request failed pre-fan-out structural gate limits. Also returned if a completions query repeatedly failed response format compliance checks.
                 </p>
               </div>
             </div>
@@ -850,8 +1587,8 @@ Headers:
               </div>
               <div className="text-xs">
                 <h4 className="font-bold text-slate-900 mb-1">Bad Gateway (Provider Timeout)</h4>
-                <p className="text-slate-500 leading-relaxed">
-                  Upstream completion endpoints (Google, OpenAI, Anthropic) timed out or returned HTTP 5xx errors concurrently, triggering local failover.
+                <p className="text-slate-550 leading-relaxed">
+                  Upstream completion endpoints (Google, OpenAI, Anthropic) timed out or returned HTTP 5xx errors concurrently, triggering local failover models.
                 </p>
               </div>
             </div>
@@ -859,7 +1596,7 @@ Headers:
           </div>
         </section>
 
-        {/* SECTION 7: PRODUCTION DEPLOYMENT & LICENSING */}
+        {/* SECTION 9: PRODUCTION DEPLOYMENT & LICENSING */}
         <section className="mb-20">
           <div className="flex items-center gap-2.5 mb-6">
             <Server className="w-6 h-6 text-emerald-600" />

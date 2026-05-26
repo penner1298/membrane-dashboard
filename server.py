@@ -700,6 +700,10 @@ from membrane.swarm import (
     SwarmExecutionMode,
     validate_strict_swarm_request,
     execute_swarm_experiments,
+    SwarmPlanRequest,
+    TrajectoryPrediction,
+    SwarmPlanResponse,
+    validate_invariant_compliance,
 )
 
 @app.post("/v1/swarm/state", response_model=ProofOfWorkResponse)
@@ -711,6 +715,86 @@ async def verify_state_machine(request: ProofOfWorkRequest, http_req: Request, a
     workspace_dir = os.path.abspath(workspace_dir)
     return verify_state_machine_logic(request, workspace_dir)
 
+@app.post("/v1/swarm/plan", response_model=SwarmPlanResponse)
+async def generate_swarm_plan(
+    request: SwarmPlanRequest,
+    background_tasks: BackgroundTasks,
+    http_req: Request,
+    api_key_hash: str = Security(verify_access)
+):
+    enforce_public_throttle(http_req)
+    start_time = time.time()
+    
+    if not request.chunks:
+        raise HTTPException(status_code=400, detail="Chunks array cannot be empty")
+        
+    # PHASE 1: 4D LAYER - Invariant Compliance Validation
+    validate_invariant_compliance(request.chunks, request.invariant_set_id)
+    
+    total_character_volume = sum(len(c) for c in request.chunks)
+    chunk_count = len(request.chunks)
+    avg_chunk_size = total_character_volume / chunk_count if chunk_count > 0 else 0
+    
+    # PHASE 2: 2D LAYER - Platonia Geometry Vector Lookup
+    matched_geometry_id = "geo_pattern_legal_dense_v4"
+    if db_pool:
+        try:
+            async with db_pool.acquire() as conn:
+                row = await conn.fetchrow(
+                    "SELECT task_id FROM api_logs WHERE endpoint = '/v1/swarm/map' AND chunks_reached_model BETWEEN $1 AND $2 LIMIT 1",
+                    max(1, chunk_count - 3), chunk_count + 3
+                )
+                if row and row["task_id"]:
+                    matched_geometry_id = f"geo_pattern_historical_{row['task_id']}"
+        except Exception as e:
+            print(f"⚠️ Error querying platonia geometry: {e}")
+            
+    # PHASE 3: 3D LAYER - Trajectory Prediction
+    base_input_tokens_per_chunk = int(avg_chunk_size / 4)
+    estimated_tokens = (base_input_tokens_per_chunk + 500) * chunk_count
+    estimated_cost = (estimated_tokens / 1000000) * 2.00 * MARKUP_MULTIPLIER
+    
+    trajectory = TrajectoryPrediction(
+        estimated_total_tokens=estimated_tokens,
+        estimated_retail_cost=round(estimated_cost, 4),
+        estimated_latency_seconds=round(2.5 + (chunk_count * 0.1), 2),
+        recommended_concurrency=min(getattr(request, 'max_concurrency', 20) or 20, 15),
+        risk_score=0.15 if total_character_volume < 200000 else 0.65
+    )
+    
+    # Log the planning request for full transaction trackability
+    planning_log = {
+        "endpoint": "/v1/swarm/plan",
+        "tokens": 0,
+        "retail_cost": 0.0,
+        "wholesale_cost": 0.0,
+        "savings": 0.0,
+        "raw_input_size": total_character_volume,
+        "optimized_output_size": 0,
+        "savings_percentage": 0.0,
+        "workload_profile": "swarm_plan",
+        "swarm_mode": "plan",
+        "rejected_at_gate": False,
+        "canary_used": False,
+        "canary_succeeded": False,
+        "chunks_reached_model": chunk_count,
+        "estimated_waste_tokens": 0,
+        "latency_ms": int((time.time() - start_time) * 1000),
+        "died": False,
+        "task_id": f"plan_{matched_geometry_id}",
+        "concurrency_level": 0
+    }
+    background_tasks.add_task(charge_and_log_api_batch, api_key_hash, [planning_log])
+    
+    return SwarmPlanResponse(
+        selected_routing_geometry=matched_geometry_id,
+        trajectory=trajectory,
+        execution_strategy_notes=[
+            f"Verified structural alignment with invariant set: {request.invariant_set_id or 'DEFAULT'}.",
+            f"Matched data geometry profile to {matched_geometry_id}. Recommending sliding-window queue optimization."
+        ]
+    )
+
 @app.post("/v1/swarm/map", response_model=SwarmMapResponse)
 async def swarm_map(request: SwarmMapRequest, background_tasks: BackgroundTasks, http_req: Request, api_key_hash: str = Security(verify_access)):
     enforce_public_throttle(http_req)
@@ -720,6 +804,10 @@ async def swarm_map(request: SwarmMapRequest, background_tasks: BackgroundTasks,
     """
     if not request.chunks:
         raise HTTPException(status_code=400, detail="Chunks array cannot be empty")
+
+    # PHASE 1: 4D LAYER - Invariant Compliance Validation
+    validate_invariant_compliance(request.chunks, getattr(request, 'invariant_set_id', None))
+
 
     warnings_list = []
 

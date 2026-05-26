@@ -18,13 +18,20 @@ const TRIAL_CURL_SNIPPET = `curl -X POST https://membrane-api.com/v1/chat/comple
   -H "Content-Type: application/json" \\
   -d '{
     "model": "membrane-engagement-layer",
-    "messages": [
-      {
-        "role": "user",
-        "content": "Clean up this log and extract errors."
-      }
-    ]
+    "messages": [{"role": "user", "content": "Your prompt here"}]
   }'`;
+
+const TRIAL_PYTHON_SNIPPET = `from openai import OpenAI
+
+client = OpenAI(
+    base_url="https://membrane-api.com/v1",
+    api_key="sk_membrane_instant_trial"
+)
+
+response = client.chat.completions.create(
+    model="membrane-engagement-layer",
+    messages=[{"role": "user", "content": "Extract all dates, parties, and obligations from this contract..."}]
+)`;
 
 // Define technical patterns
 interface EngineeringPattern {
@@ -36,6 +43,26 @@ interface EngineeringPattern {
 }
 
 const ENGINEERING_PATTERNS: EngineeringPattern[] = [
+  {
+    id: "swarm_plan",
+    name: "Predictive Swarm Planning",
+    endpoint: "/v1/swarm/plan",
+    description: "Returns an explicit compliance check, matched historical data routing geometry pattern, and execution trajectory forecast (estimated tokens, cost, latency, concurrency, risk score) before initiating a massive multi-chunk swarm map-reduce task.",
+    defaultPayload: JSON.stringify({
+      model: "membrane-engagement-layer",
+      chunks: [
+        "SYSTEM_LOG_20260522-23: [AUTH] [CRITICAL] Failed to authorize root session for IP: 198.51.100.42. Database validation handshake timed out after 1200ms.",
+        "SYSTEM_LOG_20260522-24: [DB_POOL] [WARNING] Connection pool size peaked at 180 concurrent threads. Auto-scaling buffer triggered to allocate 20 fresh sockets.",
+        "SYSTEM_LOG_20260522-25: [API_GATEWAY] [ERROR] Routing exception generated. Endpoint /v1/chat/completions returned HTTP 502 Bad Gateway response on worker node 4."
+      ],
+      max_concurrency: 5,
+      extraction_criteria: {
+        system_persona: "Identify error signatures, severity tokens, and root system IP addresses.",
+        target_signals: ["CRITICAL", "ERROR", "WARNING"]
+      },
+      invariant_set_id: "ent_compliance_lock_v1"
+    }, null, 2)
+  },
   {
     id: "swarm_map",
     name: "High-Throughput Swarm Map-Reduce",
@@ -86,12 +113,13 @@ const ENGINEERING_PATTERNS: EngineeringPattern[] = [
   }
 ];
 
+
 export default function Home() {
   const [selectedPattern, setSelectedPattern] = useState<EngineeringPattern>(ENGINEERING_PATTERNS[0]);
   const [payloadText, setPayloadText] = useState<string>(ENGINEERING_PATTERNS[0].defaultPayload);
   const [slices, setSlices] = useState<number>(10);
   const [preserveContext, setPreserveContext] = useState<boolean>(false);
-  const [trialTab, setTrialTab] = useState<"curl" | "docker">("curl");
+  const [trialTab, setTrialTab] = useState<"curl" | "python" | "docker">("curl");
   const [valueLedger, setValueLedger] = useState<any | null>(null);
   const [inputMode, setInputMode] = useState<"json" | "document">("json");
   const [pdfProcessing, setPdfProcessing] = useState<boolean>(false);
@@ -229,7 +257,22 @@ export default function Home() {
       let actualCost = 0.00042;
       let unoptimizedCost = 0.00124;
 
-      if (resJson.membrane_metadata?.value_ledger) {
+      if (resJson.trajectory) {
+        const traj = resJson.trajectory;
+        actualCost = Number(traj.estimated_retail_cost || 0);
+        unoptimizedCost = actualCost * 2.0;
+        savingsPct = 50.0;
+        
+        setValueLedger({
+          actualCost,
+          unoptimizedCost,
+          savingsPercent: savingsPct,
+          chunkCount: bodyData.chunks?.length || 1,
+          model: bodyData.model || "membrane-engagement-layer",
+          taskId: resJson.selected_routing_geometry || "plan_tx",
+          timestamp: new Date().toISOString()
+        });
+      } else if (resJson.membrane_metadata?.value_ledger) {
         const ledger = resJson.membrane_metadata.value_ledger;
         actualCost = Number(ledger.actual_cost_incurred || 0);
         unoptimizedCost = Number(ledger.gross_unoptimized_cost || 0);
@@ -365,16 +408,19 @@ console.log(completion.choices[0].message.content);`;
         {/* HERO HEADER */}
         <div className="text-center max-w-3xl mx-auto space-y-6 pt-4">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/50 text-xs font-semibold tracking-wider uppercase">
-            <Sparkles className="w-3.5 h-3.5" /> High-Fidelity Extraction Engine
+            <Sparkles className="w-3.5 h-3.5" /> INVARIANT-FIRST ORCHESTRATION
           </div>
-          <h1 className="text-5xl sm:text-6xl font-serif font-black tracking-tight text-slate-950 leading-none">
-            Membrane
+          <h1 className="text-4xl sm:text-5xl font-serif font-black tracking-tight text-slate-950 leading-tight">
+            Stop burning money on failed LLM extractions.
           </h1>
-          <p className="text-lg sm:text-xl font-medium text-slate-700 max-w-2xl mx-auto">
-            High-fidelity extraction and structured handoffs for agent systems.
+          <p className="text-md sm:text-lg font-medium text-slate-700 max-w-3xl mx-auto leading-relaxed">
+            Membrane is a simple, OpenAI-compatible proxy built specifically for reliable parallel processing. Drop in a list of items (documents, transcripts, logs, etc.), tell it what to extract or analyze, and it automatically chunks the content, runs agents in parallel with strong validation, and returns clean structured JSON.
           </p>
-          <p className="text-sm text-slate-500 max-w-xl mx-auto">
-            Membrane is an open-source proxy and parallel extraction engine that solves context explosion, token cost bloat, and cascading hallucinations in multi-agent workflows.
+          <p className="text-sm text-slate-500 max-w-2xl mx-auto leading-relaxed">
+            Before you spend a single token, call <code>/v1/swarm/plan</code> to get an honest forecast of cost and risk. Bad jobs fail fast instead of quietly wasting your tokens.
+          </p>
+          <p className="text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-100 rounded-lg py-2 px-4 max-w-md mx-auto">
+            Free to self-host. Commercial use requires a license: $29/month or $490 one-time (Founding License — first 75 only).
           </p>
         </div>
 
@@ -393,6 +439,16 @@ console.log(completion.choices[0].message.content);`;
                 Cloud Sandbox (cURL)
               </button>
               <button
+                onClick={() => setTrialTab("python")}
+                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all uppercase cursor-pointer ${
+                  trialTab === "python" 
+                    ? "bg-slate-900 text-white shadow-sm" 
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                Python SDK
+              </button>
+              <button
                 onClick={() => setTrialTab("docker")}
                 className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all uppercase cursor-pointer ${
                   trialTab === "docker" 
@@ -403,26 +459,37 @@ console.log(completion.choices[0].message.content);`;
                 Local Sandbox (Docker)
               </button>
             </div>
-            <span className="text-[10px] uppercase font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded self-start sm:self-auto">No signup needed</span>
+            <span className="text-[10px] uppercase font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded self-start sm:self-auto">Try it now (no signup required)</span>
           </div>
           
           <div className="bg-slate-900 text-slate-100 p-4 rounded-xl shadow-lg border border-slate-800 font-mono text-sm relative group overflow-hidden tilt-3d">
             <div className="absolute top-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity">
               <button 
-                onClick={() => handleCopy(trialTab === "curl" ? TRIAL_CURL_SNIPPET : "docker run -d -p 8000:8000 thejoshuapenner/membrane", "trial")}
+                onClick={() => {
+                  let text = TRIAL_CURL_SNIPPET;
+                  if (trialTab === "python") text = TRIAL_PYTHON_SNIPPET;
+                  else if (trialTab === "docker") text = "docker run -d -p 8000:8000 thejoshuapenner/membrane";
+                  handleCopy(text, "trial");
+                }}
                 className="p-1.5 rounded-lg bg-slate-800 text-slate-350 hover:bg-slate-700 hover:text-white border border-slate-700 transition"
               >
                 {copiedIndex === "trial" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
               </button>
             </div>
             <pre className="overflow-x-auto whitespace-pre leading-relaxed pr-10">
-              <code>{trialTab === "curl" ? TRIAL_CURL_SNIPPET : "docker run -d -p 8000:8000 thejoshuapenner/membrane"}</code>
+              <code>
+                {trialTab === "curl" && TRIAL_CURL_SNIPPET}
+                {trialTab === "python" && TRIAL_PYTHON_SNIPPET}
+                {trialTab === "docker" && "docker run -d -p 8000:8000 thejoshuapenner/membrane"}
+              </code>
             </pre>
           </div>
-          <p className="text-[11px] text-slate-500 text-center italic">
+          <p className="text-[11px] text-slate-550 text-center italic">
             {trialTab === "curl" 
               ? "Copy and paste this query into your terminal. Authorization headers are optional during development; any string will work."
-              : "Run this command to spin up the local Membrane container proxy on port 8000. Free and unrestricted for local development."
+              : trialTab === "python"
+                ? "Run this Python snippet using the official OpenAI SDK client library."
+                : "Run this command to spin up the local Membrane container proxy on port 8000. Free and unrestricted for local development."
             }
           </p>
         </div>
@@ -730,60 +797,111 @@ console.log(completion.choices[0].message.content);`;
 
         <hr className="border-slate-200" />
 
+        {/* WHO IT'S FOR & FEATURES */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {/* Features Column */}
+          <div className="md:col-span-2 bg-white/60 backdrop-blur-md rounded-2xl border border-slate-200/80 p-8 shadow-xs space-y-6">
+            <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-emerald-600" /> Key Features
+            </h3>
+            <ul className="space-y-3 text-sm text-slate-700">
+              <li className="flex items-start gap-2.5">
+                <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <span><b>Parallel map-reduce with strong isolation</b>: Split large ingestion workloads across concurrent workers without leaking context.</span>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <span><b><code>/v1/swarm/plan</code> — cost & risk forecasting</b>: Perform pre-flight compliance checking and get dynamic cost/risk/latency forecasting before spending tokens.</span>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <span><b>Early Gate + Canary modes</b>: Catch structural, syntax, and schema errors early at sub-millisecond cost before unleashing swarms.</span>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <span><b>Full OpenAI client compatibility</b>: Standard <code>/v1/chat/completions</code> compatibility works with any OpenAI SDK client.</span>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <span><b>Docker Self-Hosting</b>: Spin up locally in a single command with full data silo privacy.</span>
+              </li>
+            </ul>
+          </div>
+          {/* Who It's For Column */}
+          <div className="bg-white/60 backdrop-blur-md rounded-2xl border border-slate-200/80 p-8 shadow-xs flex flex-col justify-between">
+            <div className="space-y-4">
+              <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                <Cpu className="w-5 h-5 text-emerald-600" /> Who It’s For
+              </h3>
+              <p className="text-sm text-slate-650 leading-relaxed">
+                Developers and small teams building document-heavy or high-volume structured workflows — legal tech, research tools, compliance, RAG pipelines, log analysis, and similar use cases.
+              </p>
+            </div>
+            <div className="pt-4 border-t border-slate-100 mt-4 space-y-1">
+              <p className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">Our Philosophy</p>
+              <p className="text-sm font-serif italic text-emerald-700 font-bold">
+                Simple. Predictable. Actually reliable.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <hr className="border-slate-200" />
+
         {/* PRICING & PHILOSOPHY */}
         <section id="pricing" className="py-12 space-y-8">
           <div className="text-center max-w-2xl mx-auto space-y-3">
-            <h2 className="text-3xl sm:text-4xl font-serif font-black text-slate-950">Pricing & Philosophy</h2>
-            <p className="text-slate-600 text-sm">
-              We keep it simple: no usage metering and no feature restrictions. You only pay when you deploy Membrane in production.
+            <h2 className="text-3xl sm:text-4xl font-serif font-black text-slate-950">Pricing (Open Core)</h2>
+            <p className="text-slate-650 text-sm leading-relaxed">
+              Membrane is completely free for personal use, experimentation, and development. If you are using Membrane for <b>commercial production work</b>, a paid license is required.
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto items-stretch">
             {/* Free Tier */}
-            <div className="bg-white/60 backdrop-blur-md rounded-2xl border border-slate-200/80 p-8 shadow-xs flex flex-col justify-between hover:border-emerald-600/30 transition-all duration-300">
+            <div className="bg-white/60 backdrop-blur-md rounded-2xl border border-slate-200/80 p-6 shadow-xs flex flex-col justify-between hover:border-emerald-600/30 transition-all duration-300">
               <div className="space-y-4">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h3 className="text-lg font-bold text-slate-900">Developer Sandbox</h3>
-                    <p className="text-xs text-slate-500 mt-1">For local development & sandbox testing</p>
+                    <h3 className="text-base font-bold text-slate-900">Developer Sandbox</h3>
+                    <p className="text-[11px] text-slate-500 mt-1">For local development & sandbox testing</p>
                   </div>
-                  <span className="px-2.5 py-1 text-xs font-bold text-emerald-700 bg-emerald-50 rounded-full">Free</span>
+                  <span className="px-2 py-0.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 rounded-full">Free</span>
                 </div>
-                <div className="text-3xl font-black text-slate-900">$0 <span className="text-xs font-normal text-slate-500">/ forever</span></div>
-                <ul className="space-y-2 text-xs text-slate-600 pt-2">
+                <div className="text-2xl font-black text-slate-900">$0 <span className="text-xs font-normal text-slate-500">/ forever</span></div>
+                <ul className="space-y-2 text-[11.5px] text-slate-600 pt-2">
                   <li className="flex items-center gap-2">✓ Full Swarm Map-Reduce access</li>
-                  <li className="flex items-center gap-2">✓ L1 Semantic Caching</li>
                   <li className="flex items-center gap-2">✓ Dynamic Model Routing</li>
+                  <li className="flex items-center gap-2">✓ L1 Semantic Caching</li>
                   <li className="flex items-center gap-2">✓ Any custom key works locally</li>
                 </ul>
               </div>
               <div className="pt-6">
                 <Link
                   href="/docs"
-                  className="w-full inline-flex items-center justify-center py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition duration-300 shadow-sm active:scale-[0.98] border border-slate-950 text-center"
+                  className="w-full inline-flex items-center justify-center py-2 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition duration-300 shadow-sm active:scale-[0.98] border border-slate-950 text-center"
                 >
                   Read Developer Docs
                 </Link>
               </div>
             </div>
             {/* Commercial Tier */}
-            <div className="bg-white/60 backdrop-blur-md rounded-2xl border-2 border-emerald-600/20 p-8 shadow-sm flex flex-col justify-between hover:border-emerald-600/40 transition-all duration-300 relative overflow-hidden">
-              <div className="absolute top-0 right-0 bg-emerald-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl-lg uppercase tracking-wider">
+            <div className="bg-white/60 backdrop-blur-md rounded-2xl border-2 border-emerald-600/20 p-6 shadow-sm flex flex-col justify-between hover:border-emerald-600/40 transition-all duration-300 relative overflow-hidden">
+              <div className="absolute top-0 right-0 bg-emerald-600 text-white text-[9px] font-bold px-2.5 py-0.5 rounded-bl-lg uppercase tracking-wider">
                 Production
               </div>
               <div className="space-y-4">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h3 className="text-lg font-bold text-slate-900">Commercial Production</h3>
-                    <p className="text-xs text-slate-500 mt-1">For cloud deployments</p>
+                    <h3 className="text-base font-bold text-slate-900">Commercial Production</h3>
+                    <p className="text-[11px] text-slate-500 mt-1">For cloud deployments</p>
                   </div>
-                  <span className="px-2.5 py-1 text-xs font-bold text-emerald-700 bg-emerald-50 rounded-full">$29/mo</span>
+                  <span className="px-2 py-0.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 rounded-full">$29/mo</span>
                 </div>
-                <div className="text-3xl font-black text-slate-900">$29 <span className="text-xs font-normal text-slate-500">/ month flat</span></div>
-                <p className="text-[10px] text-emerald-600 font-semibold bg-emerald-50 px-2 py-1 rounded inline-block">
+                <div className="text-2xl font-black text-slate-900">$29 <span className="text-xs font-normal text-slate-500">/ month flat</span></div>
+                <p className="text-[9.5px] text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded inline-block">
                   Get 20% off: $290 billed annually
                 </p>
-                <ul className="space-y-2 text-xs text-slate-600 pt-2">
+                <ul className="space-y-2 text-[11.5px] text-slate-600 pt-1">
                   <li className="flex items-center gap-2">✓ Unrestricted cloud usage</li>
                   <li className="flex items-center gap-2">✓ Pure honor-based model</li>
                   <li className="flex items-center gap-2">✓ Commercial use authorization</li>
@@ -795,15 +913,50 @@ console.log(completion.choices[0].message.content);`;
                   href="https://buy.polar.sh/polar_cl_yDHzavhCzMw8FkCp0t0X2NJNfg5xgqLmudIxZ0S54BZ"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full inline-flex items-center justify-center py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition duration-300 shadow-md hover:shadow-emerald-650/20 active:scale-[0.98] border border-emerald-500/20 text-center"
+                  className="w-full inline-flex items-center justify-center py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition duration-300 shadow-md hover:shadow-emerald-650/20 active:scale-[0.98] border border-emerald-500/20 text-center"
                 >
                   Activate License on Polar.sh
                 </a>
               </div>
             </div>
+            {/* Founding License Tier */}
+            <div className="bg-gradient-to-b from-slate-900 to-slate-950 text-white rounded-2xl border-2 border-amber-500/30 p-6 shadow-md flex flex-col justify-between hover:border-amber-500/60 transition-all duration-300 relative overflow-hidden">
+              <div className="absolute top-0 right-0 bg-amber-500 text-slate-950 text-[9px] font-black px-2.5 py-0.5 rounded-bl-lg uppercase tracking-wider">
+                Founding
+              </div>
+              <div className="space-y-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="text-base font-bold text-white">Founding License</h3>
+                    <p className="text-[11px] text-slate-400 mt-1">Only first 75 buyers</p>
+                  </div>
+                  <span className="px-2 py-0.5 text-[10px] font-bold text-amber-950 bg-amber-50 rounded-full">Lifetime</span>
+                </div>
+                <div className="text-2xl font-black text-white">$490 <span className="text-xs font-normal text-slate-400">/ one-time</span></div>
+                <p className="text-[9.5px] text-amber-300 font-semibold bg-amber-950/40 border border-amber-500/20 px-2 py-0.5 rounded inline-block">
+                  Lifetime commercial license
+                </p>
+                <ul className="space-y-2 text-[11.5px] text-slate-350 pt-1">
+                  <li className="flex items-center gap-2">✓ Permanent production authorization</li>
+                  <li className="flex items-center gap-2">✓ No monthly subscription fees</li>
+                  <li className="flex items-center gap-2">✓ Priority founder support channel</li>
+                  <li className="flex items-center gap-2">✓ Limited to first 75 developers</li>
+                </ul>
+              </div>
+              <div className="pt-6">
+                <a 
+                  href="https://buy.polar.sh/polar_cl_yDHzavhCzMw8FkCp0t0X2NJNfg5xgqLmudIxZ0S54BZ"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full inline-flex items-center justify-center py-2 px-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs uppercase tracking-wider rounded-xl transition duration-300 shadow-md hover:shadow-amber-500/20 active:scale-[0.98] border border-amber-400/20 text-center"
+                >
+                  Purchase Founding License
+                </a>
+              </div>
+            </div>
           </div>
           
-          <div className="max-w-2xl mx-auto p-4 bg-slate-50 rounded-xl border border-slate-200/50 text-slate-600 text-[11px] leading-relaxed space-y-2">
+          <div className="max-w-3xl mx-auto p-4 bg-slate-50 rounded-xl border border-slate-200/50 text-slate-650 text-[11px] leading-relaxed space-y-2">
             <p className="font-bold text-slate-800">What counts as Commercial Production?</p>
             <p>
               **Commercial Production** is defined as any deployment of Membrane on public cloud infrastructure (such as AWS, Render, GCP, Fly.io, Vercel) that powers an active application, API, or service outside of a developer's local machine (`localhost`) or private personal network. 

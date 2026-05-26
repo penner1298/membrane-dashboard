@@ -159,6 +159,31 @@ def main():
     yearly_product_id = yearly_product_result["id"]
     print(f"✅ Created Yearly Product: '{yearly_product_result.get('name')}' (ID: {yearly_product_id})")
     
+    # 3.7 Create the Founding Lifetime Product
+    print("\n📦 Creating Founding Lifetime Product...")
+    founding_product_payload = {
+        "name": "Membrane Founding License",
+        "description": (
+            "Lifetime commercial production license for Membrane. "
+            "Enables deploying Membrane on public cloud infrastructure (such as AWS, Render, GCP, Fly.io, Vercel) "
+            "to power active applications or APIs. "
+            "Includes unlimited swarm parallel extraction slices, L1/L2 semantic caching, and full context preservation support. "
+            "One-time payment. Limited to first 75 buyers."
+        ),
+        "is_recurring": False,
+        "prices": [
+            {
+                "price_amount": 49000,
+                "price_currency": "usd",
+                "amount_type": "fixed"
+            }
+        ]
+    }
+    
+    founding_product_result = make_request(f"{API_BASE_URL}/products", token, method="POST", payload=founding_product_payload)
+    founding_product_id = founding_product_result["id"]
+    print(f"✅ Created Founding Product: '{founding_product_result.get('name')}' (ID: {founding_product_id})")
+    
     # 4. Link Benefit to Products
     print("\n🔗 Linking License Key Benefit to Products...")
     link_payload = {
@@ -167,12 +192,13 @@ def main():
     
     make_request(f"{API_BASE_URL}/products/{product_id}/benefits", token, method="POST", payload=link_payload)
     make_request(f"{API_BASE_URL}/products/{yearly_product_id}/benefits", token, method="POST", payload=link_payload)
-    print("✅ License Key Benefit successfully attached to both Products.")
+    make_request(f"{API_BASE_URL}/products/{founding_product_id}/benefits", token, method="POST", payload=link_payload)
+    print("✅ License Key Benefit successfully attached to all Products.")
     
     # 5. Create Checkout Link
     print("\n🔗 Creating Checkout Link...")
     checkout_payload = {
-        "products": [product_id, yearly_product_id],
+        "products": [product_id, yearly_product_id, founding_product_id],
         "payment_processor": "stripe"
     }
     
@@ -180,9 +206,10 @@ def main():
     checkout_url = checkout_result.get("url")
     
     print("\n====================================================")
-    print("🎉 Polar.sh Subscription Setup Complete!")
+    print("🎉 Polar.sh Setup Complete!")
     print(f"Monthly Product ID: {product_id}")
     print(f"Yearly Product ID: {yearly_product_id}")
+    print(f"Founding Product ID: {founding_product_id}")
     print(f"Benefit ID: {benefit_id}")
     print(f"Checkout URL: {checkout_url}")
     print("====================================================")

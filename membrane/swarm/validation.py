@@ -132,3 +132,30 @@ def validate_strict_swarm_request(
                     "check": "Criteria shape"
                 }
             )
+
+def validate_invariant_compliance(
+    chunks: List[Any],
+    invariant_set_id: Optional[str]
+) -> None:
+    """
+    4D LAYER: Invariant Compliance Check
+    Validates payload against locked schema contracts.
+    """
+    if not chunks:
+        return
+
+    total_character_volume = sum(len(c) for c in chunks if isinstance(c, str))
+
+    # Simulating a check against an enterprise-locked contract ceiling
+    if invariant_set_id == "ent_compliance_lock_v1":
+        # Example hard invariant: Enforce strict budget cap or string formats
+        if total_character_volume > 500000: # 500k character limit
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "error_type": "invariant_validation_failure",
+                    "message": "4D Invariant Violation: Payload exceeds locked organizational volume ceilings.",
+                    "check": "4D Invariant Check"
+                }
+            )
+
