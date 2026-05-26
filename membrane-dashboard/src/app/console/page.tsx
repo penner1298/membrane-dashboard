@@ -28,6 +28,7 @@ export default async function ConsolePage() {
   
   let dbStatus = "Offline";
   let isMock = true;
+  let experimentStats: any = null;
 
   try {
     // We run stats query with a fast fallback
@@ -67,7 +68,9 @@ export default async function ConsolePage() {
 
     // Fetch logs from api_logs
     const logsResult = await pool.query(`
-      SELECT id, created_at, endpoint, tokens, COALESCE(workload_profile, 'general') as workload_profile
+      SELECT id, created_at, endpoint, tokens, COALESCE(workload_profile, 'general') as workload_profile,
+             swarm_mode, rejected_at_gate, canary_used, canary_succeeded, chunks_reached_model,
+             estimated_waste_tokens, latency_ms, died, task_id, concurrency_level
       FROM api_logs
       ORDER BY created_at DESC
       LIMIT 100
@@ -83,25 +86,71 @@ export default async function ConsolePage() {
     `);
     dlqLogs = dlqResult.rows;
 
+    // Fetch Swarm Experiment statistics from database
+    const expResult = await pool.query(`
+      SELECT 
+        swarm_mode,
+        COUNT(DISTINCT task_id) as total_requests,
+        COUNT(DISTINCT task_id) FILTER (WHERE rejected_at_gate = TRUE) as rejected_requests,
+        SUM(tokens) as total_tokens,
+        SUM(estimated_waste_tokens) as waste_tokens,
+        AVG(concurrency_level)::float as avg_concurrency,
+        MAX(concurrency_level) as max_concurrency,
+        PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY latency_ms)::float as p95_latency,
+        PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY latency_ms)::float as p99_latency
+      FROM api_logs 
+      WHERE endpoint = '/v1/swarm/map' AND created_at > NOW() - INTERVAL '30 days'
+      GROUP BY swarm_mode
+    `);
+    
+    const expData: any = {};
+    for (const r of expResult.rows) {
+      expData[r.swarm_mode] = {
+        total_requests: parseInt(r.total_requests || 0),
+        rejected_requests: parseInt(r.rejected_requests || 0),
+        total_tokens: parseInt(r.total_tokens || 0),
+        waste_tokens: parseInt(r.waste_tokens || 0),
+        avg_concurrency: parseFloat(r.avg_concurrency || 0).toFixed(1),
+        max_concurrency: parseInt(r.max_concurrency || 0),
+        p95_latency: parseInt(r.p95_latency || 0),
+        p99_latency: parseInt(r.p99_latency || 0)
+      };
+    }
+    
+    for (const mode of ["legacy", "early_gate", "canary"]) {
+      if (!expData[mode]) {
+        expData[mode] = {
+          total_requests: 0,
+          rejected_requests: 0,
+          total_tokens: 0,
+          waste_tokens: 0,
+          avg_concurrency: "0.0",
+          max_concurrency: 0,
+          p95_latency: 0,
+          p99_latency: 0
+        };
+      }
+    }
+    experimentStats = expData;
+
   } catch (e: any) {
     console.warn("⚠️ Console database query failed (running with mock fallback):", e.message);
-    // Mock fallbacks if PostgreSQL is down (QA-35)
     dbStatus = "Offline";
     recentLogs = [
-      { id: 1, created_at: new Date().toISOString(), endpoint: "/v1/swarm/map", tokens: 1420, workload_profile: "swarm_map" },
+      { id: 1, created_at: new Date().toISOString(), endpoint: "/v1/swarm/map", tokens: 1420, workload_profile: "swarm_map", swarm_mode: "canary", canary_used: true, canary_succeeded: true, concurrency_level: 6, latency_ms: 4120 },
       { id: 2, created_at: new Date(Date.now() - 1800000).toISOString(), endpoint: "/v1/chat/completions", tokens: 350, workload_profile: "chat" },
       { id: 3, created_at: new Date(Date.now() - 3600000).toISOString(), endpoint: "/api/chat (L1_MEMORY_CACHE)", tokens: 0, workload_profile: "chat" },
       { id: 4, created_at: new Date(Date.now() - 5400000).toISOString(), endpoint: "/v1/swarm/state", tokens: 520, workload_profile: "verification" },
       { id: 5, created_at: new Date(Date.now() - 7200000).toISOString(), endpoint: "/v1/chat/completions", tokens: 840, workload_profile: "chat" },
-      { id: 6, created_at: new Date(Date.now() - 9000000).toISOString(), endpoint: "/v1/swarm/map", tokens: 21500, workload_profile: "swarm_map" },
+      { id: 6, created_at: new Date(Date.now() - 9000000).toISOString(), endpoint: "/v1/swarm/map", tokens: 0, workload_profile: "swarm_map_gate_rejection", swarm_mode: "early_gate", rejected_at_gate: true, died: true },
       { id: 7, created_at: new Date(Date.now() - 10800000).toISOString(), endpoint: "/api/chat (SEMANTIC_CACHE)", tokens: 0, workload_profile: "chat" },
       { id: 8, created_at: new Date(Date.now() - 14400000).toISOString(), endpoint: "/v1/swarm/state (error)", tokens: 0, workload_profile: "verification", status: "error" },
       { id: 9, created_at: new Date(Date.now() - 18000000).toISOString(), endpoint: "/v1/chat/completions", tokens: 1120, workload_profile: "chat" },
-      { id: 10, created_at: new Date(Date.now() - 21600000).toISOString(), endpoint: "/v1/swarm/map", tokens: 8900, workload_profile: "swarm_map" },
+      { id: 10, created_at: new Date(Date.now() - 21600000).toISOString(), endpoint: "/v1/swarm/map", tokens: 8900, workload_profile: "swarm_map", swarm_mode: "legacy", concurrency_level: 20, latency_ms: 3650 },
       { id: 11, created_at: new Date(Date.now() - 25200000).toISOString(), endpoint: "/v1/chat/completions", tokens: 460, workload_profile: "chat" },
       { id: 12, created_at: new Date(Date.now() - 28800000).toISOString(), endpoint: "/v1/swarm/state", tokens: 680, workload_profile: "verification" },
       { id: 13, created_at: new Date(Date.now() - 32400000).toISOString(), endpoint: "/api/chat (SEMANTIC_CACHE)", tokens: 0, workload_profile: "chat" },
-      { id: 14, created_at: new Date(Date.now() - 36000000).toISOString(), endpoint: "/v1/swarm/map (error)", tokens: 0, workload_profile: "swarm_map", status: "error" },
+      { id: 14, created_at: new Date(Date.now() - 36000000).toISOString(), endpoint: "/v1/swarm/map", tokens: 1500, workload_profile: "swarm_map_canary_failure", swarm_mode: "canary", canary_used: true, canary_succeeded: false, estimated_waste_tokens: 1500, died: true, latency_ms: 1220 },
       { id: 15, created_at: new Date(Date.now() - 39600000).toISOString(), endpoint: "/v1/chat/completions", tokens: 710, workload_profile: "chat" },
       { id: 16, created_at: new Date(Date.now() - 43200000).toISOString(), endpoint: "/v1/swarm/state", tokens: 490, workload_profile: "verification" }
     ];
@@ -161,6 +210,39 @@ export default async function ConsolePage() {
         error_message: "502 Bad Gateway: Upstream provider rate limits exceeded"
       }
     ];
+
+    experimentStats = {
+      legacy: {
+        total_requests: 1240,
+        rejected_requests: 0,
+        total_tokens: 3420500,
+        waste_tokens: 1480200,
+        avg_concurrency: "18.4",
+        max_concurrency: 25,
+        p95_latency: 3840,
+        p99_latency: 5210
+      },
+      early_gate: {
+        total_requests: 1350,
+        rejected_requests: 580,
+        total_tokens: 1980300,
+        waste_tokens: 185000,
+        avg_concurrency: "12.1",
+        max_concurrency: 20,
+        p95_latency: 3950,
+        p99_latency: 5350
+      },
+      canary: {
+        total_requests: 1190,
+        rejected_requests: 512,
+        total_tokens: 1610400,
+        waste_tokens: 58400,
+        avg_concurrency: "7.2",
+        max_concurrency: 12,
+        p95_latency: 4420,
+        p99_latency: 5980
+      }
+    };
   }
 
   const stats = {
@@ -211,6 +293,7 @@ export default async function ConsolePage() {
           apiKey={apiKey} 
           tenantId={tenantId} 
           dbStatus={dbStatus} 
+          experimentStats={experimentStats}
         />
 
       </main>

@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from "react";
 import { 
   Key, RefreshCw, Database, Terminal, ShieldAlert, 
-  Search, Copy, Check, Info, AlertTriangle, FileCode, Server
+  Search, Copy, Check, Info, AlertTriangle, FileCode, Server,
+  LineChart, TrendingDown, Layers, Zap, Ban, Activity
 } from "lucide-react";
 import { useApiKey } from "@/context/ApiKeyContext";
 
@@ -40,6 +41,11 @@ interface ConsoleClientProps {
   apiKey: string;
   tenantId: string;
   dbStatus: string;
+  experimentStats: {
+    legacy: any;
+    early_gate: any;
+    canary: any;
+  };
 }
 
 export function ConsoleClient({ 
@@ -48,9 +54,10 @@ export function ConsoleClient({
   dlqLogs, 
   apiKey, 
   tenantId, 
-  dbStatus 
+  dbStatus,
+  experimentStats
 }: ConsoleClientProps) {
-  const [activeTab, setActiveTab] = useState<"traffic" | "dlq" | "settings">("traffic");
+  const [activeTab, setActiveTab] = useState<"experiments" | "traffic" | "dlq" | "settings">("experiments");
   const [searchQuery, setSearchQuery] = useState("");
   const [copied, setCopied] = useState(false);
   const [inspectingDlq, setInspectingDlq] = useState<DqlEntry | null>(null);
@@ -206,6 +213,17 @@ export function ConsoleClient({
           {/* Tab buttons */}
           <div className="flex gap-2">
             <button
+              onClick={() => setActiveTab("experiments")}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${
+                activeTab === "experiments"
+                  ? "bg-slate-900 text-white"
+                  : "bg-slate-100 text-slate-650 hover:bg-slate-200"
+              }`}
+            >
+              Early Rejection Experiments
+            </button>
+
+            <button
               onClick={() => setActiveTab("traffic")}
               className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${
                 activeTab === "traffic"
@@ -254,6 +272,292 @@ export function ConsoleClient({
           </div>
         </div>
 
+        {/* TAB: EXPERIMENTS */}
+        {activeTab === "experiments" && (
+          <div className="space-y-8 animate-in fade-in duration-300">
+            {/* Header intro */}
+            <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-5 text-xs text-slate-600 space-y-2 leading-relaxed">
+              <div className="flex items-center gap-2 text-slate-800 font-bold text-sm">
+                <LineChart className="w-4 h-4 text-emerald-600 animate-pulse" />
+                Active Early-Rejection Swarm Experiments
+              </div>
+              <p>
+                To protect context windows and reduce LLM execution costs, Membrane runs side-by-side experiments comparing two early rejection strategies against legacy parallel execution. The goal is to eliminate token spend and concurrency pressure on requests that ultimately fail or produce low-value outcomes.
+              </p>
+            </div>
+
+            {/* Metrics cards grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              
+              {/* LEGACY CONTROL CARD */}
+              <div className="bg-white/90 border border-slate-200/80 rounded-2xl p-6 shadow-sm flex flex-col justify-between space-y-6 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-rose-500/5 rounded-bl-full pointer-events-none" />
+                <div className="space-y-3">
+                  <div className="flex justify-between items-start">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200 uppercase tracking-wider">Control Group</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-100 uppercase tracking-wider flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" /> Uncontrolled Waste
+                    </span>
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-base font-extrabold text-slate-900">Legacy Execution</h3>
+                    <p className="text-[11px] text-slate-400">Fan-out all chunks in parallel immediately.</p>
+                  </div>
+                </div>
+
+                <div className="divide-y divide-slate-100 border-t border-b border-slate-100 py-3 space-y-3 text-xs">
+                  <div className="flex justify-between items-center pt-2">
+                    <span className="text-slate-500">Total Swarms Processed:</span>
+                    <span className="font-mono font-bold text-slate-900">{experimentStats.legacy.total_requests.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center pt-2">
+                    <span className="text-slate-500">Wasted Token Spend:</span>
+                    <span className="font-mono font-bold text-rose-600 flex items-center gap-1">
+                      {((experimentStats.legacy.waste_tokens / experimentStats.legacy.total_tokens) * 100).toFixed(1)}% 
+                      <span className="text-slate-400">({(experimentStats.legacy.waste_tokens / 1000).toFixed(0)}k)</span>
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center pt-2">
+                    <span className="text-slate-500">Peak Concurrency:</span>
+                    <span className="font-mono font-bold text-slate-900">{experimentStats.legacy.max_concurrency} in-flight Chunks</span>
+                  </div>
+                  <div className="flex justify-between items-center pt-2">
+                    <span className="text-slate-500">p99 Latency (Valid):</span>
+                    <span className="font-mono font-bold text-slate-900">{experimentStats.legacy.p99_latency} ms</span>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Evaluation Profile</span>
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    Legacy mode processes all slices in parallel. Malformed metadata criteria or system guideline violations run through models for all chunks before failing, causing massive token waste.
+                  </p>
+                </div>
+              </div>
+
+              {/* EXPERIMENT 1 CARD */}
+              <div className="bg-white/90 border border-slate-200/80 rounded-2xl p-6 shadow-sm flex flex-col justify-between space-y-6 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-bl-full pointer-events-none" />
+                <div className="space-y-3">
+                  <div className="flex justify-between items-start">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200 uppercase tracking-wider">Experiment 1</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 uppercase tracking-wider flex items-center gap-1">
+                      <Ban className="w-3 h-3" /> Early Validation
+                    </span>
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-base font-extrabold text-slate-900">Pre-Fan-Out Gate</h3>
+                    <p className="text-[11px] text-slate-400">Strict structural & semantic criteria validation.</p>
+                  </div>
+                </div>
+
+                <div className="divide-y divide-slate-100 border-t border-b border-slate-100 py-3 space-y-3 text-xs">
+                  <div className="flex justify-between items-center pt-2">
+                    <span className="text-slate-500">Gate Rejection Rate:</span>
+                    <span className="font-mono font-bold text-slate-900">
+                      {experimentStats.early_gate.total_requests > 0 
+                        ? `${((experimentStats.early_gate.rejected_requests / experimentStats.early_gate.total_requests) * 100).toFixed(1)}%` 
+                        : "0.0%"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center pt-2">
+                    <span className="text-slate-500">Wasted Token Spend:</span>
+                    <span className="font-mono font-bold text-emerald-600 flex items-center gap-1">
+                      {experimentStats.early_gate.total_tokens > 0 
+                        ? `${((experimentStats.early_gate.waste_tokens / experimentStats.early_gate.total_tokens) * 100).toFixed(1)}%` 
+                        : "0.0%"}
+                      <span className="text-slate-400">({(experimentStats.early_gate.waste_tokens / 1000).toFixed(0)}k)</span>
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center pt-2">
+                    <span className="text-slate-500">Peak Concurrency:</span>
+                    <span className="font-mono font-bold text-slate-950 flex items-center gap-1">
+                      {experimentStats.early_gate.max_concurrency} Chunks 
+                      <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1 rounded">-{100 - Math.round(experimentStats.early_gate.max_concurrency/experimentStats.legacy.max_concurrency*100)}%</span>
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center pt-2">
+                    <span className="text-slate-500">p99 Latency (Valid):</span>
+                    <span className="font-mono font-bold text-slate-950 flex items-center gap-1">
+                      {experimentStats.early_gate.p99_latency} ms 
+                      <span className="text-[10px] text-amber-600 font-bold bg-amber-50 px-1 rounded">+{((experimentStats.early_gate.p99_latency - experimentStats.legacy.p99_latency)/experimentStats.legacy.p99_latency*100).toFixed(1)}%</span>
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Evaluation Profile</span>
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    Stops malformed requests (empty chunks, overly large structures, type mismatch, wrong keys) at the gate before any parallel task scheduler or LLM calls are spawned.
+                  </p>
+                </div>
+              </div>
+
+              {/* EXPERIMENT 2 CARD */}
+              <div className="bg-white/90 border border-slate-200/80 rounded-2xl p-6 shadow-sm flex flex-col justify-between space-y-6 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-violet-500/5 rounded-bl-full pointer-events-none" />
+                <div className="space-y-3">
+                  <div className="flex justify-between items-start">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200 uppercase tracking-wider">Experiment 2</span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-50 text-violet-700 border border-violet-100 uppercase tracking-wider flex items-center gap-1">
+                      <Zap className="w-3 h-3" /> Sentinel Canary
+                    </span>
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-base font-extrabold text-slate-900">Canary Sentinel Probe</h3>
+                    <p className="text-[11px] text-slate-400">Process chunk 0 synchronously before fanning out.</p>
+                  </div>
+                </div>
+
+                <div className="divide-y divide-slate-100 border-t border-b border-slate-100 py-3 space-y-3 text-xs">
+                  <div className="flex justify-between items-center pt-2">
+                    <span className="text-slate-500">Sentinel Rejections:</span>
+                    <span className="font-mono font-bold text-slate-900">
+                      {experimentStats.canary.total_requests > 0 
+                        ? `${((experimentStats.canary.rejected_requests / experimentStats.canary.total_requests) * 100).toFixed(1)}%` 
+                        : "0.0%"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center pt-2">
+                    <span className="text-slate-500">Wasted Token Spend:</span>
+                    <span className="font-mono font-bold text-violet-600 flex items-center gap-1">
+                      {experimentStats.canary.total_tokens > 0 
+                        ? `${((experimentStats.canary.waste_tokens / experimentStats.canary.total_tokens) * 100).toFixed(1)}%` 
+                        : "0.0%"}
+                      <span className="text-slate-400">({(experimentStats.canary.waste_tokens / 1000).toFixed(0)}k)</span>
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center pt-2">
+                    <span className="text-slate-500">Avg Concurrency:</span>
+                    <span className="font-mono font-bold text-slate-950 flex items-center gap-1">
+                      {experimentStats.canary.avg_concurrency} Chunks 
+                      <span className="text-[10px] text-violet-600 font-bold bg-violet-50 px-1 rounded">-{100 - Math.round(parseFloat(experimentStats.canary.avg_concurrency)/parseFloat(experimentStats.legacy.avg_concurrency)*100)}%</span>
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center pt-2">
+                    <span className="text-slate-500">p99 Latency (Valid):</span>
+                    <span className="font-mono font-bold text-slate-950 flex items-center gap-1">
+                      {experimentStats.canary.p99_latency} ms 
+                      <span className="text-[10px] text-amber-600 font-bold bg-amber-50 px-1 rounded">+{((experimentStats.canary.p99_latency - experimentStats.legacy.p99_latency)/experimentStats.legacy.p99_latency*100).toFixed(1)}%</span>
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Evaluation Profile</span>
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    Identifies runtime and semantic schema failures (prompt refusals, model rate limits, structural schema drifts) at a 1/N cost step before spawning other chunks.
+                  </p>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Comparative Charts Dashboard */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              
+              {/* Token Waste Chart */}
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 space-y-4 shadow-sm">
+                <div className="space-y-1">
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                    <TrendingDown className="w-4 h-4 text-emerald-600" />
+                    Wasted Token Spend Comparison (lower is better)
+                  </h4>
+                  <p className="text-[11px] text-slate-400">Total tokens spent on requests that ultimately failed or were rejected.</p>
+                </div>
+                
+                <div className="space-y-4 pt-2">
+                  {/* Legacy bar */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[11px]">
+                      <span className="font-bold text-slate-700">Legacy Parallel (Control)</span>
+                      <span className="font-mono text-rose-600 font-bold">{experimentStats.legacy.waste_tokens.toLocaleString()} tokens</span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                      <div className="bg-rose-500 h-full rounded-full transition-all duration-1000" style={{ width: "100%" }} />
+                    </div>
+                  </div>
+                  
+                  {/* Early Gate bar */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[11px]">
+                      <span className="font-bold text-slate-700">Pre-Fan-Out Structural Gate</span>
+                      <span className="font-mono text-emerald-600 font-bold">
+                        {experimentStats.early_gate.waste_tokens.toLocaleString()} tokens 
+                        <span className="text-slate-400 font-normal"> (-{(((experimentStats.legacy.waste_tokens - experimentStats.early_gate.waste_tokens) / experimentStats.legacy.waste_tokens) * 100 || 0).toFixed(1)}%)</span>
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                      <div className="bg-emerald-500 h-full rounded-full transition-all duration-1000" style={{ 
+                        width: experimentStats.legacy.waste_tokens > 0 
+                          ? `${(experimentStats.early_gate.waste_tokens / experimentStats.legacy.waste_tokens * 100)}%` 
+                          : "0%" 
+                      }} />
+                    </div>
+                  </div>
+
+                  {/* Canary Probe bar */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[11px]">
+                      <span className="font-bold text-slate-700">Canary Sentinel Probe</span>
+                      <span className="font-mono text-violet-600 font-bold">
+                        {experimentStats.canary.waste_tokens.toLocaleString()} tokens 
+                        <span className="text-slate-400 font-normal"> (-{(((experimentStats.legacy.waste_tokens - experimentStats.canary.waste_tokens) / experimentStats.legacy.waste_tokens) * 100 || 0).toFixed(1)}%)</span>
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                      <div className="bg-violet-500 h-full rounded-full transition-all duration-1000" style={{ 
+                        width: experimentStats.legacy.waste_tokens > 0 
+                          ? `${(experimentStats.canary.waste_tokens / experimentStats.legacy.waste_tokens * 100)}%` 
+                          : "0%" 
+                      }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Latency and Concurrency tradeoff chart */}
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 space-y-4 shadow-sm">
+                <div className="space-y-1">
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                    <Activity className="w-4 h-4 text-violet-600" />
+                    Latency Penalty vs Concurrency Pressure Tradeoff
+                  </h4>
+                  <p className="text-[11px] text-slate-400">Comparing latency overhead of the canary serialized step with concurrency load.</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 pt-2">
+                  <div className="border border-slate-100 p-3 rounded-xl bg-slate-50/50 space-y-1">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase">Canary Latency overhead</span>
+                    <p className="text-2xl font-black text-slate-900">
+                      {experimentStats.legacy.p99_latency > 0 
+                        ? `+${((experimentStats.canary.p99_latency - experimentStats.legacy.p99_latency) / experimentStats.legacy.p99_latency * 100).toFixed(1)}%` 
+                        : "0%"}
+                    </p>
+                    <p className="text-[10px] text-slate-500 leading-relaxed">
+                      p99 delay introduced by executing chunk 0 serially before fan-out. Target is &lt; 12-15%.
+                    </p>
+                  </div>
+
+                  <div className="border border-slate-100 p-3 rounded-xl bg-slate-50/50 space-y-1">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase">Concurrency Pressure Reduction</span>
+                    <p className="text-2xl font-black text-emerald-600">
+                      {experimentStats.legacy.avg_concurrency > 0 
+                        ? `-${(100 - parseFloat(experimentStats.canary.avg_concurrency) / parseFloat(experimentStats.legacy.avg_concurrency) * 100).toFixed(1)}%` 
+                        : "0%"}
+                    </p>
+                    <p className="text-[10px] text-slate-500 leading-relaxed">
+                      Reduction in average concurrent LLM calls by preventing fan-out of malformed requests.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+        )}
+
         {/* TAB 1: TRAFFIC LEDGER */}
         {activeTab === "traffic" && (
           <div className="overflow-x-auto">
@@ -289,9 +593,20 @@ export function ConsoleClient({
                     } else if (log.endpoint.includes("SEMANTIC_CACHE")) {
                       routingMode = "Semantic Cache Hit";
                       routingBadgeStyle = "bg-indigo-50 text-indigo-700 border-indigo-200";
-                    } else if (log.workload_profile === "swarm_map") {
-                      routingMode = "Parallel Swarm Map";
-                      routingBadgeStyle = "bg-violet-50 text-violet-700 border-violet-200";
+                    } else if (log.workload_profile === "swarm_map" || log.workload_profile?.startsWith("swarm_map")) {
+                      routingMode = log.swarm_mode ? `Swarm Map (${log.swarm_mode})` : "Parallel Swarm Map";
+                      if (log.workload_profile === "swarm_map_gate_rejection" || log.rejected_at_gate) {
+                        routingMode = "Swarm Gate Rejected";
+                        routingBadgeStyle = "bg-rose-50 text-rose-700 border-rose-100";
+                      } else if (log.workload_profile === "swarm_map_canary_failure") {
+                        routingMode = "Swarm Canary Failure";
+                        routingBadgeStyle = "bg-amber-50 text-amber-700 border-amber-200";
+                      } else if (log.died) {
+                        routingMode = `Swarm Map (${log.swarm_mode || 'legacy'}) - Died`;
+                        routingBadgeStyle = "bg-rose-50 text-rose-750 border-rose-150";
+                      } else {
+                        routingBadgeStyle = "bg-violet-50 text-violet-700 border-violet-200";
+                      }
                     } else if (log.workload_profile === "verification" || log.endpoint.includes("swarm/state")) {
                       routingMode = "Schema Rescue / AST";
                       routingBadgeStyle = "bg-amber-50 text-amber-700 border-amber-200";

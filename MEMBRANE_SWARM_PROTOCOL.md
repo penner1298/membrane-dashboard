@@ -49,3 +49,34 @@ payload = {
 3. **No Bias Injection:** Pass a neutral system prompt. Let the Swarm extract the raw facts, and save synthesis for the presentation layer.
 
 **Any future automation script should follow these guidelines.**
+
+---
+
+## Swarm Execution Modes & Early Rejection
+
+To manage token spend and concurrency pressure under high traffic or malformed inputs, Membrane supports configurable **Swarm Execution Modes**. 
+
+### Configuration & Control
+You can control the strategy via request headers or environment variables:
+*   **Header:** `X-Membrane-Swarm-Mode: legacy | early_gate | canary`
+*   **Environment Variable:** `MEMBRANE_SWARM_MODE=legacy | early_gate | canary` (fallback default is `legacy`)
+
+### Mode Behaviors
+
+| Mode | Strategy | Validation & Rejection Behavior |
+| :--- | :--- | :--- |
+| **`legacy`** | Parallel fan-out (baseline) | Processes all slices concurrently. Fails at runtime on model errors or syntax issues. |
+| **`early_gate`** | Pre-Fan-Out Structural Gate | Validates the request shape instantly before execution. If validation fails, rejects with HTTP 422 (0 tokens charged). |
+| **`canary`** | Canary Sentinel Probe | Runs the structural gate, then executes **chunk 0** serially. If chunk 0 fails, aborts the request, logs the error, and charges *only* for the first chunk. |
+
+### Strict Structural Gate Rules (Experiment 1)
+When running in `early_gate` or `canary` modes, payloads must satisfy the following criteria:
+1.  **Chunks Count:** `1 <= len(chunks) <= 25` (prevents concurrency spikes).
+2.  **Per-Chunk Size:** Each chunk must be a string and `len(chunk) <= 25,000` characters.
+3.  **Total Size Ceiling:** Sum of all chunk characters must be `<= 200,000` characters.
+4.  **Extraction Criteria Shape:** `extraction_criteria` must be a dictionary containing:
+    *   `system_persona` (string)
+    *   `target_signals` (a list of strings; no type coercion is performed)
+
+Requests failing any of these rules return an `HTTP 422 Unprocessable Entity` containing details of the failed check.
+
