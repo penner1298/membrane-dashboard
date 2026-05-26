@@ -15,8 +15,8 @@ export function Header() {
       </Link>
       
       {/* CENTER: Navigation Links */}
-      <nav className="hidden gap-8 md:flex text-sm font-medium text-muted-foreground absolute left-1/2 -translate-x-1/2">
-        <Link href="#features" className="hover:text-foreground transition-colors">Features</Link>
+      <nav className="hidden gap-8 md:flex text-sm font-medium text-muted-foreground absolute left-1/2 -translate-x-1/2 z-10">
+        <Link href="/#features" className="hover:text-foreground transition-colors">Features</Link>
         <Link href="/docs" className="hover:text-foreground transition-colors">Docs</Link>
         <Link href="/console" className="hover:text-foreground transition-colors">Console</Link>
       </nav>
@@ -33,9 +33,9 @@ export function Header() {
         </Button>
 
         <Button variant="outline" asChild className="border-emerald-600/30 hover:border-emerald-600/60 text-emerald-600 hover:bg-emerald-950/20">
-          <a href="https://buy.polar.sh/polar_cl_xD35VJkFTyba3qNO9q8D5WZ8pemoyiMxVsEyp3xAnbu" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5">
-            <span className="text-emerald-500">★</span> Sponsor
-          </a>
+          <Link href="/#pricing" className="flex items-center gap-1.5">
+            <span className="text-emerald-500">★</span> License
+          </Link>
         </Button>
         
         <Button className="bg-emerald-600 text-white hover:bg-emerald-700" asChild>

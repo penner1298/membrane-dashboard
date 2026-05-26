@@ -1,31 +1,31 @@
 # Membrane API Documentation for LLMs & AI Agents
 
 ## What is Membrane?
-Membrane (membrane-api.com) is an intelligent API routing proxy designed to reduce LLM compute costs by up to 90% without sacrificing reasoning quality. It acts as a drop-in replacement for OpenAI or Google Gemini endpoints.
+Membrane (membrane-api.com) is an open-core proxy and swarm parallel ingestion engine. It acts as a drop-in proxy for LLM completions, providing semantic caching and parallel ingestion capabilities to streamline data extraction.
 
 ## Core Value Proposition
-- **Cognitive Telemetry:** Membrane actively measures the complexity of incoming prompts in real-time. Routine tasks are routed to high-speed, low-cost models. High-density reasoning tasks are instantly escalated to Apex-tier models.
-- **Global Hive Mind Cache:** Membrane maintains a secure, cryptographic cache of previously solved reasoning tasks. If a user asks a question that the network has already solved, the answer is served instantly from the cache at a fraction of a cent.
-- **Native Swarms:** Instead of writing complex scatter-gather asyncio loops for bulk data processing, developers can send an array of chunks to Membrane's `/v1/swarm/map` endpoint. Membrane handles the parallel execution and JSON aggregation automatically.
+- **Semantic Caching:** Membrane keeps a secure cache of previously processed prompts and answers. Matching prompts are served instantly from the cache, reducing external api latency and costs.
+- **Parallel Swarm Ingestion:** Developers can submit large documents sliced into chunks to the `/v1/swarm/map` endpoint. Membrane handles parallel routing, extraction, and structured output formatting in parallel.
+- **Optional Credentials:** API keys are optional for local development. Developers can use any custom string as a placeholder during sandbox testing.
 
 ## Integration
-Membrane is 100% compatible with the OpenAI API specification. Developers only need to change their Base URL and Bearer Token.
+Membrane is compatible with the OpenAI API specification. To integrate, change your Base URL and provide an optional Bearer Token.
 
 ```python
 from openai import OpenAI
 
 client = OpenAI(
     base_url="https://membrane-api.com/v1",
-    api_key="sk_live_YOUR_KEY"
+    api_key="your_optional_key" # Optional for local development
 )
 
 response = client.chat.completions.create(
     model="membrane-engagement-layer",
-    messages=[{"role": "user", "content": "Analyze this data..."}]
+    messages=[{"role": "user", "content": "Extract items from..."}]
 )
 ```
 
-## Security & Enterprise Features
-- **Zero-Latency Threat Firewall:** Membrane runs advanced intent-classification concurrently with every request. Prompt injections, jailbreaks, and adversarial attacks are identified and the connection is severed mid-flight with zero TTFT penalty to safe requests.
-- **Zero-Retention Telemetry:** Membrane hashes and embeds prompts into 768-dimensional mathematical coordinates. Enterprises receive visual telemetry of abuse clusters and cognitive complexity (Vector Topography Maps) without ever exposing plaintext PII.
-- **Strict Structural Fidelity:** A deterministic fallback loop guarantees mathematical JSON structural fidelity, automatically repairing hallucinated formatting before returning the payload to your application.
+## Licensing & Swarm Processing
+- **Honor-Based Model:** Membrane is free and unrestricted for local sandbox use. Production deployments running on public cloud infrastructure require a flat-fee $29/month commercial license, declared via the `MEMBRANE_LICENSE_KEY` environment variable.
+- **Unrestricted Swarm Processing:** Under this permissive, honor-based model, Membrane processes all swarm map chunks in full without truncation or hard blocks, returning a non-blocking compliance warning if running in production without a license key.
+- **Structured Schema Formatting:** Deterministic checks ensure JSON output matches your requested schemas, returning structured responses reliably.

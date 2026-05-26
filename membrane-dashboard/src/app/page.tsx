@@ -5,7 +5,6 @@ import Link from "next/link";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { useApiKey } from "@/context/ApiKeyContext";
-import { FeaturesSection } from "@/components/features-section";
 import { 
   Play, Copy, Check, Terminal, Sliders, Sparkles, Cpu, 
   AlertTriangle, Lock, Shield, ArrowRight, Layers, FileText, 
@@ -13,15 +12,18 @@ import {
 } from "lucide-react";
 import { sanitizeBearerToken } from "@/lib/utils";
 import { PdfDropzone } from "@/app/components/PdfDropzone";
-import { ValueReceipt } from "@/app/components/ValueReceipt";
 
-// Interactive trial curl snippet
 const TRIAL_CURL_SNIPPET = `curl -X POST https://membrane-api.com/v1/chat/completions \\
   -H "Authorization: Bearer sk_membrane_instant_trial" \\
   -H "Content-Type: application/json" \\
   -d '{
     "model": "membrane-engagement-layer",
-    "messages": [{"role": "user", "content": "Clean up this messy log string and extract the error tokens."}]
+    "messages": [
+      {
+        "role": "user",
+        "content": "Clean up this log and extract errors."
+      }
+    ]
   }'`;
 
 // Define technical patterns
@@ -93,6 +95,8 @@ export default function Home() {
   const [valueLedger, setValueLedger] = useState<any | null>(null);
   const [inputMode, setInputMode] = useState<"json" | "document">("json");
   const [pdfProcessing, setPdfProcessing] = useState<boolean>(false);
+  const [gatewayMode, setGatewayMode] = useState<"hosted" | "local">("hosted");
+  const [isDocumentClamped, setIsDocumentClamped] = useState<boolean>(false);
   
   // Consume unified API Key context
   const { apiKey: playgroundApiKey, updateApiKey, refreshApiKey } = useApiKey();
@@ -118,12 +122,20 @@ export default function Home() {
     setStreamOutput("// Awaiting execution trigger...\n");
     setSavingsCalculated({ actual: 0, gross: 0, percent: 0 });
   }, [selectedPattern]);
+
   const handlePdfExtracted = (chunks: string[], fileName: string) => {
     setSelectedPattern(ENGINEERING_PATTERNS[0]); // High-Throughput Swarm Map-Reduce
-    setSlices(chunks.length);
+    let processedChunks = chunks;
+    if (chunks.length > 50) {
+      processedChunks = chunks.slice(0, 50);
+      setIsDocumentClamped(true);
+    } else {
+      setIsDocumentClamped(false);
+    }
+    setSlices(processedChunks.length);
     const payload = {
       model: "membrane-engagement-layer",
-      chunks: chunks,
+      chunks: processedChunks,
       max_concurrency: 5,
       extraction_criteria: {
         system_persona: "Secure contract liabilities mapping.",
@@ -146,9 +158,8 @@ export default function Home() {
     setSavingsCalculated({ actual: 0, gross: 0, percent: 0 });
     setValueLedger(null);
 
-    const host = typeof window !== "undefined" ? window.location.host : "";
-    const apiBase = !host.includes("localhost") && !host.includes("127.0.0.1")
-      ? window.location.origin
+    const apiBase = gatewayMode === "hosted"
+      ? (typeof window !== "undefined" ? window.location.origin : "")
       : "http://localhost:8000";
 
     const targetUrl = `${apiBase}${selectedPattern.endpoint}`;
@@ -329,11 +340,18 @@ console.log(completion.choices[0].message.content);`;
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-[#0f172a] font-sans antialiased relative overflow-hidden selection:bg-emerald-100 selection:text-emerald-800">
+    <div className="min-h-screen bg-[#fafbfc] text-[#0f172a] font-sans antialiased relative overflow-hidden selection:bg-emerald-100 selection:text-emerald-800">
       
+      {/* Faint Dot Grid Background Effect */}
+      <div className="pointer-events-none absolute inset-0 z-0 brand-bg-dots opacity-40" />
+
+      {/* Abstract Glowing Waves / Blobs */}
+      <div className="pointer-events-none absolute top-[-10%] left-[-15%] w-[60%] h-[60%] brand-bg-blob-1 blur-3xl z-0" />
+      <div className="pointer-events-none absolute bottom-[-10%] right-[-15%] w-[70%] h-[70%] brand-bg-blob-2 blur-3xl z-0" />
+
       {/* 3% Ambient Texture Noise Overlay */}
       <div 
-        className="pointer-events-none fixed inset-0 z-50 opacity-[0.03]" 
+        className="pointer-events-none fixed inset-0 z-50 opacity-[0.025]" 
         style={{ 
           backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` 
         }} 
@@ -347,13 +365,16 @@ console.log(completion.choices[0].message.content);`;
         {/* HERO HEADER */}
         <div className="text-center max-w-3xl mx-auto space-y-6 pt-4">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/50 text-xs font-semibold tracking-wider uppercase">
-            <Sparkles className="w-3.5 h-3.5" /> Core Gateway Infrastructure
+            <Sparkles className="w-3.5 h-3.5" /> High-Fidelity Extraction Engine
           </div>
-          <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-slate-900 leading-none">
-            Membrane Guard
+          <h1 className="text-5xl sm:text-6xl font-serif font-black tracking-tight text-slate-950 leading-none">
+            Membrane
           </h1>
-          <p className="text-lg sm:text-xl font-serif italic text-slate-600 max-w-2xl mx-auto">
-            &ldquo;The Lossless Inter-Agent Protocol. Strip conversational memory bloat, enforce strict structural schema compliance, and secure your agent swarms with a sub-2ms edge cache layer.&rdquo;
+          <p className="text-lg sm:text-xl font-medium text-slate-700 max-w-2xl mx-auto">
+            High-fidelity extraction and structured handoffs for agent systems.
+          </p>
+          <p className="text-sm text-slate-500 max-w-xl mx-auto">
+            Membrane is an open-source proxy and parallel extraction engine that solves context explosion, token cost bloat, and cascading hallucinations in multi-agent workflows.
           </p>
         </div>
 
@@ -388,20 +409,20 @@ console.log(completion.choices[0].message.content);`;
           <div className="bg-slate-900 text-slate-100 p-4 rounded-xl shadow-lg border border-slate-800 font-mono text-sm relative group overflow-hidden tilt-3d">
             <div className="absolute top-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity">
               <button 
-                onClick={() => handleCopy(trialTab === "curl" ? TRIAL_CURL_SNIPPET : "docker run -d -p 8000:8000 thejoshuapenner/membrane-guard", "trial")}
+                onClick={() => handleCopy(trialTab === "curl" ? TRIAL_CURL_SNIPPET : "docker run -d -p 8000:8000 thejoshuapenner/membrane", "trial")}
                 className="p-1.5 rounded-lg bg-slate-800 text-slate-350 hover:bg-slate-700 hover:text-white border border-slate-700 transition"
               >
                 {copiedIndex === "trial" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
               </button>
             </div>
             <pre className="overflow-x-auto whitespace-pre leading-relaxed pr-10">
-              <code>{trialTab === "curl" ? TRIAL_CURL_SNIPPET : "docker run -d -p 8000:8000 thejoshuapenner/membrane-guard"}</code>
+              <code>{trialTab === "curl" ? TRIAL_CURL_SNIPPET : "docker run -d -p 8000:8000 thejoshuapenner/membrane"}</code>
             </pre>
           </div>
           <p className="text-[11px] text-slate-500 text-center italic">
             {trialTab === "curl" 
-              ? "Copy and paste this query into your local shell terminal. The `sk_membrane_instant_trial` token triggers a stateless sandboxed run."
-              : "Run this command locally to spin up the authenticated Membrane container gateway on port 8000."
+              ? "Copy and paste this query into your terminal. Authorization headers are optional during development; any string will work."
+              : "Run this command to spin up the local Membrane container proxy on port 8000. Free and unrestricted for local development."
             }
           </p>
         </div>
@@ -412,7 +433,7 @@ console.log(completion.choices[0].message.content);`;
         <div className="space-y-6">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-200 pb-4">
             <div>
-              <h2 className="text-2xl font-black text-slate-950 flex items-center gap-2">
+              <h2 className="text-2xl sm:text-3xl font-serif font-black text-slate-950 flex items-center gap-2">
                 <Sliders className="w-5 h-5 text-emerald-600" /> Network Pattern Playground
               </h2>
               <p className="text-xs text-slate-500 mt-1">Select an architectural pattern and trigger queries against our live hosted gateway.</p>
@@ -441,7 +462,7 @@ console.log(completion.choices[0].message.content);`;
             {/* LEFT INPUT BAY (5 cols) */}
             <div className="lg:col-span-5 flex flex-col space-y-6">
               <div className="bg-white/70 backdrop-blur-md rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-4 flex-1 flex flex-col justify-between tilt-3d">
-                <div className="space-y-4">
+                <div className="space-y-4 flex-1 flex flex-col">
                   
                   {/* Mode switcher tab header */}
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2">
@@ -450,7 +471,10 @@ console.log(completion.choices[0].message.content);`;
                     </div>
                     <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
                       <button
-                        onClick={() => setInputMode("json")}
+                        onClick={() => {
+                          setInputMode("json");
+                          setIsDocumentClamped(false);
+                        }}
                         className={`px-2 py-1 text-[10px] font-bold rounded-md transition ${inputMode === "json" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
                       >
                         Raw JSON
@@ -477,13 +501,27 @@ console.log(completion.choices[0].message.content);`;
                       />
                       
                       {selectedPattern.id === "swarm_map" && slices > 0 && (
-                        <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-emerald-800 text-[11px] leading-relaxed">
-                          <p className="font-bold flex items-center gap-1">
-                            <Sparkles className="w-3.5 h-3.5 text-emerald-600" /> Document Loaded!
-                          </p>
-                          <p className="mt-0.5">
-                            Extracted <b>{slices} text segments</b>. Hit &quot;Execute Swarm Extraction&quot; below to trigger the map-reduce proxy layer.
-                          </p>
+                        <div className="space-y-3">
+                          {isDocumentClamped ? (
+                            <div className="p-3 bg-amber-50 border border-amber-200/80 rounded-xl text-amber-800 text-[11px] leading-relaxed flex items-start gap-2.5">
+                              <AlertTriangle className="w-4.5 h-4.5 text-amber-600 shrink-0 mt-0.5" />
+                              <div>
+                                <p className="font-bold text-amber-900">Scale Throttle Warning</p>
+                                <p className="mt-0.5 leading-relaxed">
+                                  Target exceeds the 50-chunk sandbox limit. Document has been capped at the 50-chunk sandbox threshold. Reduce density or add a License Key to unlock higher capacities.
+                                </p>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-emerald-800 text-[11px] leading-relaxed">
+                              <p className="font-bold flex items-center gap-1">
+                                <Sparkles className="w-3.5 h-3.5 text-emerald-600" /> Document Loaded!
+                              </p>
+                              <p className="mt-0.5">
+                                Extracted <b>{slices} text segments</b>. Hit &quot;Execute Swarm Extraction&quot; below to trigger the map-reduce proxy layer.
+                              </p>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -494,29 +532,41 @@ console.log(completion.choices[0].message.content);`;
                       </p>
                       
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Gateway Target URL</label>
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Gateway Target URL</label>
+                          <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded border border-slate-200 text-[9px] font-sans">
+                            <button
+                              type="button"
+                              onClick={() => setGatewayMode("hosted")}
+                              className={`px-1.5 py-0.5 rounded font-bold transition-all cursor-pointer ${
+                                gatewayMode === "hosted"
+                                  ? "bg-white text-slate-900 shadow-xs"
+                                  : "text-slate-500 hover:text-slate-700"
+                              }`}
+                            >
+                              Live Hosted
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setGatewayMode("local")}
+                              className={`px-1.5 py-0.5 rounded font-bold transition-all cursor-pointer ${
+                                gatewayMode === "local"
+                                  ? "bg-white text-slate-900 shadow-xs"
+                                  : "text-slate-500 hover:text-slate-700"
+                              }`}
+                            >
+                              Local Dev
+                            </button>
+                          </div>
+                        </div>
                         <div className="bg-slate-50 px-3 py-2 rounded-lg border border-slate-200 text-xs font-mono text-slate-600 select-all">
-                          POST {selectedPattern.endpoint}
+                          POST {gatewayMode === "hosted" ? "https://membrane-api.com" : "http://localhost:8000"}{selectedPattern.endpoint}
                         </div>
                       </div>
                     </>
                   )}
 
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex justify-between items-center">
-                      <span>Gateway Authorization Key</span>
-                      <Link href="/console" className="text-emerald-600 font-semibold underline hover:text-emerald-700 font-sans tracking-normal capitalize text-[9.5px]">
-                        Get key from Console
-                      </Link>
-                    </label>
-                    <input
-                      type="text"
-                      value={playgroundApiKey}
-                      onChange={(e) => updateApiKey(e.target.value)}
-                      placeholder="sk_membrane_..."
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-mono text-xs text-slate-705 focus:outline-none focus:bg-white focus:ring-1 focus:ring-slate-300"
-                    />
-                  </div>
+
 
                   {/* Dynamic control options depending on selected pattern */}
                   {inputMode === "json" && selectedPattern.id === "swarm_map" && (
@@ -533,6 +583,17 @@ console.log(completion.choices[0].message.content);`;
                         onChange={(e) => setSlices(Number(e.target.value))}
                         className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
                       />
+                      {slices > 50 && (
+                        <div className="p-3 bg-amber-50 border border-amber-200/80 rounded-xl text-amber-800 text-[11px] leading-relaxed flex items-start gap-2 animate-in fade-in duration-200">
+                          <AlertTriangle className="w-4.5 h-4.5 text-amber-600 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="font-bold text-amber-900">Scale Throttle Warning</p>
+                            <p className="mt-0.5 leading-relaxed">
+                              Scale Throttle: Target exceeds the 50-chunk sandbox limit. Reduce density or add a License Key to unlock higher capacities.
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -554,27 +615,16 @@ console.log(completion.choices[0].message.content);`;
                   )}
                   
                   {inputMode === "json" && (
-                    <div className="space-y-1.5">
+                    <div className="space-y-1.5 flex-1 flex flex-col">
                       <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Payload Variables (JSON)</label>
                       <textarea
                         value={payloadText}
                         onChange={(e) => setPayloadText(e.target.value)}
-                        className="w-full h-44 bg-slate-50 border border-slate-200 rounded-xl p-3 font-mono text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:bg-white resize-none"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-mono text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:bg-white resize-none flex-1 min-h-[220px]"
                       />
                     </div>
                   )}
                 </div>
-
-                {/* QA-24: Slice Guardrail Banner */}
-                {selectedPattern.id === "swarm_map" && slices > 50 ? (
-                  <div className="mt-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-850 flex items-start gap-2 text-xs">
-                    <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
-                    <div>
-                      <p className="font-bold">Segment Safety Guardrail (QA-24)</p>
-                      <p className="text-[10.5px] mt-0.5">Slice densities exceeding 50 nodes are locked on public trials to safeguard Render gateway compute capacity.</p>
-                    </div>
-                  </div>
-                ) : null}
 
                 {/* Trigger Buttons */}
                 <div className="pt-4 mt-auto">
@@ -582,11 +632,11 @@ console.log(completion.choices[0].message.content);`;
                     onClick={() => executePlaygroundQuery()}
                     disabled={isExecuting || (selectedPattern.id === "swarm_map" && slices > 50)}
                     className={`w-full py-3 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 shadow-sm transition tilt-3d ${
-                      selectedPattern.id === "swarm_map" && slices > 50
-                        ? "bg-slate-300 cursor-not-allowed"
-                        : isExecuting 
+                      isExecuting 
                         ? "bg-slate-800 animate-pulse" 
-                        : "bg-slate-900 hover:bg-slate-800 active:scale-[0.99]"
+                        : (selectedPattern.id === "swarm_map" && slices > 50)
+                          ? "bg-slate-400 cursor-not-allowed opacity-60"
+                          : "bg-slate-900 hover:bg-slate-800 active:scale-[0.99]"
                     }`}
                   >
                     {isExecuting ? (
@@ -614,46 +664,12 @@ console.log(completion.choices[0].message.content);`;
                     <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100/50">COMPLETED RESPONSE</span>
                   </div>
 
-                  {valueLedger && (
-                    <div className="mb-4 animate-in fade-in duration-300">
-                      <ValueReceipt
-                        actualCost={valueLedger.actualCost}
-                        unoptimizedCost={valueLedger.unoptimizedCost}
-                        savingsPercent={valueLedger.savingsPercent}
-                        chunkCount={valueLedger.chunkCount}
-                        model={valueLedger.model}
-                        taskId={valueLedger.taskId}
-                        timestamp={valueLedger.timestamp}
-                      />
-                    </div>
-                  )}
-
-                  <div className="bg-slate-900 rounded-xl p-4 border border-slate-800 font-mono text-xs text-slate-200 flex-1 min-h-[250px] overflow-y-auto max-h-[360px] relative select-text leading-relaxed">
+                  <div className="bg-slate-900 rounded-xl p-4 border border-slate-800 font-mono text-xs text-slate-200 flex-1 min-h-[450px] overflow-y-auto max-h-[580px] relative select-text leading-relaxed">
                     <pre className="whitespace-pre-wrap">{streamOutput}</pre>
                   </div>
                 </div>
 
-                {/* Token Savings Ledger Calculation Output */}
-                <div className="border-t border-slate-200/60 pt-4 mt-4 grid grid-cols-3 gap-2 text-center">
-                  <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/50">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Incurred Cost</p>
-                    <p className="text-sm font-mono font-black text-slate-900 mt-0.5">
-                      {savingsCalculated.percent > 0 ? `$${savingsCalculated.actual}` : "$0.00000"}
-                    </p>
-                  </div>
-                  <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/50">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Unoptimized Cost</p>
-                    <p className="text-sm font-mono font-black text-slate-500 mt-0.5">
-                      {savingsCalculated.percent > 0 ? `$${savingsCalculated.gross}` : "$0.00000"}
-                    </p>
-                  </div>
-                  <div className="bg-emerald-50 p-2.5 rounded-xl border border-emerald-100/50">
-                    <p className="text-[9px] font-black text-emerald-700 uppercase tracking-wider">Net Savings</p>
-                    <p className="text-sm font-mono font-black text-emerald-600 mt-0.5">
-                      {savingsCalculated.percent > 0 ? `${savingsCalculated.percent}%` : "0.0%"}
-                    </p>
-                  </div>
-                </div>
+
               </div>
             </div>
           </div>
@@ -714,7 +730,91 @@ console.log(completion.choices[0].message.content);`;
 
         <hr className="border-slate-200" />
 
-        <FeaturesSection />
+        {/* PRICING & PHILOSOPHY */}
+        <section id="pricing" className="py-12 space-y-8">
+          <div className="text-center max-w-2xl mx-auto space-y-3">
+            <h2 className="text-3xl sm:text-4xl font-serif font-black text-slate-950">Pricing & Philosophy</h2>
+            <p className="text-slate-600 text-sm">
+              We keep it simple: no usage metering and no feature restrictions. You only pay when you deploy Membrane in production.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            {/* Free Tier */}
+            <div className="bg-white/60 backdrop-blur-md rounded-2xl border border-slate-200/80 p-8 shadow-xs flex flex-col justify-between hover:border-emerald-600/30 transition-all duration-300">
+              <div className="space-y-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">Developer Sandbox</h3>
+                    <p className="text-xs text-slate-500 mt-1">For local development & sandbox testing</p>
+                  </div>
+                  <span className="px-2.5 py-1 text-xs font-bold text-emerald-700 bg-emerald-50 rounded-full">Free</span>
+                </div>
+                <div className="text-3xl font-black text-slate-900">$0 <span className="text-xs font-normal text-slate-500">/ forever</span></div>
+                <ul className="space-y-2 text-xs text-slate-600 pt-2">
+                  <li className="flex items-center gap-2">✓ Full Swarm Map-Reduce access</li>
+                  <li className="flex items-center gap-2">✓ L1 Semantic Caching</li>
+                  <li className="flex items-center gap-2">✓ Dynamic Model Routing</li>
+                  <li className="flex items-center gap-2">✓ Any custom key works locally</li>
+                </ul>
+              </div>
+              <div className="pt-6">
+                <Link
+                  href="/docs"
+                  className="w-full inline-flex items-center justify-center py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition duration-300 shadow-sm active:scale-[0.98] border border-slate-950 text-center"
+                >
+                  Read Developer Docs
+                </Link>
+              </div>
+            </div>
+            {/* Commercial Tier */}
+            <div className="bg-white/60 backdrop-blur-md rounded-2xl border-2 border-emerald-600/20 p-8 shadow-sm flex flex-col justify-between hover:border-emerald-600/40 transition-all duration-300 relative overflow-hidden">
+              <div className="absolute top-0 right-0 bg-emerald-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl-lg uppercase tracking-wider">
+                Production
+              </div>
+              <div className="space-y-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">Commercial Production</h3>
+                    <p className="text-xs text-slate-500 mt-1">For cloud deployments</p>
+                  </div>
+                  <span className="px-2.5 py-1 text-xs font-bold text-emerald-700 bg-emerald-50 rounded-full">$29/mo</span>
+                </div>
+                <div className="text-3xl font-black text-slate-900">$29 <span className="text-xs font-normal text-slate-500">/ month flat</span></div>
+                <p className="text-[10px] text-emerald-600 font-semibold bg-emerald-50 px-2 py-1 rounded inline-block">
+                  Get 20% off: $290 billed annually
+                </p>
+                <ul className="space-y-2 text-xs text-slate-600 pt-2">
+                  <li className="flex items-center gap-2">✓ Unrestricted cloud usage</li>
+                  <li className="flex items-center gap-2">✓ Pure honor-based model</li>
+                  <li className="flex items-center gap-2">✓ Commercial use authorization</li>
+                  <li className="flex items-center gap-2">✓ Direct team value reporting</li>
+                </ul>
+              </div>
+              <div className="pt-6">
+                <a 
+                  href="https://buy.polar.sh/polar_cl_yDHzavhCzMw8FkCp0t0X2NJNfg5xgqLmudIxZ0S54BZ"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full inline-flex items-center justify-center py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition duration-300 shadow-md hover:shadow-emerald-650/20 active:scale-[0.98] border border-emerald-500/20 text-center"
+                >
+                  Activate License on Polar.sh
+                </a>
+              </div>
+            </div>
+          </div>
+          
+          <div className="max-w-2xl mx-auto p-4 bg-slate-50 rounded-xl border border-slate-200/50 text-slate-600 text-[11px] leading-relaxed space-y-2">
+            <p className="font-bold text-slate-800">What counts as Commercial Production?</p>
+            <p>
+              **Commercial Production** is defined as any deployment of Membrane on public cloud infrastructure (such as AWS, Render, GCP, Fly.io, Vercel) that powers an active application, API, or service outside of a developer's local machine (`localhost`) or private personal network. 
+            </p>
+            <p>
+              This is a trust and honor-based model. We do not enforce hard blocks, key truncation, or usage caps in your cloud environments—the software runs fully uninhibited to ensure maximum production stability. We prioritize developer trust and expect production users to subscribe to support our work.
+            </p>
+          </div>
+        </section>
+
+
       </main>
 
       <Footer />

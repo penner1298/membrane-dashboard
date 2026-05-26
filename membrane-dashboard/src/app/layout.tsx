@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { ApiKeyProvider } from "@/context/ApiKeyContext";
 
@@ -13,19 +13,25 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const playfair = Playfair_Display({
+  variable: "--font-serif",
+  subsets: ["latin"],
+  weight: ["400", "700", "900"],
+});
+
 export const metadata: Metadata = {
-  title: "Membrane | The Lossless Inter-Agent Protocol",
-  description: "Membrane is a drop-in inter-agent routing layer and guard sandbox that uses semantic caching and structural validation to securely scale autonomous swarms.",
-  keywords: "LLM routing, inter-agent protocol, A2A proxy, semantic caching, agent sandbox, agent-to-agent communication",
+  title: "Membrane | Proxy & Swarm Ingestion Engine",
+  description: "Membrane is an open-core proxy and swarm parallel ingestion engine offering semantic caching and structured schema extraction.",
+  keywords: "LLM proxy, swarm ingestion, semantic caching, agent sandbox, structured extraction",
   openGraph: {
-    title: "Membrane | The Lossless Inter-Agent Protocol",
-    description: "Membrane is a drop-in inter-agent routing layer and guard sandbox that uses semantic caching and structural validation to securely scale autonomous swarms.",
+    title: "Membrane | Proxy & Swarm Ingestion Engine",
+    description: "Membrane is an open-core proxy and swarm parallel ingestion engine offering semantic caching and structured schema extraction.",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Membrane | The Lossless Inter-Agent Protocol",
-    description: "Membrane is a drop-in inter-agent routing layer and guard sandbox that uses semantic caching and structural validation to securely scale autonomous swarms.",
+    title: "Membrane | Proxy & Swarm Ingestion Engine",
+    description: "Membrane is an open-core proxy and swarm parallel ingestion engine offering semantic caching and structured schema extraction.",
   }
 };
 
@@ -36,7 +42,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} antialiased`}>
         <ApiKeyProvider>
           {children}
         </ApiKeyProvider>

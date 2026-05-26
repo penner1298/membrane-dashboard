@@ -76,8 +76,4 @@ Feedback and contributions are welcome.
 
 ## License
 
-Membrane is licensed under the Business Source License 1.1 (BSL 1.1), which automatically transitions to the Apache License, Version 2.0 on January 1, 2029.
-
-Under this license:
-- **Local development & testing**: Completely free and unrestricted.
-- **Commercial production use**: $29 per month flat fee (or $290/year paid annually, subject to change) when deployed on public cloud infrastructure.
+Apache 2.0 (with a separate commercial production license for cloud deployments).

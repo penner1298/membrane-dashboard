@@ -17,8 +17,8 @@ export default async function ConsolePage() {
   const tenantId = `local_dev_${hashedDevKey.slice(0, 8)}`;
 
   // Default pre-calibrated values
-  let totalRetail = 1842.40;
-  let totalWholesale = 148.24;
+  let cacheHits = 5120;
+  let totalChunks = 8412;
   let totalCalls = 14842;
   let schemaRescues = 412;
   let thwartedAttacks = 18;
@@ -33,16 +33,16 @@ export default async function ConsolePage() {
     // We run stats query with a fast fallback
     const statsResult = await pool.query(`
       SELECT 
-        COALESCE(SUM(cost), 0) as total_retail,
-        COALESCE(SUM(wholesale_cost), 0) as total_wholesale,
+        COUNT(*) FILTER (WHERE endpoint = '/v1/swarm/map') as total_chunks,
+        COUNT(*) FILTER (WHERE endpoint LIKE '%CACHE%' OR endpoint LIKE '%cache%') as cache_hits,
         COUNT(*) as total_calls
       FROM api_logs 
       WHERE created_at > NOW() - INTERVAL '30 days'
     `);
     
     if (statsResult.rows.length > 0 && Number(statsResult.rows[0].total_calls) > 0) {
-      totalRetail = parseFloat(statsResult.rows[0]?.total_retail || 0);
-      totalWholesale = parseFloat(statsResult.rows[0]?.total_wholesale || 0);
+      cacheHits = parseInt(statsResult.rows[0]?.cache_hits || 0);
+      totalChunks = parseInt(statsResult.rows[0]?.total_chunks || 0);
       totalCalls = parseInt(statsResult.rows[0]?.total_calls || 0);
       isMock = false;
       dbStatus = "Online";
@@ -67,7 +67,7 @@ export default async function ConsolePage() {
 
     // Fetch logs from api_logs
     const logsResult = await pool.query(`
-      SELECT id, created_at, endpoint, tokens, cost, wholesale_cost
+      SELECT id, created_at, endpoint, tokens, COALESCE(workload_profile, 'general') as workload_profile
       FROM api_logs
       ORDER BY created_at DESC
       LIMIT 100
@@ -76,9 +76,9 @@ export default async function ConsolePage() {
 
     // Fetch dead letter queue logs
     const dlqResult = await pool.query(`
-      SELECT id, created_at, api_key_hash, inbound_prompt, requested_schema, failed_output, error_message
+      SELECT id, timestamp AS created_at, api_key_hash, inbound_prompt, requested_schema, failed_output, error_message
       FROM dlq_logs
-      ORDER BY created_at DESC
+      ORDER BY timestamp DESC
       LIMIT 50
     `);
     dlqLogs = dlqResult.rows;
@@ -88,22 +88,22 @@ export default async function ConsolePage() {
     // Mock fallbacks if PostgreSQL is down (QA-35)
     dbStatus = "Offline";
     recentLogs = [
-      { id: 1, created_at: new Date().toISOString(), endpoint: "/v1/swarm/map", tokens: 1420, cost: 0.1420, wholesale_cost: 0.0042 },
-      { id: 2, created_at: new Date(Date.now() - 1800000).toISOString(), endpoint: "/v1/chat/completions", tokens: 350, cost: 0.0014, wholesale_cost: 0.0001 },
-      { id: 3, created_at: new Date(Date.now() - 3600000).toISOString(), endpoint: "/v1/chat/completions", tokens: 250, cost: 0.0010, wholesale_cost: 0.0000 },
-      { id: 4, created_at: new Date(Date.now() - 5400000).toISOString(), endpoint: "/v1/swarm/state", tokens: 520, cost: 0.0052, wholesale_cost: 0.0001 },
-      { id: 5, created_at: new Date(Date.now() - 7200000).toISOString(), endpoint: "/v1/chat/completions", tokens: 840, cost: 0.0420, wholesale_cost: 0.0008 },
-      { id: 6, created_at: new Date(Date.now() - 9000000).toISOString(), endpoint: "/v1/swarm/map", tokens: 21500, cost: 2.1500, wholesale_cost: 0.0482 },
-      { id: 7, created_at: new Date(Date.now() - 10800000).toISOString(), endpoint: "/v1/chat/completions", tokens: 180, cost: 0.0007, wholesale_cost: 0.0000 },
-      { id: 8, created_at: new Date(Date.now() - 14400000).toISOString(), endpoint: "/v1/swarm/state (error)", tokens: 0, cost: 0.0000, wholesale_cost: 0.0000, status: "error" },
-      { id: 9, created_at: new Date(Date.now() - 18000000).toISOString(), endpoint: "/v1/chat/completions", tokens: 1120, cost: 0.1120, wholesale_cost: 0.0024 },
-      { id: 10, created_at: new Date(Date.now() - 21600000).toISOString(), endpoint: "/v1/swarm/map", tokens: 8900, cost: 0.8900, wholesale_cost: 0.0195 },
-      { id: 11, created_at: new Date(Date.now() - 25200000).toISOString(), endpoint: "/v1/chat/completions", tokens: 460, cost: 0.0018, wholesale_cost: 0.0001 },
-      { id: 12, created_at: new Date(Date.now() - 28800000).toISOString(), endpoint: "/v1/swarm/state", tokens: 680, cost: 0.0068, wholesale_cost: 0.0002 },
-      { id: 13, created_at: new Date(Date.now() - 32400000).toISOString(), endpoint: "/v1/chat/completions", tokens: 990, cost: 0.0040, wholesale_cost: 0.0002 },
-      { id: 14, created_at: new Date(Date.now() - 36000000).toISOString(), endpoint: "/v1/swarm/map (error)", tokens: 0, cost: 0.0000, wholesale_cost: 0.0000, status: "error" },
-      { id: 15, created_at: new Date(Date.now() - 39600000).toISOString(), endpoint: "/v1/chat/completions", tokens: 710, cost: 0.0028, wholesale_cost: 0.0001 },
-      { id: 16, created_at: new Date(Date.now() - 43200000).toISOString(), endpoint: "/v1/swarm/state", tokens: 490, cost: 0.0049, wholesale_cost: 0.0001 }
+      { id: 1, created_at: new Date().toISOString(), endpoint: "/v1/swarm/map", tokens: 1420, workload_profile: "swarm_map" },
+      { id: 2, created_at: new Date(Date.now() - 1800000).toISOString(), endpoint: "/v1/chat/completions", tokens: 350, workload_profile: "chat" },
+      { id: 3, created_at: new Date(Date.now() - 3600000).toISOString(), endpoint: "/api/chat (L1_MEMORY_CACHE)", tokens: 0, workload_profile: "chat" },
+      { id: 4, created_at: new Date(Date.now() - 5400000).toISOString(), endpoint: "/v1/swarm/state", tokens: 520, workload_profile: "verification" },
+      { id: 5, created_at: new Date(Date.now() - 7200000).toISOString(), endpoint: "/v1/chat/completions", tokens: 840, workload_profile: "chat" },
+      { id: 6, created_at: new Date(Date.now() - 9000000).toISOString(), endpoint: "/v1/swarm/map", tokens: 21500, workload_profile: "swarm_map" },
+      { id: 7, created_at: new Date(Date.now() - 10800000).toISOString(), endpoint: "/api/chat (SEMANTIC_CACHE)", tokens: 0, workload_profile: "chat" },
+      { id: 8, created_at: new Date(Date.now() - 14400000).toISOString(), endpoint: "/v1/swarm/state (error)", tokens: 0, workload_profile: "verification", status: "error" },
+      { id: 9, created_at: new Date(Date.now() - 18000000).toISOString(), endpoint: "/v1/chat/completions", tokens: 1120, workload_profile: "chat" },
+      { id: 10, created_at: new Date(Date.now() - 21600000).toISOString(), endpoint: "/v1/swarm/map", tokens: 8900, workload_profile: "swarm_map" },
+      { id: 11, created_at: new Date(Date.now() - 25200000).toISOString(), endpoint: "/v1/chat/completions", tokens: 460, workload_profile: "chat" },
+      { id: 12, created_at: new Date(Date.now() - 28800000).toISOString(), endpoint: "/v1/swarm/state", tokens: 680, workload_profile: "verification" },
+      { id: 13, created_at: new Date(Date.now() - 32400000).toISOString(), endpoint: "/api/chat (SEMANTIC_CACHE)", tokens: 0, workload_profile: "chat" },
+      { id: 14, created_at: new Date(Date.now() - 36000000).toISOString(), endpoint: "/v1/swarm/map (error)", tokens: 0, workload_profile: "swarm_map", status: "error" },
+      { id: 15, created_at: new Date(Date.now() - 39600000).toISOString(), endpoint: "/v1/chat/completions", tokens: 710, workload_profile: "chat" },
+      { id: 16, created_at: new Date(Date.now() - 43200000).toISOString(), endpoint: "/v1/swarm/state", tokens: 490, workload_profile: "verification" }
     ];
     dlqLogs = [
       {
@@ -163,23 +163,28 @@ export default async function ConsolePage() {
     ];
   }
 
-  const margin = totalRetail > 0 ? ((totalRetail - totalWholesale) / totalRetail) * 100 : 0;
-
   const stats = {
-    totalRetail,
-    totalWholesale,
-    margin,
+    cacheHits,
+    totalChunks,
     totalCalls,
     schemaRescues,
-    thwartedAttacks
+    thwartedAttacks,
+    isProductionLicense: !!process.env.MEMBRANE_LICENSE_KEY
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-[#0f172a] font-sans antialiased relative overflow-hidden flex flex-col justify-between selection:bg-emerald-100 selection:text-emerald-800">
+    <div className="min-h-screen bg-[#fafbfc] text-[#0f172a] font-sans antialiased relative overflow-hidden flex flex-col justify-between selection:bg-emerald-100 selection:text-emerald-800">
       
+      {/* Faint Dot Grid Background Effect */}
+      <div className="pointer-events-none absolute inset-0 z-0 brand-bg-dots opacity-40" />
+
+      {/* Abstract Glowing Waves / Blobs */}
+      <div className="pointer-events-none absolute top-[-10%] left-[-15%] w-[60%] h-[60%] brand-bg-blob-1 blur-3xl z-0" />
+      <div className="pointer-events-none absolute bottom-[-10%] right-[-15%] w-[70%] h-[70%] brand-bg-blob-2 blur-3xl z-0" />
+
       {/* 3% Ambient Texture Noise Overlay */}
       <div 
-        className="pointer-events-none fixed inset-0 z-50 opacity-[0.03]" 
+        className="pointer-events-none fixed inset-0 z-50 opacity-[0.025]" 
         style={{ 
           backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` 
         }} 
@@ -191,7 +196,7 @@ export default async function ConsolePage() {
         
         {/* Header Title */}
         <div className="space-y-1">
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">
+          <h1 className="text-3xl sm:text-4xl font-serif font-black tracking-tight text-slate-950">
             DevOps Console
           </h1>
           <p className="text-sm text-slate-500">

@@ -1,11 +1,11 @@
-# THE MEMBRANE SWARM PROTOCOL (MANDATORY)
+# Membrane Swarm Ingestion Guidelines
 
 ## The Core Rule
 **Never manually truncate data.**
 **Never glue pages into a single string for LLM ingestion.**
 **Never use `[text_chunk[:20000]]` or similar naive hardcoded slicing.**
 
-When extracting data from documents (especially large PDFs, contracts, or municipal packets), you MUST use the native **Swarm Map-Reduce architecture** defined in the dashboard documentation (`/docs`). This applies whether you are calling the local Membrane API or using our local `gemma-gearbox` `/v1/swarm/map` endpoint.
+When extracting data from documents (especially large PDFs, contracts, or municipal packets), you should use the native **Swarm Map-Reduce architecture** defined in the dashboard documentation (`/docs`). This applies whether you are calling the local Membrane API or using our local `/v1/swarm/map` endpoint.
 
 ## The Correct Process (Array of Pages)
 The Swarm endpoint is explicitly designed to handle massive files natively by spinning up parallel extraction agents for each chunk.
@@ -43,9 +43,9 @@ payload = {
 }
 ```
 
-## Why This is Mandatory
-1. **Zero Data Loss:** We previously lost critical municipal data (resolutions, fiscal approvals) buried on page 13+ because the script naively truncated the PDF at 20,000 characters.
-2. **True Map-Reduce:** Gearbox natively fans out the request. Sending an array of pages allows Gearbox to process the entire document concurrently without hitting token limits or losing context.
+## Why Swarm Ingestion is Recommended
+1. **Zero Data Loss:** We previously lost critical municipal data (resolutions, fiscal approvals) buried on page 13+ because scripts naively truncated the PDF at 20,000 characters.
+2. **Parallel Map-Reduce:** Membrane natively fans out the request. Sending an array of pages allows processing the entire document concurrently without hitting token limits or losing context.
 3. **No Bias Injection:** Pass a neutral system prompt. Let the Swarm extract the raw facts, and save synthesis for the presentation layer.
 
-**Any future automation script must strictly adhere to this protocol.**
+**Any future automation script should follow these guidelines.**

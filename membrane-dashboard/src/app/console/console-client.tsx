@@ -12,8 +12,7 @@ interface LogEntry {
   created_at: string;
   endpoint: string;
   tokens: number;
-  cost: number;
-  wholesale_cost: number;
+  workload_profile?: string;
   status?: string;
 }
 
@@ -29,12 +28,12 @@ interface DqlEntry {
 
 interface ConsoleClientProps {
   stats: {
-    totalRetail: number;
-    totalWholesale: number;
-    margin: number;
+    cacheHits: number;
+    totalChunks: number;
     totalCalls: number;
     schemaRescues: number;
     thwartedAttacks: number;
+    isProductionLicense: boolean;
   };
   recentLogs: LogEntry[];
   dlqLogs: DqlEntry[];
@@ -61,9 +60,6 @@ export function ConsoleClient({
 
   const [rotating, setRotating] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-
-  const [redeemCode, setRedeemCode] = useState("");
-  const [redeemStatus, setRedeemStatus] = useState<{ type: "success" | "error" | "loading"; message: string } | null>(null);
 
   const handleCopyKey = () => {
     navigator.clipboard.writeText(currentApiKey);
@@ -96,31 +92,6 @@ export function ConsoleClient({
       console.error("Failed to rotate key asynchronously:", err);
     } finally {
       setRotating(false);
-    }
-  };
-
-  const handleRedeem = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!redeemCode.trim()) return;
-    setRedeemStatus({ type: "loading", message: "Redeeming referral code..." });
-    try {
-      const formData = new FormData();
-      formData.append("code", redeemCode);
-      formData.append("token", currentApiKey);
-
-      const res = await fetch("/api/referral/redeem", {
-        method: "POST",
-        body: formData
-      });
-
-      if (res.ok) {
-        setRedeemStatus({ type: "success", message: "Code redeemed successfully! $10.00 sandbox bonus credited." });
-        setRedeemCode("");
-      } else {
-        setRedeemStatus({ type: "error", message: "Redemption rejected by server." });
-      }
-    } catch (err) {
-      setRedeemStatus({ type: "error", message: "Error contacting gateway." });
     }
   };
 
@@ -202,18 +173,24 @@ export function ConsoleClient({
       {/* METRICS GRID */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white/70 backdrop-blur-md p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Retail Value (30d)</p>
-          <p className="text-3xl font-extrabold text-slate-900">${stats.totalRetail.toFixed(4)}</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">License Status</p>
+          <p className={`text-base font-extrabold ${stats.isProductionLicense ? "text-emerald-600" : "text-slate-700"}`}>
+            {stats.isProductionLicense ? "Commercial Production" : "Free for Local Dev"}
+          </p>
         </div>
         
         <div className="bg-white/70 backdrop-blur-md p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Wholesale Cost (30d)</p>
-          <p className="text-3xl font-extrabold text-slate-900">${stats.totalWholesale.toFixed(4)}</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cache Hit Rate (30d)</p>
+          <p className="text-3xl font-extrabold text-slate-900">
+            {stats.totalCalls > 0 
+              ? `${((stats.cacheHits / stats.totalCalls) * 100).toFixed(1)}%` 
+              : "0.0%"}
+          </p>
         </div>
         
         <div className="bg-white/70 backdrop-blur-md p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Calculated Margin</p>
-          <p className="text-3xl font-extrabold text-emerald-600">{stats.margin.toFixed(1)}%</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Swarm Chunks (30d)</p>
+          <p className="text-3xl font-extrabold text-slate-900">{stats.totalChunks.toLocaleString()}</p>
         </div>
         
         <div className="bg-white/70 backdrop-blur-md p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
@@ -292,13 +269,37 @@ export function ConsoleClient({
                     <th className="p-3 font-mono font-bold uppercase tracking-wider text-[10px]">Timestamp</th>
                     <th className="p-3 font-mono font-bold uppercase tracking-wider text-[10px]">Endpoint Node</th>
                     <th className="p-3 font-mono font-bold uppercase tracking-wider text-[10px] text-right">Tokens</th>
-                    <th className="p-3 font-mono font-bold uppercase tracking-wider text-[10px] text-right">Retail Cost</th>
-                    <th className="p-3 font-mono font-bold uppercase tracking-wider text-[10px] text-right">Wholesale COGS</th>
+                    <th className="p-3 font-mono font-bold uppercase tracking-wider text-[10px] text-right">Routing Mode</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredLogs.map((log) => {
                     const isError = log.endpoint.includes("error") || (log.status && log.status.includes("error"));
+                    
+                    // Determine routing strategy
+                    let routingMode = "Model Routed";
+                    let routingBadgeStyle = "bg-slate-100 text-slate-700 border-slate-200";
+                    
+                    if (isError) {
+                      routingMode = "Error Intercepted";
+                      routingBadgeStyle = "bg-rose-50 text-rose-700 border-rose-100";
+                    } else if (log.endpoint.includes("L1_MEMORY_CACHE")) {
+                      routingMode = "L1 Cache Hit";
+                      routingBadgeStyle = "bg-emerald-50 text-emerald-700 border-emerald-200";
+                    } else if (log.endpoint.includes("SEMANTIC_CACHE")) {
+                      routingMode = "Semantic Cache Hit";
+                      routingBadgeStyle = "bg-indigo-50 text-indigo-700 border-indigo-200";
+                    } else if (log.workload_profile === "swarm_map") {
+                      routingMode = "Parallel Swarm Map";
+                      routingBadgeStyle = "bg-violet-50 text-violet-700 border-violet-200";
+                    } else if (log.workload_profile === "verification" || log.endpoint.includes("swarm/state")) {
+                      routingMode = "Schema Rescue / AST";
+                      routingBadgeStyle = "bg-amber-50 text-amber-700 border-amber-200";
+                    } else if (log.workload_profile === "chat") {
+                      routingMode = "Model Proxy";
+                      routingBadgeStyle = "bg-blue-50 text-blue-700 border-blue-200";
+                    }
+
                     return (
                       <tr key={log.id} className="hover:bg-slate-50/50 transition">
                         <td className="p-3 font-mono text-slate-400">#{log.id}</td>
@@ -312,9 +313,12 @@ export function ConsoleClient({
                             {log.endpoint}
                           </span>
                         </td>
-                        <td className="p-3 font-mono text-right">{log.tokens}</td>
-                        <td className="p-3 font-mono text-right text-rose-600">${Number(log.cost).toFixed(5)}</td>
-                        <td className="p-3 font-mono text-right text-emerald-600">${Number(log.wholesale_cost).toFixed(5)}</td>
+                        <td className="p-3 font-mono text-right">{log.tokens || 0}</td>
+                        <td className="p-3 text-right">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${routingBadgeStyle}`}>
+                            {routingMode}
+                          </span>
+                        </td>
                       </tr>
                     );
                   })}
@@ -407,45 +411,28 @@ export function ConsoleClient({
           </div>
         )}
 
-        {/* TAB 3: SETTINGS / REFERRAL */}
+        {/* TAB 3: SETTINGS / LICENSING */}
         {activeTab === "settings" && (
           <div className="max-w-md space-y-6">
             <div className="space-y-2">
-              <h3 className="text-sm font-bold text-slate-800">Redeem Referral Code</h3>
+              <h3 className="text-sm font-bold text-slate-850">License Declaration</h3>
               <p className="text-xs text-slate-500">
-                Enter a referral code to instantly boost your active tenant's balance by $10.00.
+                Membrane operates on a permissive, honor-based model. Local development is completely free and unrestricted. Commercial production deployments require a paid license declaration.
               </p>
             </div>
             
-            <form onSubmit={handleRedeem} className="space-y-4">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="REF-XXXXXX"
-                  value={redeemCode}
-                  onChange={(e) => setRedeemCode(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:bg-white flex-1"
-                />
-                <button
-                  type="submit"
-                  disabled={redeemStatus?.type === "loading"}
-                  className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition shadow-sm"
-                >
-                  Redeem
-                </button>
-              </div>
-              {redeemStatus && (
-                <p className={`text-xs font-semibold ${
-                  redeemStatus.type === "success" 
-                    ? "text-emerald-600" 
-                    : redeemStatus.type === "error" 
-                    ? "text-rose-600" 
-                    : "text-slate-500"
+            <div className="p-4 bg-slate-55 rounded-xl border border-slate-200/80 space-y-3">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-bold text-slate-700">License Status:</span>
+                <span className={`px-2.5 py-1 rounded-md font-bold uppercase tracking-wider text-[10px] border ${
+                  stats.isProductionLicense
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-250"
+                    : "bg-slate-100 text-slate-600 border-slate-200"
                 }`}>
-                  {redeemStatus.message}
-                </p>
-              )}
-            </form>
+                  {stats.isProductionLicense ? "Commercial Production" : "Free for Local Dev"}
+                </span>
+              </div>
+            </div>
 
             <div className="border-t border-slate-200/60 pt-6 mt-6 space-y-4 max-w-md">
               <div className="space-y-2">
@@ -454,20 +441,20 @@ export function ConsoleClient({
                   Production Scaling Guide
                 </h3>
                 <p className="text-xs text-slate-500 leading-relaxed">
-                  Currently running in developer sandbox mode. To scale this instance to a multi-tenant production environment:
+                  Currently running in {stats.isProductionLicense ? "Commercial Production" : "Free for Local Dev"} mode. To manage or declare production scaling settings:
                 </p>
               </div>
 
-              <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-xl space-y-3">
+              <div className="p-4 bg-emerald-50/50 border border-emerald-150 rounded-xl space-y-3">
                 <div className="text-[11px] text-emerald-850 space-y-2 leading-relaxed">
                   <p>
-                    1. Acquire an official license on the <a href="https://buy.polar.sh/polar_cl_xD35VJkFTyba3qNO9q8D5WZ8pemoyiMxVsEyp3xAnbu" target="_blank" rel="noopener noreferrer" className="underline font-bold text-emerald-700 hover:text-emerald-800">Polar.sh Sponsor Tiers</a>.
+                    1. Acquire an official commercial license on the <a href="https://buy.polar.sh/polar_cl_yDHzavhCzMw8FkCp0t0X2NJNfg5xgqLmudIxZ0S54BZ" target="_blank" rel="noopener noreferrer" className="underline font-bold text-emerald-700 hover:text-emerald-800">Polar.sh License Tiers</a> for $29/month.
                   </p>
                   <p>
-                    2. Inject <code className="bg-emerald-100/50 px-1 rounded font-mono text-[10px]">MEMBRANE_LICENSE_KEY</code> into your production environments.
+                    2. Inject the key into your environments as the <code className="bg-emerald-105 px-1 rounded font-mono text-[10px]">MEMBRANE_LICENSE_KEY</code> variable.
                   </p>
                   <p>
-                    3. Connect a distributed cache using the <code className="bg-emerald-100/50 px-1 rounded font-mono text-[10px]">REDIS_URL</code> environment variable to unlock edge Redis setups.
+                    3. Connect a distributed cache using the <code className="bg-emerald-105 px-1 rounded font-mono text-[10px]">REDIS_URL</code> environment variable to unlock edge Redis setups.
                   </p>
                 </div>
               </div>

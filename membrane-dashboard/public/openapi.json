@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Membrane API",
-    "description": "API routing layer for agentic swarms offering L2 semantic caching and zero-shot isolation. Drop-in OpenAI replacement.",
+    "description": "Open-core proxy and parallel swarm ingestion engine offering L1/L2 semantic caching. Drop-in OpenAI replacement.",
     "version": "1.0.0"
   },
   "servers": [

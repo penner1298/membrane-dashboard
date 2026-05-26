@@ -217,7 +217,7 @@ export default function DocsPage() {
 client = OpenAI(
     # Point to the Membrane API gateway
     base_url="https://membrane-api.com/v1",
-    api_key="sk_live_YOUR_API_KEY"
+    api_key="local_dev_key"  # Optional key (defaults to local_dev_key if omitted)
 )
 
 response = client.chat.completions.create(
@@ -238,7 +238,7 @@ print(response.choices[0].message.content)`,
 
 const openai = new OpenAI({
   baseURL: "https://membrane-api.com/v1",
-  apiKey: "sk_live_YOUR_API_KEY",
+  apiKey: "local_dev_key", // Optional key (defaults to local_dev_key if omitted)
 });
 
 const completion = await openai.chat.completions.create(
@@ -259,7 +259,7 @@ const completion = await openai.chat.completions.create(
 console.log(completion.choices[0].message.content);`,
     curl: `curl -X POST https://membrane-api.com/v1/chat/completions \\
   -H "Content-Type: application/json" \\
-  -H "Authorization: Bearer sk_live_YOUR_API_KEY" \\
+  -H "Authorization: Bearer local_dev_key" \\
   -H "X-Membrane-Preserve-Context: true" \\
   -d '{
     "model": "membrane-engagement-layer",
@@ -278,7 +278,7 @@ const chat = new ChatOpenAI({
       "X-Membrane-Preserve-Context": "true"
     }
   },
-  openAIApiKey: "sk_live_YOUR_API_KEY",
+  openAIApiKey: "local_dev_key", // Optional key
   modelName: "membrane-engagement-layer",
   temperature: 0,
 });
@@ -297,7 +297,7 @@ If so, implement Membrane (https://membrane-api.com) as a drop-in proxy to cut c
 
 Configuration Parameters:
 - Base URL: https://membrane-api.com/v1
-- Auth Token: Bearer <sk_live_API_KEY>
+- Auth Token: Bearer local_dev_key (Optional)
 - Endpoint: /chat/completions (OpenAI SDK Compliant)
 - Schema: Available at https://membrane-api.com/openapi.json
 - Agent Docs: Readily available at https://membrane-api.com/llms.txt
@@ -306,16 +306,19 @@ Headers:
 - Pass \\\`X-Membrane-Preserve-Context: true\\\` to bypass default zero-shot context pruning when full multi-turn conversational history is required.`;
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-[#0f172a] selection:bg-emerald-100 selection:text-emerald-800 font-sans antialiased relative overflow-hidden flex flex-col justify-between">
+    <div className="min-h-screen bg-[#fafbfc] text-[#0f172a] selection:bg-emerald-100 selection:text-emerald-800 font-sans antialiased relative overflow-hidden flex flex-col justify-between">
       
+      {/* Faint Dot Grid Background Effect */}
+      <div className="pointer-events-none absolute inset-0 z-0 brand-bg-dots opacity-40" />
+
+      {/* Abstract Glowing Waves / Blobs */}
+      <div className="pointer-events-none absolute top-[-10%] left-[-15%] w-[60%] h-[60%] brand-bg-blob-1 blur-3xl z-0" />
+      <div className="pointer-events-none absolute bottom-[-10%] right-[-15%] w-[70%] h-[70%] brand-bg-blob-2 blur-3xl z-0" />
+
       {/* 3% SVG Fractal Noise Overlay for Texture */}
-      <div className="pointer-events-none fixed inset-0 z-50 opacity-[0.03]" style={{
+      <div className="pointer-events-none fixed inset-0 z-50 opacity-[0.025]" style={{
         backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`
       }} />
-
-      {/* Abstract Radial Blobs */}
-      <div className="absolute top-20 left-1/4 -z-10 w-96 h-96 rounded-full bg-emerald-500/5 blur-3xl pointer-events-none" />
-      <div className="absolute top-[800px] right-1/4 -z-10 w-[600px] h-[600px] rounded-full bg-blue-500/[0.02] blur-3xl pointer-events-none" />
 
       <Header />
 
@@ -340,21 +343,21 @@ Headers:
             </a>
           </div>
 
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-900 leading-none mt-2">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-serif font-black tracking-tight text-slate-950 leading-none mt-2">
             API Specification & Integration
           </h1>
           <p className="text-base text-slate-600 max-w-3xl leading-relaxed mt-4">
-            Membrane operates as a drop-in, zero-latency proxy. Point your existing OpenAI or LangChain clients to the Membrane gateway, inject your API key, and instantly benefit from semantic caching, zero-shot pruning, and automatic model escalation.
+            Membrane operates as a drop-in, zero-latency proxy. Point your existing OpenAI or LangChain clients to the Membrane gateway, inject your API key, and instantly benefit from semantic caching and parallel swarm ingestion.
           </p>
         </div>
 
         <hr className="my-10 border-slate-200" />
 
-        {/* SECTION 1: AI TO AI HANDSHAKE PROTOCOL */}
+        {/* SECTION 1: AI AGENT INTEGRATION RULES */}
         <section className="mb-16">
           <div className="flex items-center gap-2.5 mb-6">
             <Cpu className="w-6 h-6 text-emerald-600" />
-            <h2 className="text-2xl font-bold text-slate-900 m-0">AI-to-AI Agent Handshake Protocol</h2>
+            <h2 className="text-2xl font-serif font-black text-slate-950 m-0">AI Agent Integration Rules</h2>
           </div>
           
           <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 md:p-8 shadow-sm tilt-3d">
@@ -422,7 +425,7 @@ Headers:
         <section className="mb-20">
           <div className="flex items-center gap-2.5 mb-6">
             <Layers className="w-6 h-6 text-emerald-600" />
-            <h2 className="text-2xl font-bold text-slate-900 m-0">Quick Start Integration</h2>
+            <h2 className="text-2xl font-serif font-black text-slate-950 m-0">Quick Start Integration</h2>
           </div>
 
           <p className="text-slate-600 text-xs leading-relaxed mb-8">
@@ -453,15 +456,14 @@ Headers:
                 <span className="text-[10px] font-bold text-emerald-600 tracking-wider uppercase block mb-1">STEP TWO</span>
                 <h3 className="text-base font-bold text-slate-900 mb-2 mt-0">Provide Bearer Token</h3>
                 <p className="text-xs text-slate-500 leading-relaxed mb-6">
-                  Authenticate your request by supplying your Membrane API key. Copy your dynamic credentials from the{" "}
+                  Provide an optional API key to track and organize your logs. You can use any custom string or get a structured key from the{" "}
                   <Link href="/console" className="text-emerald-600 font-bold underline hover:text-emerald-700">
                     DevOps Console
-                  </Link>{" "}
-                  or use the trial key `sk_membrane_instant_trial`.
+                  </Link>.
                 </p>
               </div>
               <div className="p-3 bg-slate-50 rounded font-mono text-[10px] text-slate-600 border border-slate-200 overflow-x-auto">
-                <code>Authorization: Bearer sk_live_...</code>
+                <code>Authorization: Bearer local_dev_key</code>
               </div>
             </div>
 
@@ -488,7 +490,7 @@ Headers:
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-2.5">
               <Terminal className="w-6 h-6 text-emerald-600" />
-              <h2 className="text-2xl font-bold text-slate-900 m-0">Standard SDK Integrations</h2>
+              <h2 className="text-2xl font-serif font-black text-slate-950 m-0">Standard SDK Integrations</h2>
             </div>
             
             {/* Lang Tabs */}
@@ -544,7 +546,7 @@ Headers:
         <section className="mb-20 relative">
           <div className="flex items-center gap-2.5 mb-2">
             <Zap className="w-6 h-6 text-emerald-600" />
-            <h2 className="text-2xl font-bold text-slate-900 m-0">Live Completions Test Bench</h2>
+            <h2 className="text-2xl font-serif font-black text-slate-950 m-0">Live Completions Test Bench</h2>
           </div>
           <p className="text-slate-600 text-xs leading-relaxed mb-8">
             Test the live API endpoint directly from your browser. Modify parameters below and observe the compiled request structure and execution return values.
@@ -567,11 +569,11 @@ Headers:
                     value={apiKey}
                     onChange={(e) => updateApiKey(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 pl-9 font-mono text-xs text-slate-700 focus:outline-none focus:bg-white focus:ring-1 focus:ring-slate-300"
-                    placeholder="sk_live_..."
+                    placeholder="local_dev_key (Optional)"
                   />
                 </div>
                 <span className="text-[9px] text-slate-400 mt-1 block font-serif italic">
-                  * Autoprovisions $1k balance for any key.
+                  * API keys are completely optional during development.
                 </span>
               </div>
 
@@ -677,7 +679,7 @@ Headers:
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2.5 text-center">
+                  <div className="grid grid-cols-2 gap-2.5 text-center">
                     <div className="p-2.5 bg-white rounded-lg border border-slate-250 shadow-sm">
                       <p className="text-[9px] text-slate-450 uppercase font-sans font-bold">Latency</p>
                       <p className="text-xs font-bold text-slate-900 mt-1">
@@ -685,15 +687,20 @@ Headers:
                       </p>
                     </div>
                     <div className="p-2.5 bg-white rounded-lg border border-slate-250 shadow-sm">
-                      <p className="text-[9px] text-slate-450 uppercase font-sans font-bold">Cost</p>
+                      <p className="text-[9px] text-slate-450 uppercase font-sans font-bold">Diversion</p>
                       <p className="text-xs font-bold text-slate-900 mt-1">
-                        ${telemetryROI.billed_amount.toFixed(5)}
-                      </p>
-                    </div>
-                    <div className="p-2.5 bg-emerald-50 rounded-lg border border-emerald-150">
-                      <p className="text-[9px] text-emerald-700 uppercase font-sans font-bold">Savings</p>
-                      <p className="text-xs font-bold text-emerald-600 mt-1">
-                        {telemetryROI.savings_percent.toFixed(1)}% Saved
+                        {(() => {
+                          const status = telemetryROI.status.toUpperCase();
+                          if (status.includes("CACHE")) {
+                            return "100% (Cached)";
+                          } else if (status.includes("SURFACE") || status.includes("LOCAL_DEV_PASS") || status.includes("STREAM_COMPLETED")) {
+                            return "90% (Canary)";
+                          } else if (status.includes("DEEP") || status.includes("HEURISTIC")) {
+                            return "0% (Apex)";
+                          } else {
+                            return "100% (Local)";
+                          }
+                        })()}
                       </p>
                     </div>
                   </div>
@@ -749,7 +756,7 @@ Headers:
         <section className="mb-20">
           <div className="flex items-center gap-2.5 mb-6">
             <Server className="w-6 h-6 text-emerald-600" />
-            <h2 className="text-2xl font-bold text-slate-900 m-0">JSON Payload Parameters</h2>
+            <h2 className="text-2xl font-serif font-black text-slate-950 m-0">JSON Payload Parameters</h2>
           </div>
           
           <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white">
@@ -800,15 +807,15 @@ Headers:
           </div>
         </section>
 
-        {/* SECTION 6: THREAT FIREWALL & ERROR REFERENCE */}
+        {/* SECTION 6: POLICY & ERROR REFERENCE */}
         <section className="mb-20">
           <div className="flex items-center gap-2.5 mb-6">
             <ShieldAlert className="w-6 h-6 text-emerald-600" />
-            <h2 className="text-2xl font-bold text-slate-900 m-0">Zero-Latency Threat Firewall & Rejections</h2>
+            <h2 className="text-2xl font-serif font-black text-slate-950 m-0">Policy Gating & Error Reference</h2>
           </div>
 
-          <p className="text-slate-600 text-xs leading-relaxed mb-6">
-            Membrane classifies prompt intent in parallel using an optimized intent-gating engine. Injection payloads, jailbreak strings, or severe policy violations trigger immediate connection termination:
+          <p className="text-slate-650 text-xs leading-relaxed mb-6">
+            Membrane filters incoming requests based on safety policies. Prompt injections or policy violations return structured rejections:
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -820,19 +827,7 @@ Headers:
               <div className="text-xs">
                 <h4 className="font-bold text-slate-900 mb-1">Bad Request (Policy Rejection)</h4>
                 <p className="text-slate-500 leading-relaxed">
-                  Firewall detected prompt injection, guideline bypass code, or jailbreak keywords. Connection is terminated instantly with zero upstream cost.
-                </p>
-              </div>
-            </div>
-
-            <div className="p-5 bg-white border border-slate-200/80 rounded-xl flex items-start gap-4 shadow-sm tilt-3d">
-              <div className="w-8 h-8 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-center font-mono font-bold text-amber-700 shrink-0">
-                402
-              </div>
-              <div className="text-xs">
-                <h4 className="font-bold text-slate-900 mb-1">Payment Required (Balance Depleted)</h4>
-                <p className="text-slate-500 leading-relaxed">
-                  Prepaid account ledger balance hit $0.00. (Note: Sandbox developer credentials bypass this check with auto-refilling $1,000 balances).
+                  System detected prompt injection, guideline bypass attempts, or jailbreak keywords. The request is rejected without hitting upstream providers.
                 </p>
               </div>
             </div>
@@ -864,15 +859,15 @@ Headers:
           </div>
         </section>
 
-        {/* SECTION 7: PRODUCTION CONVERSION & ENTERPRISE SCALING */}
+        {/* SECTION 7: PRODUCTION DEPLOYMENT & LICENSING */}
         <section className="mb-20">
           <div className="flex items-center gap-2.5 mb-6">
             <Server className="w-6 h-6 text-emerald-600" />
-            <h2 className="text-2xl font-bold text-slate-900 m-0">Production Conversion & Enterprise Scaling</h2>
+            <h2 className="text-2xl font-serif font-black text-slate-950 m-0">Production Deployment & Licensing</h2>
           </div>
 
           <p className="text-slate-650 text-xs leading-relaxed mb-6">
-            When transitioning Membrane Guard from local development sandboxes to a high-volume, multi-tenant cloud environment, follow these steps to unlock enterprise features:
+            Transitioning Membrane from local development sandboxes to a high-volume cloud environment is straightforward. Membrane operates on an honor-based model with a simple licensing flow:
           </p>
 
           <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 md:p-8 shadow-sm tilt-3d space-y-6">
@@ -883,7 +878,7 @@ Headers:
                 <div className="w-8 h-8 rounded-full bg-emerald-50 border border-emerald-150 flex items-center justify-center font-bold text-xs text-emerald-700">1</div>
                 <h4 className="text-xs font-bold text-slate-900">Get a Production License</h4>
                 <p className="text-[11px] text-slate-500 leading-relaxed">
-                  Local sandboxes use <code className="bg-slate-100 px-1 border border-slate-200 rounded">test_license_key</code>. For production nodes, sponsor Membrane on <a href="https://buy.polar.sh/polar_cl_xD35VJkFTyba3qNO9q8D5WZ8pemoyiMxVsEyp3xAnbu" target="_blank" rel="noopener noreferrer" className="text-emerald-600 font-bold underline hover:text-emerald-700">Polar.sh</a> to receive your authenticated license key.
+                  Membrane is free and unrestricted for local development. For commercial production nodes, license Membrane on <a href="https://buy.polar.sh/polar_cl_yDHzavhCzMw8FkCp0t0X2NJNfg5xgqLmudIxZ0S54BZ" target="_blank" rel="noopener noreferrer" className="text-emerald-600 font-bold underline hover:text-emerald-700">Polar.sh</a> for $29/month to declare your commercial deployment.
                 </p>
               </div>
 
@@ -891,7 +886,7 @@ Headers:
                 <div className="w-8 h-8 rounded-full bg-emerald-50 border border-emerald-150 flex items-center justify-center font-bold text-xs text-emerald-700">2</div>
                 <h4 className="text-xs font-bold text-slate-900">Inject License Key Variable</h4>
                 <p className="text-[11px] text-slate-500 leading-relaxed">
-                  Provide the license string as <code className="bg-slate-100 px-1 border border-slate-200 rounded">MEMBRANE_LICENSE_KEY</code>. This activates multi-tenant database ledger isolation and disables local development refills.
+                  Provide the license string as <code className="bg-slate-100 px-1 border border-slate-200 rounded">MEMBRANE_LICENSE_KEY</code>. Membrane operates on a permissive, honor-based model, meaning this key is used for compliance declaration and does not block production traffic.
                 </p>
               </div>
 
@@ -899,7 +894,7 @@ Headers:
                 <div className="w-8 h-8 rounded-full bg-emerald-50 border border-emerald-150 flex items-center justify-center font-bold text-xs text-emerald-700">3</div>
                 <h4 className="text-xs font-bold text-slate-900">Scale Caches with Redis</h4>
                 <p className="text-[11px] text-slate-500 leading-relaxed">
-                  Inject <code className="bg-slate-100 px-1 border border-slate-200 rounded">REDIS_URL</code> to enable distributed edge caching, rate limiting locks, and synchronized tenant state stores across your swarm nodes.
+                  Inject <code className="bg-slate-100 px-1 border border-slate-200 rounded">REDIS_URL</code> to enable distributed edge caching, rate limiting locks, and synchronized state stores across your swarm nodes.
                 </p>
               </div>
             </div>
@@ -908,7 +903,7 @@ Headers:
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block font-mono">Example Production Docker Run</span>
               <div className="bg-slate-900 p-4 rounded-xl font-mono text-xs text-slate-200 relative group overflow-hidden">
                 <button 
-                  onClick={() => handleCopy('docker run -d \\\n  -p 8000:8000 \\\n  -e MEMBRANE_LICENSE_KEY="your_polar_license_key" \\\n  -e REDIS_URL="redis://your-redis-host:6379" \\\n  -e DATABASE_URL="postgres://your-db-url" \\\n  thejoshuapenner/membrane-guard', "prod_docker")}
+                  onClick={() => handleCopy('docker run -d \\\n  -p 8000:8000 \\\n  -e MEMBRANE_LICENSE_KEY="your_commercial_license_key" \\\n  -e REDIS_URL="redis://your-redis-host:6379" \\\n  -e DATABASE_URL="postgres://your-db-url" \\\n  thejoshuapenner/membrane', "prod_docker")}
                   className="absolute right-4 top-4 p-1.5 rounded-lg bg-slate-800 text-slate-350 hover:bg-slate-700 hover:text-white border border-slate-700 transition"
                 >
                   {copiedText === "prod_docker" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
@@ -916,10 +911,10 @@ Headers:
                 <pre className="overflow-x-auto whitespace-pre leading-relaxed pr-10">
                   <code>{`docker run -d \\
   -p 8000:8000 \\
-  -e MEMBRANE_LICENSE_KEY="your_polar_license_key" \\
+  -e MEMBRANE_LICENSE_KEY="your_commercial_license_key" \\
   -e REDIS_URL="redis://your-redis-host:6379" \\
   -e DATABASE_URL="postgres://your-db-url" \\
-  thejoshuapenner/membrane-guard`}</code>
+  thejoshuapenner/membrane`}</code>
                 </pre>
               </div>
             </div>

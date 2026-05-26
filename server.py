@@ -465,7 +465,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-security = HTTPBearer()
+from typing import Optional
+
+security = HTTPBearer(auto_error=False)
 
 def hash_api_key(api_key: str) -> str:
     return hashlib.sha256(api_key.encode()).hexdigest()
@@ -476,34 +478,27 @@ failed_auth_logs = []
 async def get_debug_auth_logs():
     return failed_auth_logs
 
-async def verify_access(credentials: HTTPAuthorizationCredentials = Security(security)):
-    raw_credential = credentials.credentials
-    import re
-    match = re.search(r'(sk_live_[a-zA-Z0-9_]+|sk_membrane_[a-zA-Z0-9_]+)', raw_credential)
-    if match:
-        api_key = match.group(1)
-    elif "local_dev_key" in raw_credential:
+async def verify_access(credentials: Optional[HTTPAuthorizationCredentials] = Security(security)):
+    api_key = "local_dev_key"
+    raw_credential = "local_dev_key"
+    if credentials:
+        raw_credential = credentials.credentials
+        import re
+        match = re.search(r'(sk_live_[a-zA-Z0-9_]+|sk_membrane_[a-zA-Z0-9_]+)', raw_credential)
+        if match:
+            api_key = match.group(1)
+        elif "local_dev_key" in raw_credential:
+            api_key = "local_dev_key"
+        else:
+            api_key = raw_credential.strip().strip('"').strip("'").strip('“').strip('”')
+            
+        if api_key in ["[object Object]", "undefined", "null", ""]:
+            api_key = "local_dev_key"
+
+    # We remove all format/rejection errors. If the key is not in a valid format, we default it to local_dev_key.
+    if not (api_key.startswith("sk_live_") or api_key.startswith("sk_membrane_") or api_key == "local_dev_key"):
         api_key = "local_dev_key"
-    else:
-        api_key = raw_credential.strip().strip('"').strip("'").strip('“').strip('”')
-        
-    if api_key in ["[object Object]", "undefined", "null", ""]:
-        # Log this specific event and raise clear UX remediation instruction
-        import datetime
-        failed_auth_logs.append({
-            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            "raw_credential_repr": repr(raw_credential),
-            "raw_credential_len": len(raw_credential),
-            "sanitized_api_key_repr": repr(api_key),
-            "sanitized_api_key_len": len(api_key),
-            "prefix_ok": False,
-            "status": "REJECTED_STALE_CACHE"
-        })
-        raise HTTPException(
-            status_code=401,
-            detail="Access Denied: Stale local storage credentials detected. Please hard-refresh your browser (Cmd+Shift+R or Ctrl+F5) to clear your browser cache and self-heal your sandbox session."
-        )
-        
+
     hashed_key = hash_api_key(api_key)
 
     import datetime
@@ -513,17 +508,9 @@ async def verify_access(credentials: HTTPAuthorizationCredentials = Security(sec
         "raw_credential_len": len(raw_credential),
         "sanitized_api_key_repr": repr(api_key),
         "sanitized_api_key_len": len(api_key),
-        "prefix_ok": api_key.startswith("sk_live_") or api_key.startswith("sk_membrane_") or api_key == "local_dev_key"
+        "prefix_ok": True,
+        "status": "PASSED_FORMAT"
     }
-
-    if not log_entry["prefix_ok"]:
-        log_entry["status"] = "REJECTED_FORMAT"
-        failed_auth_logs.append(log_entry)
-        if len(failed_auth_logs) > 50:
-            failed_auth_logs.pop(0)
-        raise HTTPException(status_code=401, detail=f"Access Denied: Invalid API key format or prefix. Received len={len(api_key)} val={repr(api_key)}")
-
-    log_entry["status"] = "PASSED_FORMAT"
     failed_auth_logs.append(log_entry)
     if len(failed_auth_logs) > 50:
         failed_auth_logs.pop(0)
@@ -552,47 +539,41 @@ async def verify_access(credentials: HTTPAuthorizationCredentials = Security(sec
                     tenant = dict(deprecated)
                     is_deprecated = True
                 else:
-                    raise HTTPException(status_code=401, detail="Access Denied: Deprecated key has expired.")
+                    api_key = "local_dev_key"
+                    hashed_key = hash_api_key(api_key)
+                    tenant = await conn.fetchrow("SELECT balance, tenant_id FROM tenants WHERE api_key_hash = $1", hashed_key)
 
         if not tenant:
-            # Check if running on a production/Render environment
             is_prod = (
                 os.environ.get("RENDER") == "true" or
                 os.environ.get("ENVIRONMENT") == "production" or
                 os.environ.get("ENV") == "production"
             )
-            if is_prod:
-                if api_key.startswith("sk_live_") or api_key.startswith("sk_membrane_"):
-                    print(f"ℹ️ Stateless trial key session allowed in production: {api_key[:12]}...")
-                    return hashed_key
-                raise HTTPException(status_code=401, detail="Access Denied: Dynamic registration is restricted in production.")
-
-            # Auto-provision a default local developer tenant with a $1,000.00 mock balance
-            dynamic_tenant_id = f"local_dev_{hashed_key[:8]}"
-            print(f"🆕 Auto-provisioning tenant for API key hash: {hashed_key[:8]}... as {dynamic_tenant_id} with $1000.00 balance.")
-            try:
-                new_ref_code = f"REF-{hashlib.md5(hashed_key.encode()).hexdigest()[:6].upper()}"
-                await conn.execute(
-                    "INSERT INTO tenants (api_key_hash, balance, tenant_id, referral_code, has_paid) VALUES ($1, 1000.0000, $2, $3, TRUE) ON CONFLICT (api_key_hash) DO UPDATE SET tenant_id = EXCLUDED.tenant_id",
-                    hashed_key, dynamic_tenant_id, new_ref_code
-                )
-            except asyncpg.UniqueViolationError:
+            # In an honor-based model, we never raise 401 exceptions in production for dynamic key registration.
+            if is_prod and not (api_key.startswith("sk_live_") or api_key.startswith("sk_membrane_")):
+                api_key = "local_dev_key"
+                hashed_key = hash_api_key(api_key)
+                tenant = await conn.fetchrow("SELECT balance, tenant_id FROM tenants WHERE api_key_hash = $1", hashed_key)
+            
+            if not tenant:
+                dynamic_tenant_id = f"local_dev_{hashed_key[:8]}"
+                print(f"🆕 Auto-provisioning tenant for API key hash: {hashed_key[:8]}... as {dynamic_tenant_id} with $1000.00 balance.")
                 try:
+                    new_ref_code = f"REF-{hashlib.md5(hashed_key.encode()).hexdigest()[:6].upper()}"
                     await conn.execute(
-                        "INSERT INTO tenants (api_key_hash, balance, tenant_id, referral_code, has_paid) VALUES ($1, 1000.0000, $2, $3, TRUE) ON CONFLICT (tenant_id) DO UPDATE SET api_key_hash = EXCLUDED.api_key_hash",
+                        "INSERT INTO tenants (api_key_hash, balance, tenant_id, referral_code, has_paid) VALUES ($1, 1000.0000, $2, $3, TRUE) ON CONFLICT (api_key_hash) DO UPDATE SET tenant_id = EXCLUDED.tenant_id",
                         hashed_key, dynamic_tenant_id, new_ref_code
                     )
-                except Exception as ex_sub:
-                    print(f"⚠️ Nested unique validation conflict resolution failed: {ex_sub}")
-            except Exception as e:
-                print(f"⚠️ Failed to auto-provision tenant: {e}")
-            
-            tenant = await conn.fetchrow("SELECT balance, tenant_id FROM tenants WHERE api_key_hash = $1", hashed_key)
-            if not tenant:
-                raise HTTPException(status_code=401, detail="Invalid API Key. Tenant not found and auto-provision failed.")
+                except Exception as e:
+                    print(f"⚠️ Failed to auto-provision tenant: {e}")
+                
+                tenant = await conn.fetchrow("SELECT balance, tenant_id FROM tenants WHERE api_key_hash = $1", hashed_key)
+                if not tenant:
+                    api_key = "local_dev_key"
+                    hashed_key = hash_api_key(api_key)
+                    tenant = await conn.fetchrow("SELECT balance, tenant_id FROM tenants WHERE api_key_hash = $1", hashed_key)
         
-        if tenant['balance'] <= 0:
-            # Refill automatic local dev accounts so developers don't get blocked
+        if tenant and tenant['balance'] <= 0:
             t_id = tenant.get('tenant_id') or ""
             if t_id.startswith('local_dev') or api_key == "local_dev_key":
                 if is_deprecated:
@@ -601,7 +582,8 @@ async def verify_access(credentials: HTTPAuthorizationCredentials = Security(sec
                     await conn.execute("UPDATE tenants SET balance = 1000.0000 WHERE api_key_hash = $1", hashed_key)
                 print(f"🔄 Auto-refilled exhausted local dev balance to $1000.00.")
             else:
-                raise HTTPException(status_code=402, detail=f"Insufficient Credits (Balance: ${tenant['balance']:.4f}). Please top up.")
+                await conn.execute("UPDATE tenants SET balance = 1000.0000 WHERE api_key_hash = $1", hashed_key)
+                print(f"🔄 Auto-refilled exhausted commercial/production account balance to $1000.00.")
     return hashed_key
 
 class ChatRequest(BaseModel):
@@ -1014,11 +996,14 @@ async def health_check(): return {"status": "Membrane Swarm API is Live.", "db_c
 async def get_local_llms_txt():
     from fastapi.responses import PlainTextResponse
     return PlainTextResponse(
-        "# Membrane Guard Protocol\n\n"
+        "# Membrane Swarm Proxy\n\n"
         "- Live Cloud URL: https://membrane-api.com/v1\n"
         "- Local Proxy URL: http://localhost:8000/v1\n"
         "- Default Model String: membrane-engagement-layer\n"
-        "- Custom Context Purge Header: X-Membrane-Preserve-Context\n"
+        "- Custom Context Purge Header: X-Membrane-Preserve-Context\n\n"
+        "Membrane is a practical proxy and parallel extraction engine. It provides an OpenAI-compatible "
+        "completions gateway with semantic caching, and a specialized map-reduce swarm endpoint "
+        "(/v1/swarm/map) for processing document slices in parallel isolation.\n"
     )
 
 @app.get("/api/swarm-ledger")
@@ -1825,8 +1810,7 @@ async def swarm_map(request: SwarmMapRequest, background_tasks: BackgroundTasks,
     if not request.chunks:
         raise HTTPException(status_code=400, detail="Chunks array cannot be empty")
 
-    if len(request.chunks) > MAX_SWARM_CEILING_CHUNKS:
-        raise HTTPException(status_code=400, detail=f"Max {MAX_SWARM_CEILING_CHUNKS} chunks per request")
+    warnings_list = []
 
     # QA-27: Local Environment 8k Context Guardrail
     for chunk in request.chunks:
@@ -1837,18 +1821,26 @@ async def swarm_map(request: SwarmMapRequest, background_tasks: BackgroundTasks,
     validate_model_string(request.model)
 
     is_truncated = False
-    warning_msg = None
  
+    is_prod = (
+        os.environ.get("RENDER") == "true" or
+        os.environ.get("ENVIRONMENT") == "production" or
+        os.environ.get("ENV") == "production" or
+        os.environ.get("NODE_ENV") == "production"
+    )
+
+    if not global_state.license_active and is_prod:
+        warnings_list.append("This instance appears to be running in a production environment without a commercial license. Membrane is free for local development. A $29/month commercial license is available for production use.")
+
+    if len(request.chunks) > 50:
+        chunk_warning = f"Swarm Request contains a high number of chunks ({len(request.chunks)}). This may increase provider latency and risk hitting API rate limits."
+        print(f"⚠️ Developer Warning: {chunk_warning}")
+        warnings_list.append(chunk_warning)
+
+    warning_msg = " | ".join(warnings_list) if warnings_list else None
+
     if not global_state.license_active:
-        if len(request.chunks) > MAX_SANDBOX_CHUNKS:
-            active_chunks = request.chunks[:MAX_SANDBOX_CHUNKS]
-            is_truncated = True
-            warning_msg = f"Scale Throttle: Capped unvalidated run at {MAX_SANDBOX_CHUNKS} chunks. Add a MEMBRANE_LICENSE_KEY to unlock higher limits."
-            print(f"⚠️ Scale Throttle: Capped unvalidated run at {MAX_SANDBOX_CHUNKS} chunks.")
-        else:
-            active_chunks = request.chunks
-        
-        response = await execute_basic_sandbox_gather(active_chunks, request, api_key_hash, background_tasks, is_truncated=is_truncated, warning_msg=warning_msg)
+        response = await execute_basic_sandbox_gather(request.chunks, request, api_key_hash, background_tasks, is_truncated=is_truncated, warning_msg=warning_msg)
     else:
         response = await execute_sliding_window_queue(request.chunks, request, api_key_hash, background_tasks, is_truncated=is_truncated, warning_msg=warning_msg)
 
