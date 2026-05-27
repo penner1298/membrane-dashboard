@@ -635,7 +635,7 @@ console.log(completion.choices[0].message.content);`;
                           </div>
                         </div>
                         <div className="bg-slate-50 px-3 py-2 rounded-lg border border-slate-200 text-xs font-mono text-slate-600 select-all">
-                          POST {gatewayMode === "hosted" ? "https://membrane-api.com" : "http://localhost:8000"}{selectedPattern.endpoint}
+                          POST {gatewayMode === "hosted" ? (typeof window !== "undefined" ? window.location.origin : "https://membrane-api.com") : "http://localhost:8000"}{selectedPattern.endpoint}
                         </div>
                       </div>
                     </>

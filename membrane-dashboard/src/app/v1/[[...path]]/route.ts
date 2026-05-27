@@ -45,6 +45,7 @@ async function handleProxy(request: NextRequest, pathSegments: string[]) {
 
   const headers = new Headers(request.headers);
   headers.delete("host"); // Avoid SSL certificate mismatch on upstream
+  headers.delete("content-length"); // Let fetch recalculate the correct length dynamically
 
   const init: RequestInit = {
     method: request.method,
@@ -54,7 +55,10 @@ async function handleProxy(request: NextRequest, pathSegments: string[]) {
   // Only GET and HEAD request methods cannot have a body
   if (request.method !== "GET" && request.method !== "HEAD") {
     try {
-      init.body = await request.blob();
+      const bodyText = await request.text();
+      if (bodyText) {
+        init.body = bodyText;
+      }
     } catch (e) {
       // Empty or unparseable body
     }
@@ -69,11 +73,34 @@ async function handleProxy(request: NextRequest, pathSegments: string[]) {
     resHeaders.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH");
     resHeaders.set("Access-Control-Allow-Headers", "*");
 
-    return new Response(res.body, {
-      status: res.status,
-      statusText: res.statusText,
-      headers: resHeaders,
-    });
+    // Sanitization & Cleanup of leaking/conflicting headers
+    resHeaders.delete("allow");
+    resHeaders.delete("server");
+    resHeaders.delete("x-render-origin-server");
+    resHeaders.delete("rndr-id");
+    resHeaders.delete("content-length");
+    resHeaders.delete("content-encoding");
+    resHeaders.delete("transfer-encoding");
+
+    // Check if the response content type is a stream (e.g. chat streaming)
+    const contentType = res.headers.get("content-type");
+    const isStream = contentType && contentType.includes("text/event-stream");
+
+    if (isStream) {
+      return new Response(res.body, {
+        status: res.status,
+        statusText: res.statusText,
+        headers: resHeaders,
+      });
+    } else {
+      // Read response fully into memory buffer to avoid Vercel stream-passing empty body bug
+      const body = await res.arrayBuffer();
+      return new Response(body, {
+        status: res.status,
+        statusText: res.statusText,
+        headers: resHeaders,
+      });
+    }
   } catch (error: any) {
     console.error("API Proxy Error:", error);
     return NextResponse.json(

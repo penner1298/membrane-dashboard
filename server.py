@@ -345,6 +345,7 @@ async def handle_head_requests(request: Request, call_next):
         if response.status_code == 405:
             from fastapi import Response
             new_headers = dict(response.headers)
+            new_headers.pop("allow", None)
             new_headers["Access-Control-Allow-Origin"] = "*"
             new_headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH"
             new_headers["Access-Control-Allow-Headers"] = "*"
@@ -834,7 +835,7 @@ async def generate_swarm_plan(
     # Strict shape validation on extraction_criteria (per audit plan)
     # Guarantees clean 422 for bad shapes (e.g. target_signals as string instead of list)
     if getattr(request, 'extraction_criteria', None) is not None:
-        validate_criteria_types(request.chunks, request.extraction_criteria)
+        validate_criteria_types(request.extraction_criteria)
         
     # PHASE 1: 4D LAYER - Invariant Compliance Validation
     validate_invariant_compliance(request.chunks, request.invariant_set_id)
@@ -928,7 +929,7 @@ async def swarm_map(request: SwarmMapRequest, background_tasks: BackgroundTasks,
     # Strict shape validation on extraction_criteria at entry point (per audit plan)
     # Guarantees clean 422 for bad shapes even in legacy mode
     if getattr(request, 'extraction_criteria', None) is not None:
-        validate_criteria_types(request.chunks, request.extraction_criteria)
+        validate_criteria_types(request.extraction_criteria)
 
     if not request.chunks:
         if swarm_mode in (SwarmExecutionMode.EARLY_GATE, SwarmExecutionMode.CANARY_PROBE):
