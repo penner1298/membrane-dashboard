@@ -53,20 +53,41 @@ async def get_aversive_warnings(
         return ""
 
 def get_semantic_priming(prompt: str, schema: Optional[dict]) -> str:
+    # Strict extraction directive to remove narrative conversational preambles/notes
+    narrative_restriction = (
+        "\n[SYSTEM DIRECTIVE: You are acting as a strict data extraction proxy. "
+        "Do NOT include any conversational preamble, markdown narrative explanation, "
+        "notes, disclaimers, or chat feedback. Output ONLY the raw data requested (e.g. JSON array/object or direct plain text list). "
+        "Your response MUST start directly with the first character of the requested data payload (e.g. `[` or `{` or list items) "
+        "and stop immediately after the data concludes.]\n"
+    )
     if schema:
-        return "[METADATA: Domain=Data_Extraction, Intent=Parsing, Creativity=0]\n"
+        return f"[METADATA: Domain=Data_Extraction, Intent=Parsing, Creativity=0]\n{narrative_restriction}"
     if any(k in prompt.lower() for k in ["python", "code", "script"]):
-        return "[METADATA: Domain=Software_Engineering, Intent=Code_Generation, Creativity=0]\n"
-    return "[METADATA: Domain=General_Reasoning, Intent=Conversation, Creativity=7]\n"
+        return f"[METADATA: Domain=Software_Engineering, Intent=Code_Generation, Creativity=0]\n{narrative_restriction}"
+    return f"[METADATA: Domain=Data_Extraction, Intent=Extraction, Creativity=0]\n{narrative_restriction}"
 
 def fidelity_check(prompt: str, answer: str, schema: Optional[dict] = None) -> Tuple[bool, Optional[str], str]:
     if schema:
         try:
             clean_output = answer.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-            jsonschema.validate(instance=json.loads(clean_output), schema=schema)
+            parsed = json.loads(clean_output)
+            
+            # Determine if a real validation schema is present
+            actual_schema = None
+            if "json_schema" in schema:
+                actual_schema = schema["json_schema"].get("schema")
+            elif schema.get("type") == "json_schema" and "schema" in schema:
+                actual_schema = schema.get("schema")
+            elif schema.get("type") != "json_object" and ("properties" in schema or "$schema" in schema or schema.get("type") in ["object", "array"]):
+                actual_schema = schema
+
+            if actual_schema:
+                jsonschema.validate(instance=parsed, schema=actual_schema)
+                
             return True, None, clean_output
         except Exception as e:
-            return False, f"Schema violation: {str(e)}", answer
+            return False, f"Schema validation failed: {str(e)}", answer
 
     ans_lower = str(answer).lower()
     if any(re.search(p, ans_lower) for p in [r"i can\'?t (do|help)", r"i am (unable|sorry)", r"as an ai", r"against my guidelines"]):

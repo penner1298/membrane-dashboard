@@ -64,12 +64,12 @@ def validate_strict_swarm_request(
             }
         )
 
-    if not (1 <= len(chunks) <= 25):
+    if not (1 <= len(chunks) <= 50):
         raise HTTPException(
             status_code=422,
             detail={
                 "error_type": "structural_validation_failure",
-                "message": f"chunks length must be between 1 and 25, got {len(chunks)}",
+                "message": f"chunks length must be between 1 and 50, got {len(chunks)}",
                 "check": "chunks"
             }
         )
@@ -99,12 +99,12 @@ def validate_strict_swarm_request(
         total_chars += len(chunk)
 
     # 5. Total input size checking
-    if total_chars > 200000:
+    if total_chars > 1000000:
         raise HTTPException(
             status_code=422,
             detail={
                 "error_type": "structural_validation_failure",
-                "message": f"total character count across all chunks ({total_chars}) exceeds 200,000 character ceiling",
+                "message": f"total character count across all chunks ({total_chars}) exceeds 1,000,000 character ceiling",
                 "check": "Total estimated input"
             }
         )

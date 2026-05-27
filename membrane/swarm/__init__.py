@@ -57,6 +57,9 @@ class SwarmMapRequest(BaseModel):
     extraction_criteria: Optional[Dict[str, Any]] = None
     invariant_set_id: Optional[str] = None  # The locked enterprise compliance ceiling
 
+    provider: Optional[str] = None
+    provider_api_key: Optional[str] = None
+
     model_config = {"extra": "allow"}
 
     @field_validator("extraction_criteria")
@@ -70,6 +73,9 @@ class SwarmPlanRequest(BaseModel):
     max_concurrency: Optional[int] = 20
     extraction_criteria: Optional[Dict[str, Any]] = None
     invariant_set_id: Optional[str] = None # The locked enterprise compliance ceiling
+
+    provider: Optional[str] = None
+    provider_api_key: Optional[str] = None
 
     model_config = {"extra": "allow"}
 
@@ -127,6 +133,9 @@ class SwarmMapMetadata(BaseModel):
     chunks_reached_model: Optional[int] = None
     estimated_waste_tokens: Optional[int] = None
     concurrency_level: Optional[int] = None
+    prompt_tokens: Optional[int] = None
+    completion_tokens: Optional[int] = None
+    total_tokens: Optional[int] = None
 
 class SwarmMapResponse(BaseModel):
     object: str = "swarm.extraction_matrix"
@@ -279,14 +288,19 @@ async def execute_basic_sandbox_gather(
     warning_msg: Optional[str] = None
 ) -> SwarmMapResponse:
     validate_criteria_types(request.extraction_criteria)
-    mapped_model = request.model if request.model != "membrane-engagement-layer" else CANARY_MODEL
+    provider = getattr(request, 'provider', None) or (request.model_extra.get('provider') if request.model_extra else None)
+    provider_api_key = getattr(request, 'provider_api_key', None) or (request.model_extra.get('provider_api_key') if request.model_extra else None)
+    from membrane.swarm.execution import resolve_provider_nodes
+    canary_node, apex_node = resolve_provider_nodes(provider, provider_api_key)
+    mapped_model = request.model if request.model != "membrane-engagement-layer" else canary_node
     criteria = request.extraction_criteria or {}
     system_prompt = criteria.get("system_persona") or request.system_prompt or "Extract data."
     target_signals = criteria.get("target_signals") or []
     
     semaphore = asyncio.Semaphore(request.max_concurrency)
     tasks = [
-        process_swarm_chunk(chunk, i, mapped_model, system_prompt, target_signals, request.temperature, semaphore)
+        process_swarm_chunk(chunk, i, mapped_model, system_prompt, target_signals, request.temperature, semaphore,
+                            provider_api_key=provider_api_key, apex_model=apex_node)
         for i, chunk in enumerate(chunks)
     ]
     results = await asyncio.gather(*tasks)
@@ -301,14 +315,19 @@ async def execute_sliding_window_queue(
     warning_msg: Optional[str] = None
 ) -> SwarmMapResponse:
     validate_criteria_types(request.extraction_criteria)
-    mapped_model = request.model if request.model != "membrane-engagement-layer" else CANARY_MODEL
+    provider = getattr(request, 'provider', None) or (request.model_extra.get('provider') if request.model_extra else None)
+    provider_api_key = getattr(request, 'provider_api_key', None) or (request.model_extra.get('provider_api_key') if request.model_extra else None)
+    from membrane.swarm.execution import resolve_provider_nodes
+    canary_node, apex_node = resolve_provider_nodes(provider, provider_api_key)
+    mapped_model = request.model if request.model != "membrane-engagement-layer" else canary_node
     criteria = request.extraction_criteria or {}
     system_prompt = criteria.get("system_persona") or request.system_prompt or "Extract data."
     target_signals = criteria.get("target_signals") or []
     
     semaphore = asyncio.Semaphore(min(request.max_concurrency, 10))
     tasks = [
-        process_swarm_chunk(chunk, i, mapped_model, system_prompt, target_signals, request.temperature, semaphore)
+        process_swarm_chunk(chunk, i, mapped_model, system_prompt, target_signals, request.temperature, semaphore,
+                            provider_api_key=provider_api_key, apex_model=apex_node)
         for i, chunk in enumerate(chunks)
     ]
     results = await asyncio.gather(*tasks)

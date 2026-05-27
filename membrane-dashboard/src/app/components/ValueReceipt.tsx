@@ -30,14 +30,17 @@ export function ValueReceipt({
   const unoptimizedRatio = 100;
   
   return (
-    <div className="w-full max-w-sm mx-auto bg-[#fafaf9] border border-stone-200 p-6 shadow-xl relative overflow-hidden select-none text-stone-800 font-mono text-xs animate-in slide-in-from-bottom duration-500 shadow-stone-900/10">
+    <div className="tilt-card glass-card-tactile w-full max-w-sm mx-auto bg-[#fafaf9] p-6 shadow-xl relative overflow-hidden select-none text-stone-800 font-mono text-xs animate-in slide-in-from-bottom duration-500 shadow-stone-900/10 hover:shadow-stone-950/15">
       
+      {/* Dog-Ear Fold Effect */}
+      <div className="absolute top-0 right-0 w-5 h-5 bg-stone-200 border-l border-b border-stone-300 shadow-xs z-30" style={{ clipPath: "polygon(0 0, 100% 100%, 0 100%)" }} />
+
       {/* Tear Line Top Decoration */}
-      <div className="absolute top-0 left-0 right-0 h-1.5 bg-[linear-gradient(45deg,transparent_33.333%,#f8fafc_33.333%,#f8fafc_66.667%,transparent_66.667%),linear-gradient(-45deg,transparent_33.333%,#f8fafc_33.333%,#f8fafc_66.667%,transparent_66.667%)] bg-[length:12px_6px] bg-repeat-x z-20" />
+      <div className="absolute top-0 left-0 right-0 h-1.5 bg-[linear-gradient(45deg,transparent_33.333%,#f8fafc_33.333%,#f8fafc_66.667%,transparent_66.667%),linear-gradient(-45deg,transparent_33.333%,#f8fafc_33.333%,#f8fafc_66.667%,transparent_66.667%)] bg-[length:12px_6px] bg-repeat-x z-20 pr-5" />
 
       {/* Header */}
       <div className="text-center space-y-1 pt-2">
-        <h3 className="text-base font-black tracking-tight text-stone-950 uppercase">MEMBRANE GUARD</h3>
+        <h3 className="text-base font-black tracking-tight text-stone-950 uppercase">MEMBRANE</h3>
         <p className="text-[9px] text-stone-500 uppercase tracking-widest">TRANSACTION LEDGER RECEIPT</p>
       </div>
 
@@ -69,7 +72,7 @@ export function ValueReceipt({
       <div className="space-y-3">
         <div className="flex justify-between items-center">
           <span className="text-stone-500">UNOPTIMIZED RUN COST:</span>
-          <span className="font-bold text-stone-650">${unoptimizedCost.toFixed(5)}</span>
+          <span className="font-bold text-stone-600">${unoptimizedCost.toFixed(5)}</span>
         </div>
         
         <div className="flex justify-between items-center text-emerald-700 font-bold bg-emerald-50/50 p-2 rounded-lg border border-emerald-100/50">
@@ -171,7 +174,7 @@ export function ValueReceipt({
           </svg>
           <span className="text-[8px] text-stone-400 tracking-widest font-mono select-all">*{taskId.slice(0, 10).toUpperCase()}*</span>
         </div>
-        <p className="text-[8px] text-stone-400">THANK YOU FOR RUNNING MEMBRANE SCALERS</p>
+        <p className="text-[8px] text-stone-400 font-mono tracking-widest uppercase">THANK YOU FOR RUNNING MEMBRANE SCALES</p>
       </div>
 
       {/* Tear Line Bottom Decoration */}

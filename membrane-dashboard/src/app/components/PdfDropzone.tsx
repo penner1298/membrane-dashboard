@@ -211,7 +211,7 @@ export function PdfDropzone({ onTextExtracted, isProcessing, setIsProcessing }: 
             </div>
             <div className="text-[10px] text-slate-500 font-mono flex items-center justify-center gap-2">
               <span>{fileSize}</span>
-              <span className="w-1.5 h-1.5 bg-slate-350 rounded-full" />
+              <span className="w-1.5 h-1.5 bg-slate-300 rounded-full" />
               <span>{pageCount} Page{pageCount !== 1 ? "s" : ""}</span>
             </div>
             <div className="text-[10.5px] text-emerald-600 font-semibold bg-emerald-50 border border-emerald-100/50 px-2 py-0.5 rounded inline-block">

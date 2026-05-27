@@ -1,5 +1,6 @@
 import os
 import time
+import json
 import hashlib
 from typing import Any, List, Optional
 from fastapi import APIRouter, HTTPException, Security, Request, BackgroundTasks
@@ -87,7 +88,7 @@ async def generate_swarm_plan(
         estimated_retail_cost=round(estimated_cost, 4),
         estimated_latency_seconds=round(2.5 + (chunk_count * 0.1), 2),
         recommended_concurrency=min(getattr(request, 'max_concurrency', 20) or 20, 15),
-        risk_score=0.15 if total_character_volume < 200000 else 0.65
+        risk_score=0.15 if total_character_volume < 1000000 else 0.65
     )
     
     planning_log = {
@@ -126,6 +127,17 @@ async def generate_swarm_plan(
 async def swarm_map(request: SwarmMapRequest, background_tasks: BackgroundTasks, http_req: Request, api_key_hash: str = Security(verify_access)):
     enforce_public_throttle(http_req)
     
+    provider_api_key = http_req.headers.get("x-provider-api-key") or http_req.headers.get("X-Provider-API-Key")
+    if not provider_api_key:
+        provider_api_key = getattr(request, 'provider_api_key', None) or (request.model_extra.get('provider_api_key') if request.model_extra else None)
+
+    provider = http_req.headers.get("x-provider") or http_req.headers.get("X-Provider") or http_req.headers.get("x-provider-name") or http_req.headers.get("X-Provider-Name")
+    if not provider:
+        provider = getattr(request, 'provider', None) or (request.model_extra.get('provider') if request.model_extra else None)
+
+    request.provider = provider
+    request.provider_api_key = provider_api_key
+
     swarm_mode_header = http_req.headers.get("X-Membrane-Swarm-Mode")
     swarm_mode = SwarmExecutionMode.LEGACY
     if swarm_mode_header:
@@ -150,6 +162,61 @@ async def swarm_map(request: SwarmMapRequest, background_tasks: BackgroundTasks,
             raise HTTPException(status_code=400, detail="Chunks array cannot be empty")
 
     validate_invariant_compliance(request.chunks, getattr(request, 'invariant_set_id', None))
+
+    # --- L1 Cache Check for Swarm Map ---
+    from membrane.cache import l1_memory_cache
+    from copy import deepcopy
+    
+    criteria_dict = getattr(request, 'extraction_criteria', None) or {}
+    req_payload = {
+        "scope": api_key_hash,
+        "chunks": request.chunks,
+        "model": request.model,
+        "provider": provider,
+        "extraction_criteria": criteria_dict,
+        "invariant_set_id": getattr(request, 'invariant_set_id', None)
+    }
+    req_hash = hashlib.md5(json.dumps(req_payload, sort_keys=True).encode()).hexdigest()
+    
+    cached = await l1_memory_cache.get(req_hash)
+    if cached:
+        cached_response = cached["response"]
+        resp_copy = deepcopy(cached_response)
+        resp_copy.membrane_metadata.status = "SEMANTIC_CACHE"
+        resp_copy.membrane_metadata.value_ledger.actual_cost_incurred = 0.0025
+        resp_copy.membrane_metadata.value_ledger.net_enterprise_savings = max(
+            0.0, 
+            resp_copy.membrane_metadata.value_ledger.gross_unoptimized_cost - 0.0025
+        )
+        resp_copy.membrane_metadata.swarm_mode = swarm_mode.value
+        resp_copy.membrane_metadata.prompt_tokens = 0
+        resp_copy.membrane_metadata.completion_tokens = 0
+        resp_copy.membrane_metadata.total_tokens = 0
+        
+        # Log the cache hit to the database/api logs
+        cache_log = {
+            "endpoint": "/v1/swarm/map",
+            "tokens": 0,
+            "retail_cost": 0.0025,
+            "wholesale_cost": 0.0,
+            "savings": resp_copy.membrane_metadata.value_ledger.net_enterprise_savings,
+            "raw_input_size": sum(len(c) for c in request.chunks),
+            "optimized_output_size": sum(len(e.verbatim_text) for e in resp_copy.extractions),
+            "savings_percentage": (resp_copy.membrane_metadata.value_ledger.net_enterprise_savings / resp_copy.membrane_metadata.value_ledger.gross_unoptimized_cost * 100) if resp_copy.membrane_metadata.value_ledger.gross_unoptimized_cost > 0 else 100.0,
+            "workload_profile": "swarm_map_cache_hit",
+            "swarm_mode": swarm_mode.value,
+            "rejected_at_gate": False,
+            "canary_used": False,
+            "canary_succeeded": False,
+            "chunks_reached_model": 0,
+            "estimated_waste_tokens": 0,
+            "latency_ms": 0,
+            "died": False,
+            "task_id": resp_copy.task_id,
+            "concurrency_level": 0
+        }
+        background_tasks.add_task(charge_and_log_api_batch, api_key_hash, [cache_log])
+        return resp_copy
 
     warnings_list = []
     for chunk in request.chunks:
@@ -205,5 +272,8 @@ async def swarm_map(request: SwarmMapRequest, background_tasks: BackgroundTasks,
         is_truncated=is_truncated,
         warning_msg=warning_msg
     )
+
+    # Save to L1 memory cache
+    await l1_memory_cache.set(req_hash, {"response": response})
 
     return response

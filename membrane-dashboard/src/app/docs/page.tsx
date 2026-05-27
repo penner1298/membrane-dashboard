@@ -625,7 +625,7 @@ Headers:
         {/* Title Section */}
         <div className="mb-12">
           <div className="flex flex-wrap items-center gap-2 mb-4">
-            <span className="text-[10px] font-black tracking-widest text-emerald-700 uppercase bg-emerald-50 border border-emerald-250 px-2.5 py-1 rounded-md">
+            <span className="text-[10px] font-black tracking-widest text-emerald-700 uppercase bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-md">
               ACTIVE API SPEC v2.0
             </span>
             <span className="text-[10px] font-black tracking-widest text-blue-700 uppercase bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-md">
@@ -661,7 +661,7 @@ Headers:
           <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 md:p-8 shadow-sm tilt-3d">
             <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-emerald-500/20 via-blue-500/30 to-purple-500/20" />
             
-            <p className="text-xs text-slate-650 leading-relaxed mb-6">
+            <p className="text-xs text-slate-600 leading-relaxed mb-6">
               Are you an AI coding agent (like Cursor, Windsurf, or Claude) currently writing implementation code? You can ingest these rules directly. Copy this instruction block to configure standard SDK clients to use the local or remote Membrane proxy without breaking existing code schemas.
             </p>
 
@@ -695,7 +695,7 @@ Headers:
                   </div>
                   <button 
                     onClick={() => handleCopy(cursorRulesSnippet, "cursorrules")}
-                    className="text-slate-650 hover:text-slate-900 transition-all text-xs font-bold flex items-center gap-1 py-1 px-2.5 rounded bg-white border border-slate-200 shadow-sm"
+                    className="text-slate-600 hover:text-slate-900 transition-all text-xs font-bold flex items-center gap-1 py-1 px-2.5 rounded bg-white border border-slate-200 shadow-sm"
                   >
                     {copiedText === "cursorrules" ? (
                       <>
@@ -729,7 +729,7 @@ Headers:
           <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 md:p-8 shadow-sm space-y-6 tilt-3d">
             <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-emerald-500/20 via-blue-500/30 to-purple-500/20" />
             
-            <p className="text-xs text-slate-650 leading-relaxed">
+            <p className="text-xs text-slate-600 leading-relaxed">
               Membrane supports specialized execution strategies for multi-agent swarm parallel map-reduce processing, designed to eliminate token waste on malformed queries. Control execution by setting the <code className="bg-slate-100 px-1 border border-slate-200 rounded">X-Membrane-Swarm-Mode</code> HTTP header or the <code className="bg-slate-100 px-1 border border-slate-200 rounded">MEMBRANE_SWARM_MODE</code> environment variable:
             </p>
 
@@ -743,7 +743,7 @@ Headers:
               </div>
 
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/60">
-                <span className="text-[9px] font-black bg-blue-55 text-blue-700 px-2 py-0.5 rounded uppercase font-mono tracking-wider">early_gate</span>
+                <span className="text-[9px] font-black bg-blue-50 text-blue-700 px-2 py-0.5 rounded uppercase font-mono tracking-wider">early_gate</span>
                 <h4 className="text-xs font-bold text-slate-900 mt-2 mb-1">Structural Gate Check</h4>
                 <p className="text-[11px] text-slate-500 leading-relaxed">
                   Performs a zero-cost structural gate check before any LLM calls are spawned. If payload shapes, limits, or parameters violate structural guidelines, rejects instantly with <code className="text-amber-700">HTTP 422</code>.
@@ -761,10 +761,10 @@ Headers:
 
             <div className="pt-4 border-t border-slate-100">
               <h4 className="text-xs font-bold text-slate-900 mb-2">Strict Gate Rules (for early_gate & canary modes)</h4>
-              <ul className="text-[11px] text-slate-650 list-disc pl-5 space-y-1">
-                <li><strong>Chunks Count:</strong> Must contain between 1 and 25 chunks.</li>
+              <ul className="text-[11px] text-slate-600 list-disc pl-5 space-y-1">
+                <li><strong>Chunks Count:</strong> Must contain between 1 and 50 chunks.</li>
                 <li><strong>Per-Chunk Size:</strong> Individual chunks must be strings and must not exceed 25,000 characters.</li>
-                <li><strong>Total Size Ceiling:</strong> Cumulative character volume of all chunks must not exceed 200,000 characters.</li>
+                <li><strong>Total Size Ceiling:</strong> Cumulative character volume of all chunks must not exceed 1,000,000 characters.</li>
                 <li><strong>Extraction Criteria:</strong> Must contain <code className="bg-slate-100 px-1 border border-slate-200 rounded">system_persona</code> (string) and <code className="bg-slate-100 px-1 border border-slate-200 rounded">target_signals</code> (list of strings).</li>
               </ul>
             </div>
@@ -827,21 +827,21 @@ Headers:
           <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 md:p-8 shadow-sm space-y-4 tilt-3d">
             <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-emerald-500/20 via-blue-500/30 to-purple-500/20" />
             
-            <p className="text-xs text-slate-650 leading-relaxed">
+            <p className="text-xs text-slate-600 leading-relaxed">
               Membrane includes an execution sandbox at <code className="bg-slate-100 px-1 border border-slate-200 rounded">/v1/swarm/state</code>. Multi-agent workflows use this endpoint to execute compile-time code checks and generate cryptographic proof-of-work watermarks prior to committing scripts to storage.
             </p>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/60">
                 <h4 className="text-xs font-bold text-slate-900 mb-1">1. Sandboxed Compilation</h4>
-                <p className="text-[11px] text-slate-550 leading-relaxed">
+                <p className="text-[11px] text-slate-500 leading-relaxed">
                   For Python code (`python_code`), scripts compile to bytecode via <code className="bg-white px-1 py-0.5 border border-slate-200 rounded">py_compile</code>. For React components (`react_component`), scripts build using the TypeScript compiler (<code className="bg-white px-1 py-0.5 border border-slate-200 rounded">tsc</code>) to verify strict syntactic and type soundness.
                 </p>
               </div>
 
               <div className="p-4 bg-slate-50 rounded-xl border border-slate-200/60">
                 <h4 className="text-xs font-bold text-slate-900 mb-1">2. Cryptographic Signatures</h4>
-                <p className="text-[11px] text-slate-550 leading-relaxed">
+                <p className="text-[11px] text-slate-500 leading-relaxed">
                   Upon compilation success, Membrane stamps the verified script, writing it to destination storage, and returns a verified signature based on modulo-7919 hashing of the payload:
                   <br />
                   <code className="block mt-2 text-[10px] text-slate-600 bg-white p-1.5 border border-slate-200 rounded font-mono">
@@ -904,11 +904,11 @@ Headers:
           </div>
 
           {/* Code Showcase Card */}
-          <div className="bg-slate-900 border border-slate-955 rounded-xl overflow-hidden relative group tilt-3d">
+          <div className="bg-slate-900 border border-slate-950 rounded-xl overflow-hidden relative group tilt-3d">
             {/* Clipboard copy button */}
             <button
               onClick={() => handleCopy(codeSnippets[activeEndpointCode][activeLang], "snippet")}
-              className="absolute right-4 top-4 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-705 rounded text-slate-350 hover:text-white transition-all text-[10px] font-bold flex items-center gap-1.5 z-10"
+              className="absolute right-4 top-4 px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded text-slate-300 hover:text-white transition-all text-[10px] font-bold flex items-center gap-1.5 z-10"
             >
               {copiedText === "snippet" ? (
                 <>
@@ -940,7 +940,7 @@ Headers:
             <Zap className="w-6 h-6 text-emerald-600" />
             <h2 className="text-2xl font-serif font-black text-slate-950 m-0">Live Completions Test Bench</h2>
           </div>
-          <p className="text-slate-650 text-xs leading-relaxed mb-6">
+          <p className="text-slate-600 text-xs leading-relaxed mb-6">
             Test and diagnose raw API responses directly from the dashboard sandbox environment. Select an endpoint tab, modify payload fields, and observe execution latency, billing ledger entries, and compiled return schemas.
           </p>
 
@@ -988,7 +988,7 @@ Headers:
                     type="password"
                     value={apiKey}
                     onChange={(e) => updateApiKey(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 pl-9 font-mono text-xs text-slate-700 focus:outline-none focus:bg-white focus:ring-1 focus:ring-slate-350"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 pl-9 font-mono text-xs text-slate-700 focus:outline-none focus:bg-white focus:ring-1 focus:ring-slate-300"
                     placeholder="local_dev_key (Optional)"
                   />
                 </div>
@@ -1005,7 +1005,7 @@ Headers:
                       value={testPrompt}
                       onChange={(e) => setTestPrompt(e.target.value)}
                       rows={2}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-mono text-xs text-slate-700 focus:outline-none focus:bg-white focus:ring-1 focus:ring-slate-350 resize-none"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-mono text-xs text-slate-700 focus:outline-none focus:bg-white focus:ring-1 focus:ring-slate-300 resize-none"
                     />
                   </div>
 
@@ -1032,9 +1032,9 @@ Headers:
                           id="use-streaming"
                           checked={useStreaming}
                           onChange={(e) => setUseStreaming(e.target.checked)}
-                          className="accent-emerald-600 rounded border-slate-350 cursor-pointer"
+                          className="accent-emerald-600 rounded border-slate-300 cursor-pointer"
                         />
-                        <label htmlFor="use-streaming" className="text-xs font-bold text-slate-750 cursor-pointer select-none">
+                        <label htmlFor="use-streaming" className="text-xs font-bold text-slate-700 cursor-pointer select-none">
                           Stream (SSE)
                         </label>
                       </div>
@@ -1048,9 +1048,9 @@ Headers:
                         id="preserve-context"
                         checked={preserveContext}
                         onChange={(e) => setPreserveContext(e.target.checked)}
-                        className="accent-emerald-600 rounded border-slate-350 cursor-pointer"
+                        className="accent-emerald-600 rounded border-slate-300 cursor-pointer"
                       />
-                      <label htmlFor="preserve-context" className="text-xs font-bold text-slate-750 cursor-pointer select-none">
+                      <label htmlFor="preserve-context" className="text-xs font-bold text-slate-700 cursor-pointer select-none">
                         Preserve Context (Bypass Pruning)
                       </label>
                     </div>
@@ -1072,7 +1072,7 @@ Headers:
                       value={testChunks}
                       onChange={(e) => setTestChunks(e.target.value)}
                       rows={3}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-mono text-xs text-slate-750 focus:outline-none focus:bg-white focus:ring-1 focus:ring-slate-350 resize-none"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-mono text-xs text-slate-700 focus:outline-none focus:bg-white focus:ring-1 focus:ring-slate-300 resize-none"
                     />
                   </div>
 
@@ -1085,7 +1085,7 @@ Headers:
                         type="text"
                         value={invariantSetId}
                         onChange={(e) => setInvariantSetId(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-mono text-xs text-slate-755 focus:outline-none focus:bg-white"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-mono text-xs text-slate-700 focus:outline-none focus:bg-white"
                         placeholder="e.g. ent_compliance_lock_v1"
                       />
                     </div>
@@ -1097,7 +1097,7 @@ Headers:
                         type="number"
                         value={maxConcurrency}
                         onChange={(e) => setMaxConcurrency(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-mono text-xs text-slate-755 focus:outline-none focus:bg-white"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-mono text-xs text-slate-700 focus:outline-none focus:bg-white"
                         placeholder="20"
                       />
                     </div>
@@ -1112,7 +1112,7 @@ Headers:
                         <select
                           value={swarmModeHeader}
                           onChange={(e) => setSwarmModeHeader(e.target.value)}
-                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-755 focus:outline-none focus:bg-white"
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-700 focus:outline-none focus:bg-white"
                         >
                           <option value="legacy">legacy (Concurrent Fan-out)</option>
                           <option value="early_gate">early_gate (Zero-token Gate Validation)</option>
@@ -1129,7 +1129,7 @@ Headers:
                               type="text"
                               value={systemPersona}
                               onChange={(e) => setSystemPersona(e.target.value)}
-                              className="w-full bg-white border border-slate-200 rounded p-1.5 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-350"
+                              className="w-full bg-white border border-slate-200 rounded p-1.5 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-300"
                             />
                           </div>
                           <div>
@@ -1138,7 +1138,7 @@ Headers:
                               type="text"
                               value={targetSignals}
                               onChange={(e) => setTargetSignals(e.target.value)}
-                              className="w-full bg-white border border-slate-200 rounded p-1.5 text-xs text-slate-755 focus:outline-none focus:ring-1 focus:ring-slate-350 font-mono"
+                              className="w-full bg-white border border-slate-200 rounded p-1.5 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-300 font-mono"
                             />
                           </div>
                         </div>
@@ -1159,7 +1159,7 @@ Headers:
                         type="text"
                         value={agentId}
                         onChange={(e) => setAgentId(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-mono text-xs text-slate-755 focus:outline-none focus:bg-white"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-mono text-xs text-slate-700 focus:outline-none focus:bg-white"
                       />
                     </div>
                     <div>
@@ -1170,7 +1170,7 @@ Headers:
                         type="text"
                         value={targetAgentId}
                         onChange={(e) => setTargetAgentId(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-mono text-xs text-slate-755 focus:outline-none focus:bg-white"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-mono text-xs text-slate-700 focus:outline-none focus:bg-white"
                       />
                     </div>
                   </div>
@@ -1192,7 +1192,7 @@ Headers:
                             setDestinationPath("scratch/MyWidget.tsx");
                           }
                         }}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-755 focus:outline-none focus:bg-white"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-700 focus:outline-none focus:bg-white"
                       >
                         <option value="python_code">python_code (Compilation)</option>
                         <option value="react_component">react_component (TS check)</option>
@@ -1207,7 +1207,7 @@ Headers:
                         type="text"
                         value={destinationPath}
                         onChange={(e) => setDestinationPath(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-mono text-xs text-slate-755 focus:outline-none focus:bg-white"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-mono text-xs text-slate-700 focus:outline-none focus:bg-white"
                         placeholder="Optional"
                       />
                     </div>
@@ -1221,7 +1221,7 @@ Headers:
                       value={powPayload}
                       onChange={(e) => setPowPayload(e.target.value)}
                       rows={5}
-                      className="w-full bg-slate-55 border border-slate-200 rounded-lg p-2 font-mono text-xs text-slate-755 focus:outline-none focus:bg-white resize-y"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-mono text-xs text-slate-700 focus:outline-none focus:bg-white resize-y"
                     />
                   </div>
                 </>
@@ -1258,26 +1258,26 @@ Headers:
               {/* Telemetry Display */}
               {telemetryROI && (
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 font-mono shadow-sm animate-fade-in tilt-3d">
-                  <div className="flex justify-between items-center border-b border-slate-250 pb-2 mb-3">
+                  <div className="flex justify-between items-center border-b border-slate-200 pb-2 mb-3">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
                       <Activity className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
                       Sandbox Telemetry Diagnostics
                     </span>
-                    <span className="text-[9px] font-bold bg-emerald-50 border border-emerald-250 text-emerald-600 px-1.5 py-0.5 rounded">
+                    <span className="text-[9px] font-bold bg-emerald-50 border border-emerald-200 text-emerald-600 px-1.5 py-0.5 rounded">
                       {telemetryROI.status}
                     </span>
                   </div>
 
                   <div className="grid grid-cols-3 gap-2.5 text-center">
-                    <div className="p-2.5 bg-white rounded-lg border border-slate-250 shadow-sm">
-                      <p className="text-[9px] text-slate-450 uppercase font-sans font-bold">Execution Latency</p>
+                    <div className="p-2.5 bg-white rounded-lg border border-slate-200 shadow-sm">
+                      <p className="text-[9px] text-slate-400 uppercase font-sans font-bold">Execution Latency</p>
                       <p className="text-xs font-bold text-slate-900 mt-1">
                         {telemetryROI.latency}ms
                       </p>
                     </div>
 
-                    <div className="p-2.5 bg-white rounded-lg border border-slate-250 shadow-sm">
-                      <p className="text-[9px] text-slate-450 uppercase font-sans font-bold">
+                    <div className="p-2.5 bg-white rounded-lg border border-slate-200 shadow-sm">
+                      <p className="text-[9px] text-slate-400 uppercase font-sans font-bold">
                         {activePlaygroundRoute === "swarm-state" ? "Validation Status" : "Enterprise Ledger Cost"}
                       </p>
                       <p className="text-xs font-bold text-slate-900 mt-1">
@@ -1287,8 +1287,8 @@ Headers:
                       </p>
                     </div>
 
-                    <div className="p-2.5 bg-white rounded-lg border border-slate-250 shadow-sm">
-                      <p className="text-[9px] text-slate-450 uppercase font-sans font-bold">
+                    <div className="p-2.5 bg-white rounded-lg border border-slate-200 shadow-sm">
+                      <p className="text-[9px] text-slate-400 uppercase font-sans font-bold">
                         {activePlaygroundRoute === "swarm-plan" ? "Routing Plan" : activePlaygroundRoute === "swarm-state" ? "POW Watermark" : "Optimized Savings"}
                       </p>
                       <p className="text-xs font-bold text-slate-900 mt-1">
@@ -1320,7 +1320,7 @@ Headers:
               {/* Terminal Block */}
               <div className="border border-slate-200 bg-slate-900 rounded-xl overflow-hidden shadow-sm flex flex-col min-h-[220px] tilt-3d">
                 {/* Header */}
-                <div className="bg-slate-950 px-4 py-2 border-b border-slate-990 flex items-center justify-between text-xs text-slate-400">
+                <div className="bg-slate-950 px-4 py-2 border-b border-slate-950 flex items-center justify-between text-xs text-slate-400">
                   <span className="font-mono flex items-center gap-1.5">
                     <Terminal className="w-3.5 h-3.5 text-slate-500" />
                     {activePlaygroundRoute === "chat" ? "completions-response-data" : activePlaygroundRoute === "swarm-plan" ? "swarm-planning-prediction" : activePlaygroundRoute === "swarm-map" ? "swarm-extraction-matrix" : "state-verification-proof"}
@@ -1364,7 +1364,7 @@ Headers:
               <h4 className="text-xs font-bold text-slate-900 mb-2 font-mono uppercase">/v1/chat/completions</h4>
               <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white">
                 <table className="w-full text-left text-xs m-0 border-collapse">
-                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-705">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-700">
                     <tr>
                       <th className="px-5 py-3 font-bold uppercase tracking-wider text-[9px] w-1/4">Parameter</th>
                       <th className="px-5 py-3 font-bold uppercase tracking-wider text-[9px] w-1/6">Type</th>
@@ -1372,7 +1372,7 @@ Headers:
                       <th className="px-5 py-3 font-bold uppercase tracking-wider text-[9px]">Description</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 text-slate-750 font-mono">
+                  <tbody className="divide-y divide-slate-100 text-slate-700 font-mono">
                     <tr className="hover:bg-slate-50 bg-white">
                       <td className="px-5 py-3 text-slate-900 font-bold">messages <span className="text-rose-500">*</span></td>
                       <td className="px-5 py-3 text-slate-500 font-mono">array</td>
@@ -1400,7 +1400,7 @@ Headers:
                     <tr className="hover:bg-slate-50 bg-white">
                       <td className="px-5 py-3 text-slate-900 font-bold">X-Membrane-Preserve-Context</td>
                       <td className="px-5 py-3 text-slate-500 font-mono">header</td>
-                      <td className="px-5 py-3 text-slate-450 font-mono">false</td>
+                      <td className="px-5 py-3 text-slate-400 font-mono">false</td>
                       <td className="px-5 py-3 text-slate-600 font-sans leading-relaxed">
                         Custom request header. Set to `true` to skip default context compression filters when executing multi-turn conversational dialogue.
                       </td>
@@ -1415,7 +1415,7 @@ Headers:
               <h4 className="text-xs font-bold text-slate-900 mb-2 font-mono uppercase">/v1/swarm/plan</h4>
               <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white">
                 <table className="w-full text-left text-xs m-0 border-collapse">
-                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-705">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-700">
                     <tr>
                       <th className="px-5 py-3 font-bold uppercase tracking-wider text-[9px] w-1/4">Parameter</th>
                       <th className="px-5 py-3 font-bold uppercase tracking-wider text-[9px] w-1/6">Type</th>
@@ -1423,7 +1423,7 @@ Headers:
                       <th className="px-5 py-3 font-bold uppercase tracking-wider text-[9px]">Description</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 text-slate-750 font-mono">
+                  <tbody className="divide-y divide-slate-100 text-slate-700 font-mono">
                     <tr className="hover:bg-slate-50 bg-white">
                       <td className="px-5 py-3 text-slate-900 font-bold">chunks <span className="text-rose-500">*</span></td>
                       <td className="px-5 py-3 text-slate-500 font-mono">array of strings</td>
@@ -1458,7 +1458,7 @@ Headers:
               <h4 className="text-xs font-bold text-slate-900 mb-2 font-mono uppercase">/v1/swarm/map</h4>
               <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white">
                 <table className="w-full text-left text-xs m-0 border-collapse">
-                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-705">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-700">
                     <tr>
                       <th className="px-5 py-3 font-bold uppercase tracking-wider text-[9px] w-1/4">Parameter</th>
                       <th className="px-5 py-3 font-bold uppercase tracking-wider text-[9px] w-1/6">Type</th>
@@ -1466,7 +1466,7 @@ Headers:
                       <th className="px-5 py-3 font-bold uppercase tracking-wider text-[9px]">Description</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 text-slate-750 font-mono">
+                  <tbody className="divide-y divide-slate-100 text-slate-700 font-mono">
                     <tr className="hover:bg-slate-50 bg-white">
                       <td className="px-5 py-3 text-slate-900 font-bold">chunks <span className="text-rose-500">*</span></td>
                       <td className="px-5 py-3 text-slate-500 font-mono">array of strings</td>
@@ -1501,7 +1501,7 @@ Headers:
               <h4 className="text-xs font-bold text-slate-900 mb-2 font-mono uppercase">/v1/swarm/state</h4>
               <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-white">
                 <table className="w-full text-left text-xs m-0 border-collapse">
-                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-705">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-700">
                     <tr>
                       <th className="px-5 py-3 font-bold uppercase tracking-wider text-[9px] w-1/4">Parameter</th>
                       <th className="px-5 py-3 font-bold uppercase tracking-wider text-[9px] w-1/6">Type</th>
@@ -1509,7 +1509,7 @@ Headers:
                       <th className="px-5 py-3 font-bold uppercase tracking-wider text-[9px]">Description</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 text-slate-750 font-mono">
+                  <tbody className="divide-y divide-slate-100 text-slate-700 font-mono">
                     <tr className="hover:bg-slate-50 bg-white">
                       <td className="px-5 py-3 text-slate-900 font-bold">agent_id <span className="text-rose-500">*</span></td>
                       <td className="px-5 py-3 text-slate-500 font-mono">string</td>
@@ -1537,7 +1537,7 @@ Headers:
                     <tr className="hover:bg-slate-50 bg-white">
                       <td className="px-5 py-3 text-slate-900 font-bold">destination_path</td>
                       <td className="px-5 py-3 text-slate-500 font-mono">string</td>
-                      <td className="px-5 py-3 text-slate-450 font-mono">null</td>
+                      <td className="px-5 py-3 text-slate-400 font-mono">null</td>
                       <td className="px-5 py-3 text-slate-600 font-sans leading-relaxed">
                         Optional output path inside the agent workspace directory to save the file upon validation success.
                       </td>
@@ -1556,7 +1556,7 @@ Headers:
             <h2 className="text-2xl font-serif font-black text-slate-950 m-0">Policy Gating & Error Reference</h2>
           </div>
 
-          <p className="text-slate-650 text-xs leading-relaxed mb-6">
+          <p className="text-slate-600 text-xs leading-relaxed mb-6">
             Membrane filters incoming requests based on safety policies. Prompt injections or structural failures return clean, informative error payloads:
           </p>
 
@@ -1568,7 +1568,7 @@ Headers:
               </div>
               <div className="text-xs">
                 <h4 className="font-bold text-slate-900 mb-1">Bad Request (Policy Rejection)</h4>
-                <p className="text-slate-550 leading-relaxed">
+                <p className="text-slate-500 leading-relaxed">
                   System detected prompt injection, guideline bypass attempts, or jailbreak keywords. The request is rejected without hitting upstream providers.
                 </p>
               </div>
@@ -1580,7 +1580,7 @@ Headers:
               </div>
               <div className="text-xs">
                 <h4 className="font-bold text-slate-900 mb-1">Unprocessable Entity (Gate Rejection / Hallucination)</h4>
-                <p className="text-slate-550 leading-relaxed">
+                <p className="text-slate-500 leading-relaxed">
                   FastAPI validation error, or a swarm request failed pre-fan-out structural gate limits. Also returned if a completions query repeatedly failed response format compliance checks.
                 </p>
               </div>
@@ -1592,7 +1592,7 @@ Headers:
               </div>
               <div className="text-xs">
                 <h4 className="font-bold text-slate-900 mb-1">Bad Gateway (Provider Timeout)</h4>
-                <p className="text-slate-550 leading-relaxed">
+                <p className="text-slate-500 leading-relaxed">
                   Upstream completion endpoints (Google, OpenAI, Anthropic) timed out or returned HTTP 5xx errors concurrently, triggering local failover models.
                 </p>
               </div>
@@ -1608,7 +1608,7 @@ Headers:
             <h2 className="text-2xl font-serif font-black text-slate-950 m-0">Production Deployment & Licensing</h2>
           </div>
 
-          <p className="text-slate-650 text-xs leading-relaxed mb-6">
+          <p className="text-slate-600 text-xs leading-relaxed mb-6">
             Transitioning Membrane from local development sandboxes to a high-volume cloud environment is straightforward. Membrane operates on an honor-based model with a simple licensing flow:
           </p>
 
@@ -1617,7 +1617,7 @@ Headers:
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-2">
-                <div className="w-8 h-8 rounded-full bg-emerald-50 border border-emerald-150 flex items-center justify-center font-bold text-xs text-emerald-700">1</div>
+                <div className="w-8 h-8 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center font-bold text-xs text-emerald-700">1</div>
                 <h4 className="text-xs font-bold text-slate-900">Get a Production License</h4>
                 <p className="text-[11px] text-slate-500 leading-relaxed">
                   Membrane is free and unrestricted for local development. For commercial production nodes, license Membrane on <a href="https://buy.polar.sh/polar_cl_yDHzavhCzMw8FkCp0t0X2NJNfg5xgqLmudIxZ0S54BZ" target="_blank" rel="noopener noreferrer" className="text-emerald-600 font-bold underline hover:text-emerald-700">Polar.sh</a> for $29/month to declare your commercial deployment.
@@ -1625,7 +1625,7 @@ Headers:
               </div>
 
               <div className="space-y-2">
-                <div className="w-8 h-8 rounded-full bg-emerald-50 border border-emerald-150 flex items-center justify-center font-bold text-xs text-emerald-700">2</div>
+                <div className="w-8 h-8 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center font-bold text-xs text-emerald-700">2</div>
                 <h4 className="text-xs font-bold text-slate-900">Inject License Key Variable</h4>
                 <p className="text-[11px] text-slate-500 leading-relaxed">
                   Provide the license string as <code className="bg-slate-100 px-1 border border-slate-200 rounded">MEMBRANE_LICENSE_KEY</code>. Membrane operates on a permissive, honor-based model, meaning this key is used for compliance declaration and does not block production traffic.
@@ -1633,7 +1633,7 @@ Headers:
               </div>
 
               <div className="space-y-2">
-                <div className="w-8 h-8 rounded-full bg-emerald-50 border border-emerald-150 flex items-center justify-center font-bold text-xs text-emerald-700">3</div>
+                <div className="w-8 h-8 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center font-bold text-xs text-emerald-700">3</div>
                 <h4 className="text-xs font-bold text-slate-900">Scale Caches with Redis</h4>
                 <p className="text-[11px] text-slate-500 leading-relaxed">
                   Inject <code className="bg-slate-100 px-1 border border-slate-200 rounded">REDIS_URL</code> to enable distributed edge caching, rate limiting locks, and synchronized state stores across your swarm nodes.
@@ -1646,7 +1646,7 @@ Headers:
               <div className="bg-slate-900 p-4 rounded-xl font-mono text-xs text-slate-200 relative group overflow-hidden">
                 <button 
                   onClick={() => handleCopy('docker run -d \\\n  -p 8000:8000 \\\n  -e MEMBRANE_LICENSE_KEY="your_commercial_license_key" \\\n  -e REDIS_URL="redis://your-redis-host:6379" \\\n  -e DATABASE_URL="postgres://your-db-url" \\\n  thejoshuapenner/membrane-dashboard', "prod_docker")}
-                  className="absolute right-4 top-4 p-1.5 rounded-lg bg-slate-800 text-slate-350 hover:bg-slate-700 hover:text-white border border-slate-700 transition"
+                  className="absolute right-4 top-4 p-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700 transition"
                 >
                   {copiedText === "prod_docker" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                 </button>

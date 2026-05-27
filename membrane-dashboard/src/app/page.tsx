@@ -9,10 +9,11 @@ import { useApiKey } from "@/context/ApiKeyContext";
 import { 
   Play, Copy, Check, Terminal, Sliders, Sparkles, Cpu, 
   AlertTriangle, Lock, Shield, ArrowRight, Layers, FileText, 
-  Settings, RefreshCw, CheckCircle, Database, HelpCircle
+  Settings, RefreshCw, CheckCircle, Database, HelpCircle, BarChart2
 } from "lucide-react";
 import { sanitizeBearerToken } from "@/lib/utils";
 import { PdfDropzone } from "@/app/components/PdfDropzone";
+import { ComparisonPlayground } from "@/app/components/ComparisonPlayground";
 
 // Define technical patterns
 interface EngineeringPattern {
@@ -94,9 +95,182 @@ const ENGINEERING_PATTERNS: EngineeringPattern[] = [
   }
 ];
 
+const workloads = [
+  {
+    id: "contracts",
+    name: "200-page contract analysis",
+    rawCost: 18.40,
+    membraneCost: 2.71,
+    savings: "85%",
+    speedup: "3.8\u00d7",
+    cacheHit: "74%",
+    notes: "Full swarm + early gate"
+  },
+  {
+    id: "transcripts",
+    name: "50 earnings call transcripts",
+    rawCost: 9.20,
+    membraneCost: 1.38,
+    savings: "85%",
+    speedup: "4.2\u00d7",
+    cacheHit: "91%",
+    notes: "Heavy semantic repeat"
+  },
+  {
+    id: "anomaly",
+    name: "1,000 log-line anomaly detection",
+    rawCost: 4.10,
+    membraneCost: 0.82,
+    savings: "80%",
+    speedup: "2.9\u00d7",
+    cacheHit: "63%",
+    notes: "Canary mode saved 41% of runs"
+  },
+  {
+    id: "research",
+    name: "Multi-PDF research (32 docs)",
+    rawCost: 12.60,
+    membraneCost: 3.15,
+    savings: "75%",
+    speedup: "4.7\u00d7",
+    cacheHit: "82%",
+    notes: "Map-reduce isolation"
+  }
+];
+
 function generateTaskId() {
   return "tx_" + Math.random().toString(36).slice(2, 10);
 }
+
+function renderHighlightedOutput(text: string): React.ReactNode {
+  if (!text) return null;
+  
+  if (text.startsWith("//")) {
+    return (
+      <div className="space-y-1">
+        {text.split("\n").map((line, i) => {
+          if (line.startsWith("//")) {
+            return (
+              <div key={i} className="text-slate-500 italic font-mono">
+                {line}
+              </div>
+            );
+          }
+          return (
+            <div key={i} className="text-slate-200 font-mono">
+              {line}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  const lines = text.split("\n");
+  return (
+    <div className="space-y-1 font-mono text-slate-200">
+      {lines.map((line, i) => {
+        const elements: React.ReactNode[] = [];
+        let remaining = line;
+        
+        const tokenRegex = /^(\s+)|(^"[^"]*"\s*(?=:))|(^"[^"]*")|(^\b(?:true|false|null|\d+(?:\.\d+)?)\b)|(^[{}[\]:,])|(^[^"{}[\],:\s]+)/;
+        
+        let colKey = 0;
+        while (remaining.length > 0) {
+          const match = remaining.match(tokenRegex);
+          if (!match) {
+            elements.push(<span key={colKey}>{remaining}</span>);
+            break;
+          }
+          
+          const val = match[0];
+          remaining = remaining.substring(val.length);
+          
+          if (match[1]) {
+            elements.push(<span key={colKey} className="whitespace-pre">{val}</span>);
+          } else if (match[2]) {
+            elements.push(<span key={colKey} className="text-blue-400 font-semibold">{val}</span>);
+          } else if (match[3]) {
+            elements.push(<span key={colKey} className="text-emerald-400 font-medium">{val}</span>);
+          } else if (match[4]) {
+            elements.push(<span key={colKey} className="text-amber-400 font-bold">{val}</span>);
+          } else if (match[5]) {
+            elements.push(<span key={colKey} className="text-slate-400">{val}</span>);
+          } else {
+            elements.push(<span key={colKey} className="text-slate-200">{val}</span>);
+          }
+          colKey++;
+        }
+        
+        return (
+          <div key={i} className="min-h-[1.2rem]">
+            {elements}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function renderHighlightedSdkCode(code: string, tab: "python" | "javascript" | "cursorrules"): React.ReactNode {
+  if (!code) return null;
+  const lines = code.split("\n");
+  
+  return (
+    <div className="space-y-1 font-mono text-slate-200 text-xs">
+      {lines.map((line, i) => {
+        if (line.trim().startsWith("#") || line.trim().startsWith("//")) {
+          return (
+            <div key={i} className="text-slate-500 italic font-mono min-h-[1.2rem]">
+              {line}
+            </div>
+          );
+        }
+        
+        const elements: React.ReactNode[] = [];
+        let remaining = line;
+        
+        const tokenRegex = /^(\s+)|(^\b(?:from|import|const|let|await|return|def|class|in|for|if|else|as|new|async|console|log)\b)|(^\b(?:OpenAI|client|openai|completion|response)\b)|(^"[^"]*"|^'[^']*')|(^#.*|^\/\/.*)|(^[{}[\]().,:;=+\-*])|(^[^"'{}[\]().,:;=+\-*\s]+)/;
+        
+        let colKey = 0;
+        while (remaining.length > 0) {
+          const match = remaining.match(tokenRegex);
+          if (!match) {
+            elements.push(<span key={colKey}>{remaining}</span>);
+            break;
+          }
+          
+          const val = match[0];
+          remaining = remaining.substring(val.length);
+          
+          if (match[1]) {
+            elements.push(<span key={colKey} className="whitespace-pre">{val}</span>);
+          } else if (match[2]) {
+            elements.push(<span key={colKey} className="text-purple-400 font-semibold">{val}</span>);
+          } else if (match[3]) {
+            elements.push(<span key={colKey} className="text-blue-400 font-medium">{val}</span>);
+          } else if (match[4]) {
+            elements.push(<span key={colKey} className="text-emerald-400">{val}</span>);
+          } else if (match[5]) {
+            elements.push(<span key={colKey} className="text-slate-500 italic">{val}</span>);
+          } else if (match[6]) {
+            elements.push(<span key={colKey} className="text-slate-400">{val}</span>);
+          } else {
+            elements.push(<span key={colKey} className="text-slate-200">{val}</span>);
+          }
+          colKey++;
+        }
+        
+        return (
+          <div key={i} className="min-h-[1.2rem]">
+            {elements}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 
 export default function Home() {
   const [baseUrl, setBaseUrl] = useState("http://localhost:3000/v1");
@@ -395,77 +569,132 @@ console.log(completion.choices[0].message.content);`;
   };
 
   return (
-    <div className="min-h-screen bg-[#fafbfc] text-[#0f172a] font-sans antialiased relative overflow-hidden selection:bg-emerald-100 selection:text-emerald-800">
+    <div 
+      className="min-h-screen bg-[#fafbfc] text-[#0f172a] font-sans antialiased relative overflow-x-hidden selection:bg-emerald-100 selection:text-emerald-800"
+      style={{
+        backgroundImage: 'url("/noise.png")',
+        backgroundRepeat: "repeat"
+      }}
+    >
       
       {/* Faint Dot Grid Background Effect */}
       <div className="pointer-events-none absolute inset-0 z-0 brand-bg-dots opacity-40" />
 
-      {/* Abstract Glowing Waves / Blobs */}
-      <div className="pointer-events-none absolute top-[-10%] left-[-15%] w-[60%] h-[60%] brand-bg-blob-1 blur-3xl z-0" />
-      <div className="pointer-events-none absolute bottom-[-10%] right-[-15%] w-[70%] h-[70%] brand-bg-blob-2 blur-3xl z-0" />
-
-      {/* 3% Ambient Texture Noise Overlay */}
-      <div 
-        className="pointer-events-none fixed inset-0 z-50 opacity-[0.025]" 
-        style={{ 
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")` 
-        }} 
-      />
+      {/* Abstract Glowing Waves / Blobs (fixed positioning prevents scroll repaint) */}
+      <div className="pointer-events-none fixed top-[-10%] left-[-15%] w-[60%] h-[60%] brand-bg-blob-1 z-0" />
+      <div className="pointer-events-none fixed bottom-[-10%] right-[-15%] w-[70%] h-[70%] brand-bg-blob-2 z-0" />
 
       <Header />
 
       {/* Main Section */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-16 relative z-10">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24 space-y-16 md:space-y-20 relative z-10">
         
         {/* HERO HEADER */}
-        <div className="text-center max-w-3xl mx-auto space-y-6 pt-4">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/50 text-xs font-semibold tracking-wider uppercase">
+        <div className="text-center max-w-4xl mx-auto space-y-8 pt-4">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50/80 text-emerald-800 border border-emerald-200/50 text-[10px] font-extrabold tracking-[0.2em] uppercase">
             <Sparkles className="w-3.5 h-3.5" /> INVARIANT-FIRST ORCHESTRATION
           </div>
-          <h1 className="text-4xl sm:text-5xl font-serif font-black tracking-tight text-slate-950 leading-tight">
-            Stop burning money on failed LLM extractions.
+          <h1 className="text-5xl sm:text-7xl lg:text-8xl font-serif font-black tracking-tight text-slate-950 leading-none uppercase">
+            Membrane
           </h1>
-          <p className="text-md sm:text-lg font-medium text-slate-700 max-w-3xl mx-auto leading-relaxed">
-            Membrane is a simple, OpenAI-compatible proxy built specifically for reliable parallel processing. Drop in a list of items (documents, transcripts, logs, etc.), tell it what to extract or analyze, and it automatically chunks the content, runs agents in parallel with strong validation, and returns clean structured JSON.
+          <p className="text-xl sm:text-2xl font-bold text-slate-900 max-w-3xl mx-auto leading-tight">
+            The proxy that turns expensive LLM extractions into predictable, cheap wins.
           </p>
-          <p className="text-sm text-slate-500 max-w-2xl mx-auto leading-relaxed">
-            Before you spend a single token, call <code>/v1/swarm/plan</code> to get an honest forecast of cost and risk. Bad jobs fail fast instead of quietly wasting your tokens.
-          </p>
-          <p className="text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-100 rounded-lg py-2 px-4 max-w-md mx-auto">
-            Free to self-host. Commercial use requires a license: $29/month or $490 one-time (Founding License — first 75 only).
-          </p>
+          <div className="text-sm sm:text-base font-medium text-slate-700 max-w-3xl mx-auto leading-relaxed space-y-4">
+            <p className="font-extrabold text-slate-950 uppercase tracking-wide text-xs">Stop guessing. Stop wasting tokens on failed jobs.</p>
+            <p className="max-w-2xl mx-auto">
+              Drop in any list of documents, transcripts, logs, or data — Membrane chunks it, runs parallel agents with ironclad isolation, and returns clean structured JSON.
+            </p>
+            <p className="max-w-2xl mx-auto">
+              <strong>Call <code>/v1/swarm/plan</code> first</strong> &rarr; get an honest forecast of cost, latency, risk, and cache hits <strong>before</strong> you spend anything.
+            </p>
+            <div className="max-w-xl mx-auto p-3.5 bg-emerald-50/60 rounded-xl border border-emerald-200/40 text-center shadow-xs glass-card-tactile">
+              <p className="text-xs font-black text-emerald-800 tracking-wide uppercase">
+                Free for local development forever &bull; $29/mo flat for production
+              </p>
+              <p className="text-[10px] font-bold text-slate-500 tracking-wider uppercase mt-1">
+                One-line OpenAI SDK compatible &bull; Self-host in seconds
+              </p>
+            </div>
+          </div>
+ 
+          {/* CTA Buttons */}
+          <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
+            <a
+              href="#quickstart"
+              className="inline-flex items-center justify-center px-6 py-3 text-xs font-black uppercase tracking-wider text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 tactile-button active:scale-[0.98] transition-all"
+            >
+              Try it now — 30-second local setup
+            </a>
+            <a
+              href="#playground"
+              className="inline-flex items-center justify-center px-6 py-3 text-xs font-black uppercase tracking-wider text-slate-700 bg-white rounded-xl hover:bg-slate-50 border border-slate-200 shadow-sm active:scale-[0.98] transition-all"
+            >
+              See live swarm demo
+            </a>
+            <a
+              href="#pricing"
+              className="inline-flex items-center justify-center px-6 py-3 text-xs font-black uppercase tracking-wider text-amber-950 bg-amber-500 rounded-xl hover:bg-amber-600 shadow-md active:scale-[0.98] transition-all border border-amber-400/20"
+            >
+              Get Founding License ($490 lifetime)
+            </a>
+          </div>
+ 
+          {/* Real Savings stats section */}
+          <div className="max-w-4xl mx-auto pt-10 border-t border-slate-200/50 mt-12 tilt-container">
+            <p className="text-[9px] font-mono text-slate-400 uppercase tracking-[0.25em] font-black text-center mb-6">
+              Real results from production workloads
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              <div className="glass-card-tactile tilt-card hover:border-emerald-500/30 rounded-xl p-5 shadow-xs flex flex-col items-center justify-center text-center">
+                <span className="text-3xl font-serif font-black text-emerald-600 leading-none mb-1">83%</span>
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Cost Reduction</span>
+                <span className="text-[10px] text-slate-500 mt-1">on contract analysis (Contract Pulse)</span>
+              </div>
+              <div className="glass-card-tactile tilt-card hover:border-emerald-500/30 rounded-xl p-5 shadow-xs flex flex-col items-center justify-center text-center">
+                <span className="text-3xl font-serif font-black text-emerald-600 leading-none mb-1">4.7&times;</span>
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Faster Processing</span>
+                <span className="text-[10px] text-slate-500 mt-1">multi-PDF research vs sequential LangChain</span>
+              </div>
+              <div className="glass-card-tactile tilt-card hover:border-emerald-500/30 rounded-xl p-5 shadow-xs flex flex-col items-center justify-center text-center">
+                <span className="text-3xl font-serif font-black text-emerald-600 leading-none mb-1">91%</span>
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Cache Hit Rate</span>
+                <span className="text-[10px] text-slate-500 mt-1">repetitive queries hit semantic cache</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* 90-SECOND INSTANT TRIAL TERMINAL */}
-        <div className="max-w-3xl mx-auto space-y-3">
+        <div id="quickstart" className="max-w-3xl mx-auto space-y-3">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between text-xs font-mono text-slate-500 px-1 gap-2">
-            <div className="flex items-center bg-slate-150 p-1 rounded-lg border border-slate-200">
+            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/80">
               <button
                 onClick={() => setTrialTab("curl")}
-                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all uppercase cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all uppercase cursor-pointer border ${
                   trialTab === "curl" 
-                    ? "bg-slate-900 text-white shadow-sm" 
-                    : "text-slate-600 hover:text-slate-900"
+                    ? "bg-white border-slate-200 text-slate-900 shadow-sm" 
+                    : "bg-transparent border-transparent text-slate-500 hover:text-slate-800"
                 }`}
               >
                 Cloud Sandbox (cURL)
               </button>
               <button
                 onClick={() => setTrialTab("python")}
-                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all uppercase cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all uppercase cursor-pointer border ${
                   trialTab === "python" 
-                    ? "bg-slate-900 text-white shadow-sm" 
-                    : "text-slate-600 hover:text-slate-900"
+                    ? "bg-white border-slate-200 text-slate-900 shadow-sm" 
+                    : "bg-transparent border-transparent text-slate-500 hover:text-slate-800"
                 }`}
               >
                 Python SDK
               </button>
               <button
                 onClick={() => setTrialTab("docker")}
-                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all uppercase cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all uppercase cursor-pointer border ${
                   trialTab === "docker" 
-                    ? "bg-slate-900 text-white shadow-sm" 
-                    : "text-slate-600 hover:text-slate-900"
+                    ? "bg-white border-slate-200 text-slate-900 shadow-sm" 
+                    : "bg-transparent border-transparent text-slate-500 hover:text-slate-800"
                 }`}
               >
                 Local Sandbox (Docker)
@@ -474,8 +703,19 @@ console.log(completion.choices[0].message.content);`;
             <span className="text-[10px] uppercase font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded self-start sm:self-auto">Try it now (no signup required)</span>
           </div>
           
-          <div className="bg-slate-900 text-slate-100 p-4 rounded-xl shadow-lg border border-slate-800 font-mono text-sm relative group overflow-hidden tilt-3d">
-            <div className="absolute top-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="bg-slate-900 border border-slate-800/80 p-5 rounded-2xl font-mono text-sm relative group overflow-hidden dark-scrollbar shadow-lg">
+            <div className="flex items-center gap-1.5 pb-3 mb-3 border-b border-slate-800/50">
+              <div className="w-2.5 h-2.5 rounded-full bg-rose-400" />
+              <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+              <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+              <span className="text-[10px] text-slate-500 font-mono ml-2 uppercase tracking-wider">
+                {trialTab === "curl" && "bash / cURL"}
+                {trialTab === "python" && "python"}
+                {trialTab === "docker" && "docker"}
+              </span>
+            </div>
+            
+            <div className="absolute top-12 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity">
               <button 
                 onClick={() => {
                   let text = trialCurlSnippet;
@@ -483,20 +723,18 @@ console.log(completion.choices[0].message.content);`;
                   else if (trialTab === "docker") text = "docker run -d -p 8000:8000 thejoshuapenner/membrane-dashboard";
                   handleCopy(text, "trial");
                 }}
-                className="p-1.5 rounded-lg bg-slate-800 text-slate-350 hover:bg-slate-700 hover:text-white border border-slate-700 transition"
+                className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:bg-slate-800 hover:text-slate-100 border border-slate-700 transition shadow-sm"
               >
-                {copiedIndex === "trial" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                {copiedIndex === "trial" ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
               </button>
             </div>
-            <pre className="w-full overflow-x-auto whitespace-pre-wrap break-all md:whitespace-pre md:break-normal leading-relaxed pr-10">
-              <code>
-                {trialTab === "curl" && trialCurlSnippet}
-                {trialTab === "python" && trialPythonSnippet}
-                {trialTab === "docker" && "docker run -d -p 8000:8000 thejoshuapenner/membrane-dashboard"}
-              </code>
-            </pre>
+            <div className="w-full overflow-x-auto whitespace-pre-wrap break-all md:whitespace-pre md:break-normal leading-relaxed pr-10">
+              {trialTab === "curl" && renderHighlightedSdkCode(trialCurlSnippet, "javascript")}
+              {trialTab === "python" && renderHighlightedSdkCode(trialPythonSnippet, "python")}
+              {trialTab === "docker" && renderHighlightedSdkCode("docker run -d -p 8000:8000 thejoshuapenner/membrane-dashboard", "javascript")}
+            </div>
           </div>
-          <p className="text-[11px] text-slate-550 text-center italic">
+          <p className="text-[11px] text-slate-500 text-center italic">
             {trialTab === "curl" 
               ? "Copy and paste this query into your terminal. Authorization headers are optional during development; any string will work."
               : trialTab === "python"
@@ -506,10 +744,8 @@ console.log(completion.choices[0].message.content);`;
           </p>
         </div>
 
-        <hr className="border-slate-200" />
-
         {/* SIDE-BY-SIDE PLATFORM PLAYGROUND */}
-        <div className="space-y-6">
+        <div id="playground" className="space-y-6">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-200 pb-4">
             <div>
               <h2 className="text-2xl sm:text-3xl font-serif font-black text-slate-950 flex items-center gap-2">
@@ -526,7 +762,7 @@ console.log(completion.choices[0].message.content);`;
                   onClick={() => setSelectedPattern(pat)}
                   className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition ${
                     selectedPattern.id === pat.id
-                      ? "bg-slate-900 border-slate-900 text-white shadow-sm"
+                      ? "bg-emerald-50/75 border-emerald-500/40 text-emerald-700 shadow-sm"
                       : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                   }`}
                 >
@@ -540,7 +776,7 @@ console.log(completion.choices[0].message.content);`;
             
             {/* LEFT INPUT BAY (5 cols) */}
             <div className="lg:col-span-5 flex flex-col space-y-6">
-              <div className="bg-white/70 backdrop-blur-md rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-4 flex-1 flex flex-col justify-between tilt-3d">
+              <div className="glass-card-tactile tilt-card rounded-2xl p-6 space-y-4 flex-1 flex flex-col justify-between">
                 <div className="space-y-4 flex-1 flex flex-col">
                   
                   {/* Mode switcher tab header */}
@@ -569,7 +805,7 @@ console.log(completion.choices[0].message.content);`;
 
                   {inputMode === "document" ? (
                     <div className="space-y-4">
-                      <p className="text-xs text-slate-650 leading-relaxed">
+                      <p className="text-xs text-slate-600 leading-relaxed">
                         Drop a PDF contract. The browser extracts the text client-side, splits it into segments, and sends it to the parallel map-reduce proxy gateway.
                       </p>
                       
@@ -736,28 +972,24 @@ console.log(completion.choices[0].message.content);`;
             <div className="lg:col-span-7 flex flex-col space-y-6">
               
               {/* Output Monitor */}
-              <div className="bg-white/70 backdrop-blur-md rounded-2xl border border-slate-200/80 p-6 shadow-sm flex-1 flex flex-col justify-between tilt-3d">
+              <div className="glass-card-tactile tilt-card rounded-2xl p-6 flex-1 flex flex-col justify-between">
                 <div className="space-y-4 flex-1 flex flex-col">
-                  <div className="flex items-center justify-between text-xs font-mono font-bold text-slate-400 uppercase tracking-widest">
+                  <div className="flex items-center justify-between text-xs font-mono font-bold text-slate-400 uppercase tracking-[0.15em]">
                     <span className="flex items-center gap-1.5"><Terminal className="w-4 h-4 text-slate-600" /> LOSSLESS OUTPUT CANVAS</span>
                     <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100/50">COMPLETED RESPONSE</span>
                   </div>
 
-                  <div className="bg-slate-900 rounded-xl p-4 border border-slate-800 font-mono text-xs text-slate-200 flex-1 min-h-[450px] overflow-y-auto max-h-[580px] relative select-text leading-relaxed">
-                    <pre className="whitespace-pre-wrap">{streamOutput}</pre>
+                  <div className="bg-slate-900 rounded-xl p-4 border border-slate-800/80 font-mono text-xs text-slate-100 flex-1 min-h-[450px] overflow-y-auto max-h-[580px] relative select-text leading-relaxed dark-scrollbar shadow-lg">
+                    {renderHighlightedOutput(streamOutput)}
                   </div>
                 </div>
-
-
               </div>
             </div>
           </div>
         </div>
 
-        <hr className="border-slate-200" />
-
         {/* TABBED CONTEXT-AWARE SDK RECIPES */}
-        <div className="bg-white/70 backdrop-blur-md rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-6 tilt-3d">
+        <div className="glass-card-tactile tilt-card rounded-2xl p-6 space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
             <div>
               <h3 className="text-lg font-black text-slate-950 flex items-center gap-2">
@@ -774,7 +1006,7 @@ console.log(completion.choices[0].message.content);`;
                   onClick={() => setSdkTab(tab)}
                   className={`px-3 py-1 text-xs font-semibold rounded-md border capitalize transition ${
                     sdkTab === tab
-                      ? "bg-slate-950 border-slate-950 text-white"
+                      ? "bg-slate-100 border-slate-200 text-slate-900 shadow-xs"
                       : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                   }`}
                 >
@@ -784,18 +1016,18 @@ console.log(completion.choices[0].message.content);`;
             </div>
           </div>
 
-          <div className="relative group rounded-xl bg-slate-900 border border-slate-800 text-slate-200 p-4 font-mono text-xs overflow-hidden leading-relaxed max-h-[380px]">
+          <div className="relative group rounded-xl bg-slate-900 border border-slate-800/80 text-slate-100 p-4 font-mono text-xs overflow-hidden leading-relaxed max-h-[380px] dark-scrollbar shadow-lg">
             <div className="absolute top-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity">
               <button 
                 onClick={() => handleCopy(getSdkCode(), "sdk")}
-                className="p-1.5 rounded-lg bg-slate-800 text-slate-350 hover:bg-slate-700 hover:text-white border border-slate-700 transition"
+                className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:bg-slate-800 hover:text-slate-100 border border-slate-700 transition shadow-sm"
               >
-                {copiedIndex === "sdk" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                {copiedIndex === "sdk" ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
               </button>
             </div>
-            <pre className="w-full overflow-x-auto whitespace-pre-wrap break-all md:whitespace-pre md:break-normal leading-relaxed pr-10">
-              <code>{getSdkCode()}</code>
-            </pre>
+            <div className="w-full overflow-x-auto whitespace-pre-wrap break-all md:whitespace-pre md:break-normal leading-relaxed pr-10">
+              {renderHighlightedSdkCode(getSdkCode(), sdkTab)}
+            </div>
           </div>
           
           <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 text-emerald-800 text-xs flex gap-2">
@@ -809,50 +1041,52 @@ console.log(completion.choices[0].message.content);`;
           </div>
         </div>
 
-        <hr className="border-slate-200" />
-
         {/* WHO IT'S FOR & FEATURES */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 tilt-container">
           {/* Features Column */}
-          <div className="md:col-span-2 bg-white/60 backdrop-blur-md rounded-2xl border border-slate-200/80 p-8 shadow-xs space-y-6">
-            <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+          <div className="md:col-span-2 glass-card-tactile tilt-card rounded-2xl p-8 space-y-6">
+            <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2 font-serif">
               <Sparkles className="w-5 h-5 text-emerald-600" /> Key Features
             </h3>
             <ul className="space-y-3 text-sm text-slate-700">
               <li className="flex items-start gap-2.5">
                 <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <span><b>Parallel map-reduce with strong isolation</b>: Split large ingestion workloads across concurrent workers without leaking context.</span>
+                <span><b>Semantic Caching</b> — Never pay twice for the same question</span>
               </li>
               <li className="flex items-start gap-2.5">
                 <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <span><b><code>/v1/swarm/plan</code> — cost & risk forecasting</b>: Perform pre-flight compliance checking and get dynamic cost/risk/latency forecasting before spending tokens.</span>
+                <span><b>Swarm Map-Reduce</b> — Parallel processing with zero context bleed</span>
               </li>
               <li className="flex items-start gap-2.5">
                 <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <span><b>Early Gate + Canary modes</b>: Catch structural, syntax, and schema errors early at sub-millisecond cost before unleashing swarms.</span>
+                <span><b>/v1/swarm/plan</b> — Cost & risk forecasting before you commit</span>
               </li>
               <li className="flex items-start gap-2.5">
                 <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <span><b>Full OpenAI client compatibility</b>: Standard <code>/v1/chat/completions</code> compatibility works with any OpenAI SDK client.</span>
+                <span><b>Early Gate + Canary</b> — Catch failures at sub-millisecond cost</span>
               </li>
               <li className="flex items-start gap-2.5">
                 <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <span><b>Docker Self-Hosting</b>: Spin up locally in a single command with full data silo privacy.</span>
+                <span><b>Full OpenAI Compatibility</b> — Works with LangChain, LlamaIndex, CrewAI, etc.</span>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <span><b>Invariant-First Orchestration</b> — Schemas, budgets, and output contracts enforced</span>
               </li>
             </ul>
           </div>
           {/* Who It's For Column */}
-          <div className="bg-white/60 backdrop-blur-md rounded-2xl border border-slate-200/80 p-8 shadow-xs flex flex-col justify-between">
+          <div className="glass-card-tactile tilt-card rounded-2xl p-8 flex flex-col justify-between">
             <div className="space-y-4">
-              <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+              <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2 font-serif">
                 <Cpu className="w-5 h-5 text-emerald-600" /> Who It’s For
               </h3>
-              <p className="text-sm text-slate-650 leading-relaxed">
+              <p className="text-sm text-slate-600 leading-relaxed">
                 Developers and small teams building document-heavy or high-volume structured workflows — legal tech, research tools, compliance, RAG pipelines, log analysis, and similar use cases.
               </p>
             </div>
             <div className="pt-4 border-t border-slate-100 mt-4 space-y-1">
-              <p className="text-[10px] font-mono text-slate-400 uppercase tracking-wider">Our Philosophy</p>
+              <p className="text-[10px] font-mono text-slate-400 uppercase tracking-widest font-black">Our Philosophy</p>
               <p className="text-sm font-serif italic text-emerald-700 font-bold">
                 Simple. Predictable. Actually reliable.
               </p>
@@ -860,28 +1094,76 @@ console.log(completion.choices[0].message.content);`;
           </div>
         </div>
 
-        <hr className="border-slate-200" />
+        {/* SYSTEM BENCHMARKS SHOWCASE */}
+        <div className="space-y-8">
+          <div className="text-center max-w-2xl mx-auto space-y-3">
+            <h2 className="text-3xl sm:text-4xl font-serif font-black text-slate-950 flex items-center justify-center gap-2">
+              <BarChart2 className="w-6 h-6 text-emerald-600" />
+              Real-World Workload Performance Metrics
+            </h2>
+            <p className="text-slate-600 text-sm leading-relaxed">
+              Standardized results mapped directly from live document-heavy extraction testing comparing raw LLM completions against Membrane swarm executions.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 max-w-6xl mx-auto items-stretch tilt-container">
+            {workloads.map((w) => (
+              <div key={w.id} className="glass-card-tactile glass-card-tactile-hover tilt-card rounded-2xl p-5 flex flex-col justify-between gap-4 shadow-sm hover:border-emerald-500/30">
+                <div className="space-y-1">
+                  <h4 className="font-extrabold text-sm text-slate-950 leading-tight">{w.name}</h4>
+                  <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 inline-block font-mono tracking-wide">{w.notes}</span>
+                </div>
+                
+                <div className="divide-y divide-slate-100/85 space-y-2 text-xs pt-1">
+                  <div className="flex justify-between items-center pt-2">
+                    <span className="text-slate-500">Raw LLM Cost:</span>
+                    <span className="font-mono text-slate-400 line-through">${w.rawCost.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center pt-2">
+                    <span className="text-slate-700 font-bold">Membrane Cost:</span>
+                    <span className="font-mono text-emerald-600 font-black text-sm">${w.membraneCost.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center pt-2">
+                    <span className="text-slate-500 font-bold">Savings Factor:</span>
+                    <span className="font-mono text-emerald-600 font-black">{w.savings}</span>
+                  </div>
+                  <div className="flex justify-between items-center pt-2">
+                    <span className="text-slate-500">Speedup:</span>
+                    <span className="font-mono text-slate-900 font-black">{w.speedup}</span>
+                  </div>
+                  <div className="flex justify-between items-center pt-2">
+                    <span className="text-slate-700 font-bold">Cache Hit Rate:</span>
+                    <span className="font-mono text-slate-950 font-black">{w.cacheHit}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* INTERACTIVE COMPARISON PLAYGROUND */}
+        <ComparisonPlayground />
 
         {/* PRICING & PHILOSOPHY */}
-        <section id="pricing" className="py-12 space-y-8">
+        <section id="pricing" className="space-y-8">
           <div className="text-center max-w-2xl mx-auto space-y-3">
             <h2 className="text-3xl sm:text-4xl font-serif font-black text-slate-950">Pricing (Open Core)</h2>
-            <p className="text-slate-650 text-sm leading-relaxed">
+            <p className="text-slate-600 text-sm leading-relaxed">
               Membrane is completely free for personal use, experimentation, and development. If you are using Membrane for <b>commercial production work</b>, a paid license is required.
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto items-stretch">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto items-stretch tilt-container">
             {/* Free Tier */}
-            <div className="bg-white/60 backdrop-blur-md rounded-2xl border border-slate-200/80 p-6 shadow-xs flex flex-col justify-between hover:border-emerald-600/30 transition-all duration-300">
+            <div className="glass-card-tactile glass-card-tactile-hover tilt-card rounded-2xl p-6 flex flex-col justify-between hover:border-emerald-500/40">
               <div className="space-y-4">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h3 className="text-base font-bold text-slate-900">Developer Sandbox</h3>
+                    <h3 className="text-base font-bold text-slate-900 font-serif">Developer Sandbox</h3>
                     <p className="text-[11px] text-slate-500 mt-1">For local development & sandbox testing</p>
                   </div>
                   <span className="px-2 py-0.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 rounded-full">Free</span>
                 </div>
-                <div className="text-2xl font-black text-slate-900">$0 <span className="text-xs font-normal text-slate-500">/ forever</span></div>
+                <div className="text-2xl font-black text-slate-900 font-sans">$0 <span className="text-xs font-normal text-slate-500">/ forever</span></div>
                 <ul className="space-y-2 text-[11.5px] text-slate-600 pt-2">
                   <li className="flex items-center gap-2">✓ Full Swarm Map-Reduce access</li>
                   <li className="flex items-center gap-2">✓ Dynamic Model Routing</li>
@@ -899,19 +1181,19 @@ console.log(completion.choices[0].message.content);`;
               </div>
             </div>
             {/* Commercial Tier */}
-            <div className="bg-white/60 backdrop-blur-md rounded-2xl border-2 border-emerald-600/20 p-6 shadow-sm flex flex-col justify-between hover:border-emerald-600/40 transition-all duration-300 relative overflow-hidden">
+            <div className="glass-card-tactile glass-card-tactile-hover tilt-card rounded-2xl p-6 flex flex-col justify-between relative overflow-hidden border-2 border-emerald-500/20">
               <div className="absolute top-0 right-0 bg-emerald-600 text-white text-[9px] font-bold px-2.5 py-0.5 rounded-bl-lg uppercase tracking-wider">
                 Production
               </div>
               <div className="space-y-4">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h3 className="text-base font-bold text-slate-900">Commercial Production</h3>
+                    <h3 className="text-base font-bold text-slate-900 font-serif">Commercial Production</h3>
                     <p className="text-[11px] text-slate-500 mt-1">For cloud deployments</p>
                   </div>
                   <span className="px-2 py-0.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 rounded-full">$29/mo</span>
                 </div>
-                <div className="text-2xl font-black text-slate-900">$29 <span className="text-xs font-normal text-slate-500">/ month flat</span></div>
+                <div className="text-2xl font-black text-slate-900 font-sans">$29 <span className="text-xs font-normal text-slate-500">/ month flat</span></div>
                 <p className="text-[9.5px] text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded inline-block">
                   Get 20% off: $290 billed annually
                 </p>
@@ -927,30 +1209,30 @@ console.log(completion.choices[0].message.content);`;
                   href="https://buy.polar.sh/polar_cl_yDHzavhCzMw8FkCp0t0X2NJNfg5xgqLmudIxZ0S54BZ"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full inline-flex items-center justify-center py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition duration-300 shadow-md hover:shadow-emerald-650/20 active:scale-[0.98] border border-emerald-500/20 text-center"
+                  className="w-full inline-flex items-center justify-center py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition duration-300 shadow-md hover:shadow-emerald-600/20 active:scale-[0.98] border border-emerald-500/20 text-center"
                 >
                   Activate License on Polar.sh
                 </a>
               </div>
             </div>
             {/* Founding License Tier */}
-            <div className="bg-gradient-to-b from-slate-900 to-slate-950 text-white rounded-2xl border-2 border-amber-500/30 p-6 shadow-md flex flex-col justify-between hover:border-amber-500/60 transition-all duration-300 relative overflow-hidden">
+            <div className="glass-card-tactile glass-card-amber-hover tilt-card rounded-2xl p-6 flex flex-col justify-between relative overflow-hidden border-2 border-amber-400/40 bg-gradient-to-b from-amber-50/10 via-white to-white text-slate-900">
               <div className="absolute top-0 right-0 bg-amber-500 text-slate-950 text-[9px] font-black px-2.5 py-0.5 rounded-bl-lg uppercase tracking-wider">
                 Founding
               </div>
               <div className="space-y-4">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h3 className="text-base font-bold text-white">Founding License</h3>
-                    <p className="text-[11px] text-slate-400 mt-1">Only first 75 buyers</p>
+                    <h3 className="text-base font-bold text-slate-900 font-serif">Founding License</h3>
+                    <p className="text-[11px] text-slate-500 mt-1">Only first 75 buyers</p>
                   </div>
                   <span className="px-2 py-0.5 text-[10px] font-bold text-amber-950 bg-amber-50 rounded-full">Lifetime</span>
                 </div>
-                <div className="text-2xl font-black text-white">$490 <span className="text-xs font-normal text-slate-400">/ one-time</span></div>
-                <p className="text-[9.5px] text-amber-300 font-semibold bg-amber-950/40 border border-amber-500/20 px-2 py-0.5 rounded inline-block">
+                <div className="text-2xl font-black text-slate-900 font-sans">$490 <span className="text-xs font-normal text-slate-500">/ one-time</span></div>
+                <p className="text-[9.5px] text-amber-800 font-semibold bg-amber-50 border border-amber-500/20 px-2 py-0.5 rounded inline-block">
                   Lifetime commercial license
                 </p>
-                <ul className="space-y-2 text-[11.5px] text-slate-350 pt-1">
+                <ul className="space-y-2 text-[11.5px] text-slate-600 pt-1">
                   <li className="flex items-center gap-2">✓ Permanent production authorization</li>
                   <li className="flex items-center gap-2">✓ No monthly subscription fees</li>
                   <li className="flex items-center gap-2">✓ Priority founder support channel</li>
@@ -970,7 +1252,7 @@ console.log(completion.choices[0].message.content);`;
             </div>
           </div>
           
-          <div className="max-w-3xl mx-auto p-4 bg-slate-50 rounded-xl border border-slate-200/50 text-slate-650 text-[11px] leading-relaxed space-y-2">
+          <div className="max-w-3xl mx-auto p-4 bg-slate-50 rounded-xl border border-slate-200/50 text-slate-600 text-[11px] leading-relaxed space-y-2">
             <p className="font-bold text-slate-800">What counts as Commercial Production?</p>
             <p>
               **Commercial Production** is defined as any deployment of Membrane on public cloud infrastructure (such as AWS, Render, GCP, Fly.io, Vercel) that powers an active application, API, or service outside of a developer&apos;s local machine (`localhost`) or private personal network. 

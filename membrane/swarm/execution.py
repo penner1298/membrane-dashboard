@@ -42,7 +42,9 @@ async def process_swarm_chunk(
     system_prompt: str,
     target_signals: List[str],
     temperature: float,
-    sem: asyncio.Semaphore
+    sem: asyncio.Semaphore,
+    provider_api_key: Optional[str] = None,
+    apex_model: Optional[str] = None
 ) -> Dict[str, Any]:
     global active_swarm_chunks
     async with sem:
@@ -60,18 +62,23 @@ async def process_swarm_chunk(
                 ]
                 
                 kwargs = {}
+                if provider_api_key:
+                    kwargs["api_key"] = provider_api_key
+                
                 response = await acompletion(
                     model=mapped_model,
                     messages=messages,
                     temperature=temperature,
                     response_format={"type": "json_object"},
+                    max_tokens=4000,
                     **kwargs
                 )
                 
                 in_tok = response.usage.prompt_tokens
                 out_tok = response.usage.completion_tokens
                 actual_cost = calc_cost(mapped_model, in_tok, out_tok, response)
-                hypothetical_cost = calc_cost(APEX_MODEL, in_tok, out_tok)
+                resolved_apex = apex_model or APEX_MODEL
+                hypothetical_cost = calc_cost(resolved_apex, in_tok, out_tok)
                 savings = max(0.0, hypothetical_cost - actual_cost)
                 
                 content = response.choices[0].message.content
@@ -103,15 +110,24 @@ async def process_swarm_chunk(
 
                 verbatim_text = json.dumps(parsed_json)
                 matched_signals = []
-                
                 extracted_val = parsed_json["extracted_data"]
-                extracted_val_str = str(extracted_val).lower()
-                for sig in target_signals:
-                    if sig.lower() in extracted_val_str:
-                        matched_signals.append(sig)
-                
-                if not matched_signals and target_signals:
-                    matched_signals = [target_signals[0]]
+                if isinstance(extracted_val, dict):
+                    for sig in target_signals:
+                        sig_lower = sig.lower()
+                        for k, v in extracted_val.items():
+                            if sig_lower in k.lower() and v is not None and v != "" and str(v).lower() not in ("null", "none"):
+                                matched_signals.append(sig)
+                                break
+                elif isinstance(extracted_val, list):
+                    extracted_val_str = str(extracted_val).lower()
+                    for sig in target_signals:
+                        if sig.lower() in extracted_val_str:
+                            matched_signals.append(sig)
+                else:
+                    extracted_val_str = str(extracted_val).lower()
+                    for sig in target_signals:
+                        if sig.lower() in extracted_val_str:
+                            matched_signals.append(sig)
 
                 return {
                     "index": chunk_index,
@@ -119,6 +135,8 @@ async def process_swarm_chunk(
                     "matched_signals": matched_signals,
                     "error": None,
                     "tokens": in_tok + out_tok,
+                    "prompt_tokens": in_tok,
+                    "completion_tokens": out_tok,
                     "actual_cost": actual_cost,
                     "hypothetical_cost": hypothetical_cost,
                     "savings": savings,
@@ -127,6 +145,8 @@ async def process_swarm_chunk(
             except Exception as e:
                 print(f"Swarm chunk {chunk_index} failed: {e}")
                 tokens = 0
+                in_tok = 0
+                out_tok = 0
                 actual_cost = 0.0
                 hypothetical_cost = 0.0
                 savings = 0.0
@@ -137,7 +157,8 @@ async def process_swarm_chunk(
                         out_tok = response.usage.completion_tokens
                         tokens = in_tok + out_tok
                         actual_cost = calc_cost(mapped_model, in_tok, out_tok, response)
-                        hypothetical_cost = calc_cost(APEX_MODEL, in_tok, out_tok)
+                        resolved_apex = apex_model or APEX_MODEL
+                        hypothetical_cost = calc_cost(resolved_apex, in_tok, out_tok)
                         savings = max(0.0, hypothetical_cost - actual_cost)
                     except Exception as ex_calc:
                         print(f"⚠️ Error calculating costs for failed chunk: {ex_calc}")
@@ -148,6 +169,8 @@ async def process_swarm_chunk(
                     "matched_signals": [],
                     "error": str(e),
                     "tokens": tokens,
+                    "prompt_tokens": in_tok,
+                    "completion_tokens": out_tok,
                     "actual_cost": actual_cost,
                     "hypothetical_cost": hypothetical_cost,
                     "savings": savings,
@@ -181,6 +204,8 @@ def compile_swarm_response(
     results.sort(key=lambda x: x["index"])
     extractions = []
     total_tokens = 0
+    total_prompt_tokens = 0
+    total_completion_tokens = 0
     total_actual_cost = 0.0
     total_hypothetical_cost = 0.0
     total_savings = 0.0
@@ -227,6 +252,8 @@ def compile_swarm_response(
             )
         )
         total_tokens += r["tokens"]
+        total_prompt_tokens += r.get("prompt_tokens", 0)
+        total_completion_tokens += r.get("completion_tokens", 0)
         total_actual_cost += r["actual_cost"]
         total_hypothetical_cost += r["hypothetical_cost"]
         total_savings += r["savings"]
@@ -296,7 +323,10 @@ def compile_swarm_response(
             canary_succeeded=canary_succeeded,
             chunks_reached_model=chunks_reached_model,
             estimated_waste_tokens=final_waste,
-            concurrency_level=concurrency_level
+            concurrency_level=concurrency_level,
+            prompt_tokens=total_prompt_tokens,
+            completion_tokens=total_completion_tokens,
+            total_tokens=total_tokens
         )
     )
 
@@ -363,6 +393,69 @@ async def log_canary_failure(
     }
     background_tasks.add_task(charge_and_log_api_batch, api_key_hash, [canary_log])
 
+def resolve_provider_nodes(provider: Optional[str], api_key: Optional[str] = None):
+    # Detect provider from API key prefix if not explicitly passed
+    if not provider and api_key:
+        if api_key.startswith("sk-ant-"):
+            provider = "anthropic"
+        elif api_key.startswith("sk-"):
+            provider = "openai"
+        elif api_key.startswith("AIzaSy"):
+            provider = "google"
+        elif "ollama" in api_key.lower():
+            provider = "gemma"
+
+    if not provider:
+        provider = "google"
+
+    provider = provider.lower().strip()
+
+    # Mappings
+    if provider in ("openai", "gpt"):
+        canary = os.getenv("MEMBRANE_OPENAI_FLASH_MODEL") or os.getenv("OPENAI_FLASH_MODEL") or "openai/gpt-4o-mini"
+        apex = os.getenv("MEMBRANE_OPENAI_APEX_MODEL") or os.getenv("OPENAI_APEX_MODEL") or "openai/gpt-4.5"
+    elif provider in ("anthropic", "claude"):
+        canary = os.getenv("MEMBRANE_ANTHROPIC_FLASH_MODEL") or os.getenv("ANTHROPIC_FLASH_MODEL") or "anthropic/claude-3-5-haiku-20241022"
+        apex = os.getenv("MEMBRANE_ANTHROPIC_APEX_MODEL") or os.getenv("ANTHROPIC_APEX_MODEL") or "anthropic/claude-3-7-sonnet-20250219"
+    elif provider in ("gemma", "ollama"):
+        canary = os.getenv("MEMBRANE_GEMMA_FLASH_MODEL") or os.getenv("GEMMA_FLASH_MODEL") or "ollama/gemma4"
+        apex = os.getenv("MEMBRANE_GEMMA_APEX_MODEL") or os.getenv("GEMMA_APEX_MODEL") or "ollama/gemma4:9b"
+    else:  # Google Gemini
+        canary = os.getenv("MEMBRANE_GEMINI_FLASH_MODEL") or os.getenv("GEMINI_FLASH_MODEL") or "gemini/gemini-2.5-flash"
+        apex = os.getenv("MEMBRANE_GEMINI_APEX_MODEL") or os.getenv("GEMINI_APEX_MODEL") or "gemini/gemini-3.5-flash"
+
+    # Support generic env overrides if the resolved prefix matches
+    env_flash = os.getenv("MEMBRANE_FLASH_MODEL") or os.getenv("FLASH_MODEL") or os.getenv("CANARY_MODEL")
+    env_apex = os.getenv("MEMBRANE_APEX_MODEL") or os.getenv("APEX_MODEL")
+
+    if env_flash:
+        if "/" in env_flash:
+            p_prefix = env_flash.split("/")[0].lower()
+            if p_prefix == provider or (provider == "google" and p_prefix == "gemini") or (provider == "anthropic" and p_prefix == "claude"):
+                canary = env_flash
+        else:
+            if provider == "openai" and (env_flash.startswith("gpt-") or env_flash.startswith("o1") or env_flash.startswith("o3-")):
+                canary = f"openai/{env_flash}"
+            elif provider in ("anthropic", "claude") and env_flash.startswith("claude-"):
+                canary = f"anthropic/{env_flash}"
+            elif provider in ("google", "gemini") and env_flash.startswith("gemini-"):
+                canary = f"gemini/{env_flash}"
+
+    if env_apex:
+        if "/" in env_apex:
+            p_prefix = env_apex.split("/")[0].lower()
+            if p_prefix == provider or (provider == "google" and p_prefix == "gemini") or (provider == "anthropic" and p_prefix == "claude"):
+                apex = env_apex
+        else:
+            if provider == "openai" and (env_apex.startswith("gpt-") or env_apex.startswith("o1") or env_apex.startswith("o3-")):
+                apex = f"openai/{env_apex}"
+            elif provider in ("anthropic", "claude") and env_apex.startswith("claude-"):
+                apex = f"anthropic/{env_apex}"
+            elif provider in ("google", "gemini") and env_apex.startswith("gemini-"):
+                apex = f"gemini/{env_apex}"
+
+    return canary, apex
+
 async def execute_swarm_experiments(
     chunks: List[str],
     request: Any,
@@ -377,7 +470,17 @@ async def execute_swarm_experiments(
 ) -> Any:
     from membrane.swarm.validation import validate_criteria_types
     validate_criteria_types(request.extraction_criteria)
-    mapped_model = request.model if request.model != "membrane-engagement-layer" else CANARY_MODEL
+    provider = getattr(request, 'provider', None) or (request.model_extra.get('provider') if request.model_extra else None)
+    provider_api_key = getattr(request, 'provider_api_key', None) or (request.model_extra.get('provider_api_key') if request.model_extra else None)
+    canary_node, apex_node = resolve_provider_nodes(provider, provider_api_key)
+    mapped_model = request.model if request.model != "membrane-engagement-layer" else canary_node
+    if mapped_model and "/" not in mapped_model:
+        if mapped_model.startswith("gemini-"):
+            mapped_model = f"gemini/{mapped_model}"
+        elif mapped_model.startswith("gpt-") or mapped_model.startswith("o1") or mapped_model.startswith("o3-"):
+            mapped_model = f"openai/{mapped_model}"
+        elif mapped_model.startswith("claude-"):
+            mapped_model = f"anthropic/{mapped_model}"
     criteria = request.extraction_criteria or {}
     system_prompt = criteria.get("system_persona") or request.system_prompt or "Extract data."
     target_signals = criteria.get("target_signals") or []
@@ -387,7 +490,8 @@ async def execute_swarm_experiments(
     
     if swarm_mode == SwarmExecutionMode.CANARY_PROBE:
         canary_res = await process_swarm_chunk(
-            chunks[0], 0, mapped_model, system_prompt, target_signals, request.temperature, semaphore
+            chunks[0], 0, mapped_model, system_prompt, target_signals, request.temperature, semaphore,
+            provider_api_key=provider_api_key, apex_model=apex_node
         )
         
         if canary_res["error"] is not None:
@@ -411,7 +515,8 @@ async def execute_swarm_experiments(
         
         if len(chunks) > 1:
             tasks = [
-                process_swarm_chunk(chunk, i, mapped_model, system_prompt, target_signals, request.temperature, semaphore)
+                process_swarm_chunk(chunk, i, mapped_model, system_prompt, target_signals, request.temperature, semaphore,
+                                    provider_api_key=provider_api_key, apex_model=apex_node)
                 for i, chunk in enumerate(chunks[1:], start=1)
             ]
             other_results = await asyncio.gather(*tasks)
@@ -450,7 +555,8 @@ async def execute_swarm_experiments(
     else:
         # Legacy or EARLY_GATE Mode execution
         tasks = [
-            process_swarm_chunk(chunk, i, mapped_model, system_prompt, target_signals, request.temperature, semaphore)
+            process_swarm_chunk(chunk, i, mapped_model, system_prompt, target_signals, request.temperature, semaphore,
+                                provider_api_key=provider_api_key, apex_model=apex_node)
             for i, chunk in enumerate(chunks)
         ]
         results = await asyncio.gather(*tasks)

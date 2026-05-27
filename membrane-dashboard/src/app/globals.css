@@ -125,14 +125,65 @@
   }
 }
 
-.tilt-3d {
-  transition: box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+.tilt-container {
+  perspective: 1000px;
 }
-.tilt-3d:hover {
+
+.tilt-card {
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.tilt-card:hover {
+  transform: translateY(-2px) scale(1.01);
+}
+
+/* physical inset highlights and light-catching borders */
+.glass-card-tactile {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(226, 232, 240, 0.8);
   box-shadow: 
-    0 20px 40px rgba(0, 0, 0, 0.05),
-    0 1px 3px rgba(0, 0, 0, 0.02),
-    inset 0 1px 1px rgba(255, 255, 255, 0.9);
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 1px 0 rgba(226, 232, 240, 0.5),
+    0 10px 30px -10px rgba(148, 163, 184, 0.12);
+}
+
+.glass-card-tactile-hover {
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Soft, blooming color matching glows */
+.glass-card-tactile-hover:hover {
+  background: #ffffff;
+  border-color: rgba(16, 185, 129, 0.3);
+  box-shadow: 
+    inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.95),
+    0 16px 36px -12px rgba(16, 185, 129, 0.1),
+    0 0 20px 0 rgba(16, 185, 129, 0.03);
+}
+
+/* Amber bloom for founding card */
+.glass-card-amber-hover:hover {
+  background: #ffffff;
+  border-color: rgba(245, 158, 11, 0.45);
+  box-shadow: 
+    inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.95),
+    0 20px 40px -15px rgba(245, 158, 11, 0.12),
+    0 0 25px 0 rgba(245, 158, 11, 0.04);
+}
+
+/* Inset shadows on buttons to give physical volume */
+.tactile-button {
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.4),
+    0 4px 12px -2px rgba(16, 185, 129, 0.15);
+}
+
+.tactile-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.45),
+    0 8px 20px -4px rgba(16, 185, 129, 0.25);
 }
 
 /* Faint dot pattern and wave/blob backings */
@@ -148,5 +199,39 @@
 .brand-bg-blob-2 {
   background: radial-gradient(circle, rgba(59, 130, 246, 0.02) 0%, rgba(59, 130, 246, 0) 70%);
 }
+
+/* Light IDE Scrollbar */
+.light-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.light-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.light-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+.light-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Dark IDE Scrollbar */
+.dark-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.dark-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.dark-scrollbar::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 9999px;
+}
+.dark-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+
 
 

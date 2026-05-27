@@ -48,6 +48,7 @@ class ChatRequest(BaseModel):
     temperature: Optional[float] = 0.0
     max_tokens: Optional[int] = None
     top_p: Optional[float] = None
+    provider_api_key: Optional[str] = None
     model_config = {"extra": "allow"}
 
 class ChatResponse(BaseModel):
@@ -187,7 +188,7 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
         if effective_model and not is_general_protocol:
             if "flash" in effective_model.lower() or "mini" in effective_model.lower():
                 if "gemini" in effective_model.lower():
-                    apex = os.getenv("MEMBRANE_APEX_MODEL") or os.getenv("APEX_MODEL") or "gemini/gemini-2.5-pro"
+                    apex = os.getenv("MEMBRANE_APEX_MODEL") or os.getenv("APEX_MODEL") or "gemini/gemini-3.5-flash"
                 elif "gpt" in effective_model.lower():
                     apex = "openai/gpt-4o"
 
@@ -216,6 +217,8 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
                     litellm_kwargs["max_tokens"] = request.max_tokens
                 if request.top_p is not None:
                     litellm_kwargs["top_p"] = request.top_p
+                if request.provider_api_key:
+                    litellm_kwargs["api_key"] = request.provider_api_key
 
                 res = await acompletion(model=model, messages=messages, **litellm_kwargs)
                 ans = res.choices[0].message.content
@@ -430,6 +433,7 @@ async def openai_compatible_endpoint(
         messages = new_messages
         context_purged = True
 
+    provider_api_key = request.headers.get("x-provider-api-key") or request.headers.get("X-Provider-API-Key")
     internal_req = ChatRequest(
         prompt=None,
         messages=messages,
@@ -438,7 +442,8 @@ async def openai_compatible_endpoint(
         use_global_cache=False,
         temperature=temperature,
         max_tokens=max_tokens,
-        top_p=top_p
+        top_p=top_p,
+        provider_api_key=provider_api_key
     )
 
     res = await chat_endpoint(internal_req, background_tasks, api_key_hash)

@@ -5,10 +5,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # --- PRICING & ECONOMICS ---
-FLASH_INPUT_COST = 0.30
-FLASH_OUTPUT_COST = 2.50
-PRO_INPUT_COST = 2.00
-PRO_OUTPUT_COST = 12.00
+FLASH_INPUT_COST = 0.075
+FLASH_OUTPUT_COST = 0.30
+PRO_INPUT_COST = 1.25
+PRO_OUTPUT_COST = 5.00
 
 MARKUP_MULTIPLIER = 2.0  # You charge 2x the raw API cost
 L1_CACHE_FEE = 0.0001   # Subsidized micro-transaction for Global Hive Mind
@@ -25,7 +25,7 @@ FLASH_MODEL = (
 APEX_MODEL = (
     os.environ.get("MEMBRANE_APEX_MODEL")
     or os.environ.get("APEX_MODEL")
-    or "gemini/gemini-2.5-pro"
+    or "gemini/gemini-3.5-flash"
 )
 EMBED_MODEL = (
     os.environ.get("EMBED_MODEL")

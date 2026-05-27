@@ -11,7 +11,7 @@ export function Header() {
         <div className="flex items-center justify-center w-8 h-8 font-bold text-white bg-emerald-600 rounded-md">
           M
         </div>
-        <span className="text-xl font-bold">Membrane Guard</span>
+        <span className="text-xl font-bold">Membrane</span>
       </Link>
       
       {/* CENTER: Navigation Links */}
