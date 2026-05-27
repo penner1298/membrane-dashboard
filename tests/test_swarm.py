@@ -152,5 +152,29 @@ class TestSwarm(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.membrane_metadata.value_ledger.net_enterprise_savings, 0.020)
         self.assertTrue(mock_bg_tasks.add_task.called)
 
+    def test_verify_state_machine_logic_python_forbidden_import(self):
+        request = swarm.ProofOfWorkRequest(
+            agent_id="agent_1",
+            task_type="python_code",
+            payload="import os\nprint('hello')",
+            target_agent_id="agent_2"
+        )
+        with self.assertRaises(HTTPException) as ctx:
+            swarm.verify_state_machine_logic(request, self.tmp_dir)
+        self.assertEqual(ctx.exception.status_code, 400)
+        self.assertIn("Forbidden import or function call", ctx.exception.detail)
+
+    def test_verify_state_machine_logic_python_forbidden_call(self):
+        request = swarm.ProofOfWorkRequest(
+            agent_id="agent_1",
+            task_type="python_code",
+            payload="eval('1 + 1')",
+            target_agent_id="agent_2"
+        )
+        with self.assertRaises(HTTPException) as ctx:
+            swarm.verify_state_machine_logic(request, self.tmp_dir)
+        self.assertEqual(ctx.exception.status_code, 400)
+        self.assertIn("Forbidden import or function call", ctx.exception.detail)
+
 if __name__ == "__main__":
     unittest.main()

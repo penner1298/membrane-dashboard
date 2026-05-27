@@ -156,28 +156,53 @@ def make_canary_signature(payload_str: str, prefix: str) -> str:
     watermark = payload_int % 7919
     return f"{prefix}_{watermark}_{payload_hash[:16]}"
 
+def audit_python_ast(source_code: str) -> bool:
+    import ast
+    try:
+        tree = ast.parse(source_code)
+    except SyntaxError:
+        return True
+        
+    FORBIDDEN_MODULES = {"os", "sys", "subprocess", "shutil", "ctypes", "builtins", "importlib"}
+    FORBIDDEN_FUNCTIONS = {"eval", "exec", "open", "compile", "__import__"}
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for name in node.names:
+                if name.name.split('.')[0] in FORBIDDEN_MODULES:
+                    return False
+        elif isinstance(node, ast.ImportFrom):
+            if node.module and node.module.split('.')[0] in FORBIDDEN_MODULES:
+                return False
+        elif isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name) and node.func.id in FORBIDDEN_FUNCTIONS:
+                return False
+    return True
+
 def verify_state_machine_logic(request: ProofOfWorkRequest, workspace_dir: str) -> ProofOfWorkResponse:
     safe_dest_path = None
     if request.destination_path:
         safe_dest_path = get_safe_destination(request.destination_path, workspace_dir)
 
     if request.task_type == "python_code":
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as temp_script:
-            temp_script.write(request.payload)
-            temp_path = temp_script.name
+        # Strict AST Auditing check to block malicious code executions
+        if not audit_python_ast(request.payload):
+            raise HTTPException(
+                status_code=400,
+                detail="Security Exception: Forbidden import or function call detected in Python AST verification."
+            )
+
+        # In-process microsecond Python compile (no subprocess, no disk file required!)
         try:
-            result = subprocess.run(["python3", "-m", "py_compile", temp_path], capture_output=True, text=True, timeout=5)
-            if result.returncode == 0:
-                signature = make_canary_signature(request.payload, "MEMBRANE_VERIFIED")
-                if safe_dest_path:
-                    os.makedirs(os.path.dirname(safe_dest_path), exist_ok=True)
-                    with open(safe_dest_path, "w") as f_dest:
-                        f_dest.write(request.payload)
-                return ProofOfWorkResponse(verified=True, membrane_signature=signature)
-            else:
-                raise HTTPException(status_code=400, detail=f"Python compilation failed: {result.stderr}")
-        finally:
-            os.remove(temp_path)
+            compile(request.payload, "<string>", "exec")
+            signature = make_canary_signature(request.payload, "MEMBRANE_VERIFIED")
+            if safe_dest_path:
+                os.makedirs(os.path.dirname(safe_dest_path), exist_ok=True)
+                with open(safe_dest_path, "w") as f_dest:
+                    f_dest.write(request.payload)
+            return ProofOfWorkResponse(verified=True, membrane_signature=signature)
+        except SyntaxError as se:
+            raise HTTPException(status_code=400, detail=f"Python compilation failed: {se}")
 
     elif request.task_type == "react_component":
         sandbox_dir = os.path.abspath(os.path.join(workspace_dir, "sandbox_scratch"))
@@ -195,6 +220,7 @@ def verify_state_machine_logic(request: ProofOfWorkRequest, workspace_dir: str) 
         
         try:
             if shutil.which("npx"):
+                # Synchronous run is safe here because it runs on a background worker thread via asyncio.to_thread
                 result = subprocess.run(
                     ["npx", "tsc", "--noEmit", "--skipLibCheck", "--jsx", "preserve", file_path],
                     cwd=workspace_dir,

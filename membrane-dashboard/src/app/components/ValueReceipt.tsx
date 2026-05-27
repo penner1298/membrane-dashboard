@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Sparkles, DollarSign, ArrowRight, Award } from "lucide-react";
+import { Sparkles, Award } from "lucide-react";
 
 interface ValueReceiptProps {
   actualCost: number;

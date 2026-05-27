@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { 
-  Key, RefreshCw, Database, Terminal, ShieldAlert, 
-  Search, Copy, Check, Info, AlertTriangle, FileCode, Server,
-  LineChart, TrendingDown, Layers, Zap, Ban, Activity
+  RefreshCw, ShieldAlert, Search, Copy, Check, Info, AlertTriangle, Server,
+  LineChart, TrendingDown, Zap, Ban, Activity
 } from "lucide-react";
 import { useApiKey } from "@/context/ApiKeyContext";
 
@@ -30,6 +29,16 @@ interface DqlEntry {
   error_message: string;
 }
 
+interface GroupStats {
+  total_requests: number;
+  waste_tokens: number;
+  total_tokens: number;
+  max_concurrency: number;
+  p99_latency: number;
+  avg_concurrency: string;
+  rejected_requests: number;
+}
+
 interface ConsoleClientProps {
   stats: {
     cacheHits: number;
@@ -45,9 +54,9 @@ interface ConsoleClientProps {
   tenantId: string;
   dbStatus: string;
   experimentStats: {
-    legacy: any;
-    early_gate: any;
-    canary: any;
+    legacy: GroupStats;
+    early_gate: GroupStats;
+    canary: GroupStats;
   };
 }
 
@@ -55,8 +64,6 @@ export function ConsoleClient({
   stats, 
   recentLogs, 
   dlqLogs, 
-  apiKey, 
-  tenantId, 
   dbStatus,
   experimentStats
 }: ConsoleClientProps) {
@@ -545,7 +552,7 @@ export function ConsoleClient({
                   <div className="border border-slate-100 p-3 rounded-xl bg-slate-50/50 space-y-1">
                     <span className="text-[10px] text-slate-400 font-bold uppercase">Concurrency Pressure Reduction</span>
                     <p className="text-2xl font-black text-emerald-600">
-                      {experimentStats.legacy.avg_concurrency > 0 
+                      {parseFloat(experimentStats.legacy.avg_concurrency) > 0 
                         ? `-${(100 - parseFloat(experimentStats.canary.avg_concurrency) / parseFloat(experimentStats.legacy.avg_concurrency) * 100).toFixed(1)}%` 
                         : "0%"}
                     </p>

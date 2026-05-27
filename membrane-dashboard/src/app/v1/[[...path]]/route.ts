@@ -59,7 +59,7 @@ async function handleProxy(request: NextRequest, pathSegments: string[]) {
       if (bodyText) {
         init.body = bodyText;
       }
-    } catch (e) {
+    } catch {
       // Empty or unparseable body
     }
   }
@@ -101,10 +101,10 @@ async function handleProxy(request: NextRequest, pathSegments: string[]) {
         headers: resHeaders,
       });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("API Proxy Error:", error);
     return NextResponse.json(
-      { error: "Proxy connection failed", details: error.message },
+      { error: "Proxy connection failed", details: (error as Error).message },
       { status: 502 }
     );
   }

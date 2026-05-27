@@ -60,7 +60,9 @@ export async function POST(req: Request) {
       } catch (dbError) {
         try {
           await pool.query("ROLLBACK");
-        } catch (_) {}
+        } catch {
+          // Ignore rollback error if DB completely offline
+        }
         console.warn("⚠️ Database is offline or timed out during key rotation. Using mock fallback.", dbError);
       }
     } else {

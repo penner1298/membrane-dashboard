@@ -45,6 +45,15 @@ class InMemoryCache(BaseCache):
             "value": value,
             "timestamp": time.time()
         }
+        if len(self._cache) > self.max_size:
+            await self.sweep()
+            if len(self._cache) > self.max_size:
+                # Evict oldest entries
+                keys_sorted = sorted(self._cache.keys(), key=lambda k: self._cache[k]["timestamp"])
+                evict_count = max(1, len(keys_sorted) // 5)
+                for k in keys_sorted[:evict_count]:
+                    del self._cache[k]
+
 
     async def delete(self, key: str) -> None:
         if key in self._cache:
@@ -69,10 +78,15 @@ active_requests: Dict[str, asyncio.Event] = {}
 active_requests_lock = asyncio.Lock()
 
 async def sweep_l1_cache():
+    from membrane.database import tenant_cache
     while True:
         try:
             await asyncio.sleep(L1_CACHE_TTL)
             await l1_memory_cache.sweep()
+            try:
+                await tenant_cache.sweep()
+            except Exception as e:
+                print(f"⚠️ Tenant cache sweep error: {e}")
                     
             # Clean up active_requests lock dictionary to prevent memory leak
             # Only remove if event is set
@@ -145,11 +159,13 @@ async def check_semantic_cache(
             )
 
     try:
-        if conn:
-            row = await run_semantic_lookup(conn)
-        else:
+        if db_pool:
             async with db_pool.acquire() as connection:
                 row = await run_semantic_lookup(connection)
+        elif conn:
+            row = await run_semantic_lookup(conn)
+        else:
+            row = None
         if row:
             return row['cached_response'], prompt_vector
     except Exception:

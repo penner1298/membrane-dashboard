@@ -18,19 +18,16 @@ from membrane.database import charge_and_log_api_batch
 
 # --- CONCURRENCY TRACKING STATE ---
 active_swarm_chunks = 0
-active_swarm_chunks_lock = asyncio.Lock()
 
 class SwarmConcurrencyTracker:
     async def __aenter__(self):
         global active_swarm_chunks
-        async with active_swarm_chunks_lock:
-            active_swarm_chunks += 1
+        active_swarm_chunks += 1
         return active_swarm_chunks
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         global active_swarm_chunks
-        async with active_swarm_chunks_lock:
-            active_swarm_chunks -= 1
+        active_swarm_chunks -= 1
 
 class SwarmExecutionMode(str, Enum):
     LEGACY = "legacy"
@@ -385,7 +382,7 @@ async def execute_swarm_experiments(
     system_prompt = criteria.get("system_persona") or request.system_prompt or "Extract data."
     target_signals = criteria.get("target_signals") or []
     
-    concurrency_limit = request.max_concurrency if not license_active else min(request.max_concurrency, 10)
+    concurrency_limit = min(request.max_concurrency, 10) if not license_active else request.max_concurrency
     semaphore = asyncio.Semaphore(concurrency_limit)
     
     if swarm_mode == SwarmExecutionMode.CANARY_PROBE:

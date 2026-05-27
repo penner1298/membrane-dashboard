@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any */
 import crypto from "crypto";
 import Link from "next/link";
 import { cookies } from "next/headers";

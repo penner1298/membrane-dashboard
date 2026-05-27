@@ -24,7 +24,7 @@ export async function POST() {
     }
 
     return NextResponse.json({ apiKey: rawKey, tenantId: dynamicTenantId });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Failed to provision session key:", error);
     return NextResponse.json({ apiKey: "sk_live_mock_local_dev_key_provisioned" });
   }

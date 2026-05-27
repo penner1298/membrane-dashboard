@@ -1,8 +1,24 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { UploadCloud, FileText, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { UploadCloud, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+interface PdfJsLib {
+  GlobalWorkerOptions: {
+    workerSrc: string;
+  };
+  getDocument: (params: { data: ArrayBuffer }) => {
+    promise: Promise<{
+      numPages: number;
+      getPage: (pageNum: number) => Promise<{
+        getTextContent: () => Promise<{
+          items: Array<{ str: string }>;
+        }>;
+      }>;
+    }>;
+  };
+}
 
 // Helper to chunk text paragraphs/lines to fit token constraints
 export const chunkStringContent = (text: string, maxChunkSize: number = 2000): string[] => {
@@ -59,17 +75,22 @@ export function PdfDropzone({ onTextExtracted, isProcessing, setIsProcessing }: 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load PDF.js dynamically from CDN to keep initial client bundles small and fast
-  const loadPdfJs = async () => {
-    if ((window as any).pdfjsLib) {
-      return (window as any).pdfjsLib;
+  const loadPdfJs = async (): Promise<PdfJsLib> => {
+    const win = window as unknown as { pdfjsLib?: PdfJsLib };
+    if (win.pdfjsLib) {
+      return win.pdfjsLib;
     }
     return new Promise((resolve, reject) => {
       const script = document.createElement("script");
       script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
       script.onload = () => {
-        const pdfjsLib = (window as any).pdfjsLib;
-        pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-        resolve(pdfjsLib);
+        const pdfjsLib = win.pdfjsLib;
+        if (pdfjsLib) {
+          pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+          resolve(pdfjsLib);
+        } else {
+          reject(new Error("PDF.js loaded but pdfjsLib is not defined on window."));
+        }
       };
       script.onerror = () => reject(new Error("Failed to load PDF processing engine. Check connection."));
       document.head.appendChild(script);
@@ -105,7 +126,7 @@ export function PdfDropzone({ onTextExtracted, isProcessing, setIsProcessing }: 
         setProgressMsg(`Extracting page ${i} of ${pdf.numPages}...`);
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
-        const pageText = textContent.items.map((item: any) => item.str).join(" ");
+        const pageText = textContent.items.map((item: { str: string }) => item.str).join(" ");
         fullText += pageText + "\n";
       }
 
@@ -114,9 +135,10 @@ export function PdfDropzone({ onTextExtracted, isProcessing, setIsProcessing }: 
       
       setProgressMsg("Extraction complete!");
       onTextExtracted(chunks, file.name);
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      setError(err.message || "Failed to parse PDF document.");
+      const message = err instanceof Error ? err.message : "Failed to parse PDF document.";
+      setError(message);
     } finally {
       setIsProcessing(false);
     }

@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/purity, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 "use client";
 
 import React, { useState, useEffect } from "react";

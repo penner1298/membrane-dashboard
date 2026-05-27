@@ -42,7 +42,7 @@ class TestSecurity(unittest.TestCase):
         
         try:
             dest = security.get_safe_destination("some_file.txt", tmp_dir)
-            self.assertEqual(dest, os.path.abspath(os.path.join(sandbox_dir, "some_file.txt")))
+            self.assertEqual(dest, os.path.realpath(os.path.join(sandbox_dir, "some_file.txt")))
         finally:
             shutil.rmtree(tmp_dir)
 

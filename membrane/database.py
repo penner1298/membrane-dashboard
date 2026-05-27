@@ -37,12 +37,15 @@ async def verify_access(credentials: Optional[HTTPAuthorizationCredentials] = Se
             api_key = "local_dev_key"
 
     # Strict key prefix/format validation (removes unsafe default bypass)
+    # Strict key prefix/format validation (removes unsafe default bypass)
     if not (api_key.startswith("sk_live_") or api_key.startswith("sk_membrane_") or api_key == "local_dev_key"):
+        masked_raw = raw_credential if raw_credential == "local_dev_key" else (raw_credential[:8] + "..." if len(raw_credential) > 8 else "***")
+        masked_api = api_key if api_key == "local_dev_key" else (api_key[:8] + "..." if len(api_key) > 8 else "***")
         log_entry = {
             "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            "raw_credential_repr": repr(raw_credential),
+            "raw_credential_repr": repr(masked_raw),
             "raw_credential_len": len(raw_credential),
-            "sanitized_api_key_repr": repr(api_key),
+            "sanitized_api_key_repr": repr(masked_api),
             "sanitized_api_key_len": len(api_key),
             "prefix_ok": False,
             "status": "REJECTED_BAD_FORMAT"
@@ -57,11 +60,13 @@ async def verify_access(credentials: Optional[HTTPAuthorizationCredentials] = Se
 
     hashed_key = hash_api_key(api_key)
 
+    masked_raw = raw_credential if raw_credential == "local_dev_key" else (raw_credential[:8] + "..." if len(raw_credential) > 8 else "***")
+    masked_api = api_key if api_key == "local_dev_key" else (api_key[:8] + "..." if len(api_key) > 8 else "***")
     log_entry = {
         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        "raw_credential_repr": repr(raw_credential),
+        "raw_credential_repr": repr(masked_raw),
         "raw_credential_len": len(raw_credential),
-        "sanitized_api_key_repr": repr(api_key),
+        "sanitized_api_key_repr": repr(masked_api),
         "sanitized_api_key_len": len(api_key),
         "prefix_ok": True,
         "status": "PASSED_FORMAT"
@@ -104,38 +109,45 @@ async def verify_access(credentials: Optional[HTTPAuthorizationCredentials] = Se
                     hashed_key = hash_api_key(api_key)
                     tenant = await conn.fetchrow("SELECT balance, tenant_id FROM tenants WHERE api_key_hash = $1", hashed_key)
 
+        is_prod = (
+            os.environ.get("RENDER") == "true" or
+            os.environ.get("ENVIRONMENT") == "production" or
+            os.environ.get("ENV") == "production" or
+            os.environ.get("NODE_ENV") == "production"
+        )
+
         if not tenant:
-            is_prod = (
-                os.environ.get("RENDER") == "true" or
-                os.environ.get("ENVIRONMENT") == "production" or
-                os.environ.get("ENV") == "production"
-            )
-            # In an honor-based model, we never raise 401 exceptions in production for dynamic key registration.
-            if is_prod and not (api_key.startswith("sk_live_") or api_key.startswith("sk_membrane_")):
+            if is_prod:
+                raise HTTPException(
+                    status_code=401, 
+                    detail="Unauthorized: A valid, pre-registered API key is required in production environments."
+                )
+            
+            dynamic_tenant_id = f"local_dev_{hashed_key[:8]}"
+            print(f"🆕 Auto-provisioning tenant for API key hash: {hashed_key[:8]}... as {dynamic_tenant_id} with $10.00 balance.")
+            try:
+                new_ref_code = f"REF-{hashlib.md5(hashed_key.encode()).hexdigest()[:6].upper()}"
+                await conn.execute(
+                    "INSERT INTO tenants (api_key_hash, balance, tenant_id, referral_code, has_paid) VALUES ($1, 10.0000, $2, $3, TRUE) ON CONFLICT (api_key_hash) DO UPDATE SET tenant_id = EXCLUDED.tenant_id",
+                    hashed_key, dynamic_tenant_id, new_ref_code
+                )
+            except Exception as e:
+                print(f"⚠️ Failed to auto-provision tenant: {e}")
+            
+            tenant = await conn.fetchrow("SELECT balance, tenant_id FROM tenants WHERE api_key_hash = $1", hashed_key)
+            if not tenant:
                 api_key = "local_dev_key"
                 hashed_key = hash_api_key(api_key)
                 tenant = await conn.fetchrow("SELECT balance, tenant_id FROM tenants WHERE api_key_hash = $1", hashed_key)
-            
-            if not tenant:
-                dynamic_tenant_id = f"local_dev_{hashed_key[:8]}"
-                print(f"🆕 Auto-provisioning tenant for API key hash: {hashed_key[:8]}... as {dynamic_tenant_id} with $10.00 balance.")
-                try:
-                    new_ref_code = f"REF-{hashlib.md5(hashed_key.encode()).hexdigest()[:6].upper()}"
-                    await conn.execute(
-                        "INSERT INTO tenants (api_key_hash, balance, tenant_id, referral_code, has_paid) VALUES ($1, 10.0000, $2, $3, TRUE) ON CONFLICT (api_key_hash) DO UPDATE SET tenant_id = EXCLUDED.tenant_id",
-                        hashed_key, dynamic_tenant_id, new_ref_code
-                    )
-                except Exception as e:
-                    print(f"⚠️ Failed to auto-provision tenant: {e}")
-                
-                tenant = await conn.fetchrow("SELECT balance, tenant_id FROM tenants WHERE api_key_hash = $1", hashed_key)
-                if not tenant:
-                    api_key = "local_dev_key"
-                    hashed_key = hash_api_key(api_key)
-                    tenant = await conn.fetchrow("SELECT balance, tenant_id FROM tenants WHERE api_key_hash = $1", hashed_key)
         
         if tenant and tenant['balance'] <= 0:
             t_id = tenant.get('tenant_id') or ""
+            if is_prod:
+                raise HTTPException(
+                    status_code=402,
+                    detail="Payment Required: Your commercial/production account balance is exhausted. Please refill your balance in the developer console to continue."
+                )
+            
             if t_id.startswith('local_dev') or api_key == "local_dev_key":
                 if is_deprecated:
                     await conn.execute("UPDATE deprecated_keys SET balance = 10.0000 WHERE api_key_hash = $1", hashed_key)
@@ -143,8 +155,10 @@ async def verify_access(credentials: Optional[HTTPAuthorizationCredentials] = Se
                     await conn.execute("UPDATE tenants SET balance = 10.0000 WHERE api_key_hash = $1", hashed_key)
                 print(f"🔄 Auto-refilled exhausted local dev balance to $10.00.")
             else:
-                await conn.execute("UPDATE tenants SET balance = 10.0000 WHERE api_key_hash = $1", hashed_key)
-                print(f"🔄 Auto-refilled exhausted commercial/production account balance to $10.00.")
+                raise HTTPException(
+                    status_code=402,
+                    detail="Payment Required: Your commercial/production account balance is exhausted. Please refill your balance in the developer console to continue."
+                )
     
     await tenant_cache.set(hashed_key, True)
     return hashed_key
@@ -285,11 +299,15 @@ async def charge_and_log_api_batch(api_key_hash: str, logs: List[Dict[str, Any]]
 async def log_to_dlq(api_key_hash: str, prompt: str, schema: Optional[dict], failed_output: str, error_msg: str):
     if not db_pool:
         return
+    from membrane.security import scrub_pii, sanitize_exception_message
+    scrubbed_prompt = scrub_pii(prompt) if prompt else ""
+    scrubbed_output = scrub_pii(failed_output) if failed_output else ""
+    scrubbed_error_msg = scrub_pii(sanitize_exception_message(error_msg)) if error_msg else ""
     try:
         async with db_pool.acquire() as conn:
             await conn.execute(
                 "INSERT INTO dlq_logs (api_key_hash, inbound_prompt, requested_schema, failed_output, error_message) VALUES ($1, $2, $3, $4, $5)",
-                api_key_hash, prompt, json.dumps(schema) if schema else None, failed_output, error_msg
+                api_key_hash, scrubbed_prompt, json.dumps(schema) if schema else None, scrubbed_output, scrubbed_error_msg
             )
     except Exception as e:
         print(f"🚨 DLQ Save Failed: {e}")

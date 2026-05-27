@@ -25,7 +25,7 @@ FLASH_MODEL = (
 APEX_MODEL = (
     os.environ.get("MEMBRANE_APEX_MODEL")
     or os.environ.get("APEX_MODEL")
-    or "gemini/gemini-3.5-flash"
+    or "gemini/gemini-2.5-pro"
 )
 EMBED_MODEL = (
     os.environ.get("EMBED_MODEL")

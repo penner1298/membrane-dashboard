@@ -2,9 +2,6 @@ import { NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
 import { exec } from "child_process";
-import { promisify } from "util";
-
-const execAsync = promisify(exec);
 
 // Dynamically resolve workspace dir to prevent absolute machine path lock
 const WORKSPACE_DIR = process.env.MEMBRANE_WORKSPACE_DIR || process.cwd();
@@ -25,7 +22,7 @@ export async function GET() {
     try {
       const draftContent = await fs.readFile(DRAFT_JSON_PATH, "utf-8");
       draftData = JSON.parse(draftContent);
-    } catch (e) {
+    } catch {
       // Return empty templates if draft doesn't exist
       draftData = {
         date: new Date().toISOString().split("T")[0],
@@ -40,7 +37,7 @@ export async function GET() {
     try {
       const tasksContent = await fs.readFile(TRIAGE_TASKS_PATH, "utf-8");
       triageTasks = JSON.parse(tasksContent);
-    } catch (e) {
+    } catch {
       triageTasks = [];
     }
 
@@ -49,9 +46,10 @@ export async function GET() {
       draft: draftData,
       rawTelemetry: triageTasks
     });
-  } catch (error: any) {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: message },
       { status: 500 }
     );
   }
@@ -60,7 +58,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { action, draft, accomplishments, todos } = body;
+    const { action, draft } = body;
 
     const todayStr = new Date().toISOString().split("T")[0];
     const dayName = new Date().toLocaleDateString("en-US", { weekday: "long" });
@@ -69,7 +67,7 @@ export async function POST(request: Request) {
       // Trigger supervisor script asynchronously
       console.log("[+] Chronicle API: Triggering central supervisor script run...");
       // Using exec without blocking
-      exec(`python3 ${SUPERVISOR_SCRIPT}`, (err, stdout, stderr) => {
+      exec(`python3 ${SUPERVISOR_SCRIPT}`, (err, stdout) => {
         if (err) {
           console.error(`[-] Supervisor run failed: ${err.message}`);
           return;
@@ -104,21 +102,25 @@ export async function POST(request: Request) {
         try {
           const currentArchived = await fs.readFile(archivedTasksPath, "utf-8");
           existingArchived = JSON.parse(currentArchived);
-        } catch (e) {}
+        } catch {
+          // Ignore
+        }
 
         let currentTriage = [];
         try {
           const currentTriageContent = await fs.readFile(TRIAGE_TASKS_PATH, "utf-8");
           currentTriage = JSON.parse(currentTriageContent);
-        } catch (e) {}
+        } catch {
+          // Ignore
+        }
 
         if (currentTriage.length > 0) {
           const updatedArchived = [...existingArchived, ...currentTriage];
           await fs.writeFile(archivedTasksPath, JSON.stringify(updatedArchived, null, 4), "utf-8");
           await fs.writeFile(TRIAGE_TASKS_PATH, "[]", "utf-8"); // Clear active inbox
         }
-      } catch (e) {
-        console.error("[-] Failed to archive triage tasks:", e);
+      } catch (err) {
+        console.error("[-] Failed to archive triage tasks:", err);
       }
 
       // Also clean up draft_journal.json since it has been successfully committed
@@ -126,21 +128,44 @@ export async function POST(request: Request) {
         await fs.unlink(DRAFT_JSON_PATH);
         const draftMdPath = path.join(DAILY_JOURNAL_DIR, `${todayStr}-draft.md`);
         await fs.unlink(draftMdPath);
-      } catch (e) {}
+      } catch {
+        // Ignore
+      }
 
       return NextResponse.json({ success: true, message: "Journal successfully committed!" });
     }
 
     return NextResponse.json({ success: false, error: "Invalid action." }, { status: 400 });
-  } catch (error: any) {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: message },
       { status: 500 }
     );
   }
 }
 
-function generateMarkdown(draft: any, dateStr: string, dayName: string, isDraft: boolean) {
+interface Draft {
+  accomplishments?: {
+    political?: string[];
+    professional?: string[];
+    personal?: string[];
+    automation_dev?: string[];
+  };
+  todos?: {
+    medical_family?: string[];
+    professional_political?: string[];
+    other?: string[];
+  };
+  raw_trace?: {
+    imessage_count?: number;
+    email_count?: number;
+    git_commits?: number;
+    calendar_events?: number;
+  };
+}
+
+function generateMarkdown(draft: Draft, dateStr: string, dayName: string, isDraft: boolean) {
   const acc = draft.accomplishments || {};
   const t = draft.todos || {};
   const trace = draft.raw_trace || {};

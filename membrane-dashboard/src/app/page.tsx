@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -93,6 +94,9 @@ const ENGINEERING_PATTERNS: EngineeringPattern[] = [
   }
 ];
 
+function generateTaskId() {
+  return "tx_" + Math.random().toString(36).slice(2, 10);
+}
 
 export default function Home() {
   const [baseUrl, setBaseUrl] = useState("http://localhost:3000/v1");
@@ -292,7 +296,7 @@ response = client.chat.completions.create(
           savingsPercent: savingsPct,
           chunkCount: resJson.extractions?.length || bodyData.chunks?.length || 1,
           model: resJson.model || "membrane-engagement-layer",
-          taskId: resJson.task_id || "tx_" + Math.random().toString(36).slice(2, 10),
+          taskId: resJson.task_id || generateTaskId(),
           timestamp: new Date().toISOString()
         });
       } else {
@@ -322,7 +326,7 @@ response = client.chat.completions.create(
           savingsPercent: savingsPct,
           chunkCount: selectedPattern.id === "swarm_map" ? slices : 1,
           model: bodyData.model || "membrane-engagement-layer",
-          taskId: "tx_" + Math.random().toString(36).slice(2, 10),
+          taskId: generateTaskId(),
           timestamp: new Date().toISOString()
         });
       }
@@ -969,7 +973,7 @@ console.log(completion.choices[0].message.content);`;
           <div className="max-w-3xl mx-auto p-4 bg-slate-50 rounded-xl border border-slate-200/50 text-slate-650 text-[11px] leading-relaxed space-y-2">
             <p className="font-bold text-slate-800">What counts as Commercial Production?</p>
             <p>
-              **Commercial Production** is defined as any deployment of Membrane on public cloud infrastructure (such as AWS, Render, GCP, Fly.io, Vercel) that powers an active application, API, or service outside of a developer's local machine (`localhost`) or private personal network. 
+              **Commercial Production** is defined as any deployment of Membrane on public cloud infrastructure (such as AWS, Render, GCP, Fly.io, Vercel) that powers an active application, API, or service outside of a developer&apos;s local machine (`localhost`) or private personal network. 
             </p>
             <p>
               This is a trust and honor-based model. We do not enforce hard blocks, key truncation, or usage caps in your cloud environments—the software runs fully uninhibited to ensure maximum production stability. We prioritize developer trust and expect production users to subscribe to support our work.
