@@ -68,3 +68,15 @@ cd membrane-dashboard
 pip install -r requirements.txt
 python3 server.py
 ```
+
+### Swarm State Verification Endpoint
+
+The `/v1/swarm/state` endpoint provides sandboxed compilation and proof-of-work for agent-generated code.
+
+Key parameters:
+- `task_type`: `python_code` or `react_component`
+- `payload`: The source code to validate
+- `target_agent_id`: **Optional** destination identifier (used for logging/routing after successful verification)
+- `destination_path`: Optional relative path to persist the file on success
+
+See `MEMBRANE_SWARM_PROTOCOL.md` for full details and strict validation rules.

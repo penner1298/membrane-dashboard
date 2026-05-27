@@ -35,7 +35,8 @@ node_modules/
 # Ignore runtime diagnostic files, logs, and scratch scripts
 *.log
 gearbox_gemma.log
-test_*.py
+/test_*.py
 fix_*.py
 .trash/
 sandbox_scratch/
+.vercel

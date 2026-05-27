@@ -13,7 +13,7 @@ export async function POST() {
         await pool.query("BEGIN");
         await pool.query(`
           INSERT INTO tenants (tenant_id, api_key_hash, balance, total_saved, has_paid)
-          VALUES ($1, $2, 1000.00, 0, TRUE)
+          VALUES ($1, $2, 10.00, 0, TRUE)
           ON CONFLICT (api_key_hash) DO NOTHING
         `, [dynamicTenantId, hashedKey]);
         await pool.query("COMMIT");

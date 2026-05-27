@@ -7,7 +7,16 @@
   },
   "servers": [
     {
-      "url": "https://membrane-wh1g.onrender.com/v1"
+      "url": "https://membrane-api.com/v1",
+      "description": "Primary API Gateway Tunnel"
+    },
+    {
+      "url": "https://membrane-wh1g.onrender.com/v1",
+      "description": "Direct Backend Instance (Render)"
+    },
+    {
+      "url": "http://localhost:8000/v1",
+      "description": "Local Development Server"
     }
   ],
   "components": {
@@ -16,6 +25,45 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "API Key"
+      }
+    },
+    "schemas": {
+      "ExtractionCriteria": {
+        "type": "object",
+        "properties": {
+          "system_persona": {
+            "type": "string",
+            "description": "Directives instructing the extraction agents on their analytical persona."
+          },
+          "target_signals": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Key phrases or identifiers the swarm will target for extraction."
+          }
+        },
+        "required": ["system_persona", "target_signals"]
+      },
+      "TrajectoryPrediction": {
+        "type": "object",
+        "properties": {
+          "estimated_total_tokens": {
+            "type": "integer"
+          },
+          "estimated_retail_cost": {
+            "type": "number"
+          },
+          "estimated_latency_seconds": {
+            "type": "number"
+          },
+          "recommended_concurrency": {
+            "type": "integer"
+          },
+          "risk_score": {
+            "type": "number"
+          }
+        }
       }
     }
   },
@@ -28,7 +76,20 @@
     "/chat/completions": {
       "post": {
         "summary": "Create chat completion",
+        "description": "Proxy endpoint that acts as a drop-in replacement for standard OpenAI completions. Automatically caches prompts and prunes middle conversational history unless context preservation is explicitly requested.",
         "operationId": "createChatCompletion",
+        "parameters": [
+          {
+            "name": "X-Membrane-Preserve-Context",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "false"
+            },
+            "description": "Set to 'true' to bypass automatic middle conversation pruning and preserve multi-turn history."
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -38,7 +99,7 @@
                 "properties": {
                   "model": {
                     "type": "string",
-                    "default": "membrane"
+                    "default": "membrane-engagement-layer"
                   },
                   "messages": {
                     "type": "array",
@@ -64,6 +125,14 @@
                   },
                   "response_format": {
                     "type": "object"
+                  },
+                  "temperature": {
+                    "type": "number",
+                    "default": 0.0
+                  },
+                  "stream": {
+                    "type": "boolean",
+                    "default": false
                   }
                 },
                 "required": [
@@ -75,11 +144,216 @@
         },
         "responses": {
           "200": {
-            "description": "Successful completion",
+            "description": "Successful completion response with metadata",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/swarm/plan": {
+      "post": {
+        "summary": "Predictive Swarm Plan Preview",
+        "description": "Generates estimated cost, concurrency suggestions, latency forecasts, and risk scores before spinning up a massive multi-chunk parallel ingestion job. No upstream models are called.",
+        "operationId": "generateSwarmPlan",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "chunks": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "List of text slices to analyze."
+                  },
+                  "max_concurrency": {
+                    "type": "integer",
+                    "default": 20
+                  },
+                  "extraction_criteria": {
+                    "$ref": "#/components/schemas/ExtractionCriteria"
+                  },
+                  "invariant_set_id": {
+                    "type": "string",
+                    "description": "Locked compliance contract identifier."
+                  }
+                },
+                "required": ["chunks"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful plan and estimated trajectory metrics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "object": {
+                      "type": "string",
+                      "default": "swarm.plan"
+                    },
+                    "invariant_check": {
+                      "type": "string",
+                      "default": "COMPLIANT"
+                    },
+                    "selected_routing_geometry": {
+                      "type": "string"
+                    },
+                    "trajectory": {
+                      "$ref": "#/components/schemas/TrajectoryPrediction"
+                    },
+                    "execution_strategy_notes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/swarm/map": {
+      "post": {
+        "summary": "Parallel Swarm Map Ingestion",
+        "description": "Executes parallel map-reduce processing over an array of text chunks to perform high-throughput schema extractions concurrently.",
+        "operationId": "executeSwarmMap",
+        "parameters": [
+          {
+            "name": "X-Membrane-Swarm-Mode",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["legacy", "early_gate", "canary"],
+              "default": "legacy"
+            },
+            "description": "Specify the execution strategy. 'early_gate' triggers zero-cost checks; 'canary' probes the first chunk sequentially before parallel fans."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "model": {
+                    "type": "string",
+                    "default": "membrane-engagement-layer"
+                  },
+                  "chunks": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "max_concurrency": {
+                    "type": "integer",
+                    "default": 20
+                  },
+                  "temperature": {
+                    "type": "number",
+                    "default": 0.0
+                  },
+                  "extraction_criteria": {
+                    "$ref": "#/components/schemas/ExtractionCriteria"
+                  },
+                  "invariant_set_id": {
+                    "type": "string"
+                  }
+                },
+                "required": ["chunks"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Extraction matrix complete",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/swarm/state": {
+      "post": {
+        "summary": "State AST Verification & Sandbox Proof-of-Work",
+        "description": "Validates scripts or React components inside compile-time isolation and stamps code with modulo-7919 cryptographic signatures prior to save commits.",
+        "operationId": "verifySwarmState",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "agent_id": {
+                    "type": "string",
+                    "description": "Optional requesting agent name."
+                  },
+                  "task_type": {
+                    "type": "string",
+                    "enum": ["python_code", "react_component"],
+                    "description": "Language target for AST/TSC checking."
+                  },
+                  "payload": {
+                    "type": "string",
+                    "description": "The raw code string content to verify."
+                  },
+                  "target_agent_id": {
+                    "type": "string",
+                    "description": "Optional destination agent name."
+                  },
+                  "destination_path": {
+                    "type": "string",
+                    "description": "Optional file path relative to sandbox directory where code should be written if verified."
+                  }
+                },
+                "required": ["task_type", "payload"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Compilation result status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "verified": {
+                      "type": "boolean"
+                    },
+                    "membrane_signature": {
+                      "type": "string"
+                    },
+                    "error_log": {
+                      "type": "string"
+                    }
+                  }
                 }
               }
             }

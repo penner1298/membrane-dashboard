@@ -8,7 +8,7 @@ import tempfile
 import shutil
 import subprocess
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from fastapi import HTTPException
 
 from membrane.config import (
@@ -21,7 +21,7 @@ from membrane.database import charge_and_log_api_batch
 from membrane.security import get_safe_destination
 
 # Import validation and execution logic
-from membrane.swarm.validation import validate_strict_swarm_request, validate_invariant_compliance
+from membrane.swarm.validation import validate_strict_swarm_request, validate_invariant_compliance, validate_criteria_types
 from membrane.swarm.execution import (
     SwarmExecutionMode,
     process_swarm_chunk,
@@ -29,6 +29,23 @@ from membrane.swarm.execution import (
     SwarmConcurrencyTracker,
     execute_swarm_experiments,
 )
+
+def check_extraction_criteria(v):
+    if v is not None:
+        if not isinstance(v, dict):
+            raise ValueError("extraction_criteria must be a dictionary")
+        if "system_persona" not in v:
+            raise ValueError("extraction_criteria is missing required key: 'system_persona'")
+        if not isinstance(v["system_persona"], str):
+            raise ValueError("system_persona must be a string")
+        if "target_signals" not in v:
+            raise ValueError("extraction_criteria is missing required key: 'target_signals'")
+        if not isinstance(v["target_signals"], list):
+            raise ValueError("target_signals must be a list of strings")
+        for idx, sig in enumerate(v["target_signals"]):
+            if not isinstance(sig, str):
+                raise ValueError(f"target_signals element at index {idx} must be a string")
+    return v
 
 # --- PYDANTIC SCHEMAS ---
 class SwarmMapRequest(BaseModel):
@@ -42,6 +59,11 @@ class SwarmMapRequest(BaseModel):
 
     model_config = {"extra": "allow"}
 
+    @field_validator("extraction_criteria")
+    @classmethod
+    def validate_criteria(cls, v):
+        return check_extraction_criteria(v)
+
 class SwarmPlanRequest(BaseModel):
     model: str = "membrane-engagement-layer"
     chunks: List[str]
@@ -50,6 +72,11 @@ class SwarmPlanRequest(BaseModel):
     invariant_set_id: Optional[str] = None # The locked enterprise compliance ceiling
 
     model_config = {"extra": "allow"}
+
+    @field_validator("extraction_criteria")
+    @classmethod
+    def validate_criteria(cls, v):
+        return check_extraction_criteria(v)
 
 class TrajectoryPrediction(BaseModel):
     estimated_total_tokens: int
@@ -94,6 +121,12 @@ class SwarmMapMetadata(BaseModel):
     architectural_guidance: ArchitecturalGuidance = ArchitecturalGuidance()
     is_truncated: bool = False
     warning_msg: Optional[str] = None
+    swarm_mode: Optional[str] = None
+    canary_used: Optional[bool] = None
+    canary_succeeded: Optional[bool] = None
+    chunks_reached_model: Optional[int] = None
+    estimated_waste_tokens: Optional[int] = None
+    concurrency_level: Optional[int] = None
 
 class SwarmMapResponse(BaseModel):
     object: str = "swarm.extraction_matrix"
@@ -105,10 +138,10 @@ class SwarmMapResponse(BaseModel):
     membrane_metadata: SwarmMapMetadata
 
 class ProofOfWorkRequest(BaseModel):
-    agent_id: str
+    agent_id: Optional[str] = None
     task_type: str  # e.g., "python_code", "json_schema", "react_component"
     payload: str
-    target_agent_id: str
+    target_agent_id: Optional[str] = None
     destination_path: Optional[str] = None
 
 class ProofOfWorkResponse(BaseModel):
@@ -219,6 +252,7 @@ async def execute_basic_sandbox_gather(
     is_truncated: bool = False,
     warning_msg: Optional[str] = None
 ) -> SwarmMapResponse:
+    validate_criteria_types(request.extraction_criteria)
     mapped_model = request.model if request.model != "membrane-engagement-layer" else CANARY_MODEL
     criteria = request.extraction_criteria or {}
     system_prompt = criteria.get("system_persona") or request.system_prompt or "Extract data."
@@ -240,6 +274,7 @@ async def execute_sliding_window_queue(
     is_truncated: bool = False,
     warning_msg: Optional[str] = None
 ) -> SwarmMapResponse:
+    validate_criteria_types(request.extraction_criteria)
     mapped_model = request.model if request.model != "membrane-engagement-layer" else CANARY_MODEL
     criteria = request.extraction_criteria or {}
     system_prompt = criteria.get("system_persona") or request.system_prompt or "Extract data."

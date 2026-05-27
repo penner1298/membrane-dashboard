@@ -13,26 +13,6 @@ import {
 import { sanitizeBearerToken } from "@/lib/utils";
 import { PdfDropzone } from "@/app/components/PdfDropzone";
 
-const TRIAL_CURL_SNIPPET = `curl -X POST https://membrane-api.com/v1/chat/completions \\
-  -H "Authorization: Bearer sk_membrane_instant_trial" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "model": "membrane-engagement-layer",
-    "messages": [{"role": "user", "content": "Your prompt here"}]
-  }'`;
-
-const TRIAL_PYTHON_SNIPPET = `from openai import OpenAI
-
-client = OpenAI(
-    base_url="https://membrane-api.com/v1",
-    api_key="sk_membrane_instant_trial"
-)
-
-response = client.chat.completions.create(
-    model="membrane-engagement-layer",
-    messages=[{"role": "user", "content": "Extract all dates, parties, and obligations from this contract..."}]
-)`;
-
 // Define technical patterns
 interface EngineeringPattern {
   id: string;
@@ -115,6 +95,34 @@ const ENGINEERING_PATTERNS: EngineeringPattern[] = [
 
 
 export default function Home() {
+  const [baseUrl, setBaseUrl] = useState("http://localhost:3000/v1");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setBaseUrl(`${window.location.origin}/v1`);
+    }
+  }, []);
+
+  const trialCurlSnippet = `curl -X POST ${baseUrl}/chat/completions \\
+  -H "Authorization: Bearer sk_membrane_instant_trial" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "membrane-engagement-layer",
+    "messages": [{"role": "user", "content": "Your prompt here"}]
+  }'`;
+
+  const trialPythonSnippet = `from openai import OpenAI
+
+client = OpenAI(
+    base_url="${baseUrl}",
+    api_key="sk_membrane_instant_trial"
+)
+
+response = client.chat.completions.create(
+    model="membrane-engagement-layer",
+    messages=[{"role": "user", "content": "Extract all dates, parties, and obligations from this contract..."}]
+)`;
+
   const [selectedPattern, setSelectedPattern] = useState<EngineeringPattern>(ENGINEERING_PATTERNS[0]);
   const [payloadText, setPayloadText] = useState<string>(ENGINEERING_PATTERNS[0].defaultPayload);
   const [slices, setSlices] = useState<number>(10);
@@ -377,7 +385,7 @@ console.log(completion.choices[0].message.content);`;
 - Always prefer 'membrane-engagement-layer' model string for telemetry tracking
 - For conversational chat loops, prune context by default unless 'X-Membrane-Preserve-Context: true' is requested
 - Split large document extraction tasks into parallel map-reduce jobs using '/v1/swarm/map'
-- Target local URL: http://localhost:8000/v1 (or production https://membrane-api.com/v1)
+- Target local URL: http://localhost:8000/v1 (or production hosted example: ${baseUrl})
 - Always pass 'X-Membrane-Preserve-Context: true' header to bypass default zero-shot context pruning when conversational history is required.`;
     }
   };
@@ -466,9 +474,9 @@ console.log(completion.choices[0].message.content);`;
             <div className="absolute top-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity">
               <button 
                 onClick={() => {
-                  let text = TRIAL_CURL_SNIPPET;
-                  if (trialTab === "python") text = TRIAL_PYTHON_SNIPPET;
-                  else if (trialTab === "docker") text = "docker run -d -p 8000:8000 thejoshuapenner/membrane";
+                  let text = trialCurlSnippet;
+                  if (trialTab === "python") text = trialPythonSnippet;
+                  else if (trialTab === "docker") text = "docker run -d -p 8000:8000 thejoshuapenner/membrane-dashboard";
                   handleCopy(text, "trial");
                 }}
                 className="p-1.5 rounded-lg bg-slate-800 text-slate-350 hover:bg-slate-700 hover:text-white border border-slate-700 transition"
@@ -476,11 +484,11 @@ console.log(completion.choices[0].message.content);`;
                 {copiedIndex === "trial" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
               </button>
             </div>
-            <pre className="overflow-x-auto whitespace-pre leading-relaxed pr-10">
+            <pre className="w-full overflow-x-auto whitespace-pre-wrap break-all md:whitespace-pre md:break-normal leading-relaxed pr-10">
               <code>
-                {trialTab === "curl" && TRIAL_CURL_SNIPPET}
-                {trialTab === "python" && TRIAL_PYTHON_SNIPPET}
-                {trialTab === "docker" && "docker run -d -p 8000:8000 thejoshuapenner/membrane"}
+                {trialTab === "curl" && trialCurlSnippet}
+                {trialTab === "python" && trialPythonSnippet}
+                {trialTab === "docker" && "docker run -d -p 8000:8000 thejoshuapenner/membrane-dashboard"}
               </code>
             </pre>
           </div>
@@ -945,7 +953,7 @@ console.log(completion.choices[0].message.content);`;
               </div>
               <div className="pt-6">
                 <a 
-                  href="https://buy.polar.sh/polar_cl_yDHzavhCzMw8FkCp0t0X2NJNfg5xgqLmudIxZ0S54BZ"
+                  href="https://buy.polar.sh/polar_cl_hEuA0alAsGc5tgvwGraM3rBMf8KuPablnLNR422vBy8"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full inline-flex items-center justify-center py-2 px-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs uppercase tracking-wider rounded-xl transition duration-300 shadow-md hover:shadow-amber-500/20 active:scale-[0.98] border border-amber-400/20 text-center"

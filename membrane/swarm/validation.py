@@ -3,6 +3,47 @@ from typing import Any, Dict, List, Optional
 from fastapi import HTTPException
 from pydantic import BaseModel
 
+def validate_criteria_types(criteria: Any) -> None:
+    if criteria is not None:
+        if not isinstance(criteria, dict):
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "error_type": "structural_validation_failure",
+                    "message": "extraction_criteria must be a dictionary",
+                    "check": "extraction_criteria"
+                }
+            )
+        if "system_persona" in criteria and not isinstance(criteria["system_persona"], str):
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "error_type": "structural_validation_failure",
+                    "message": "system_persona must be a string",
+                    "check": "extraction_criteria"
+                }
+            )
+        if "target_signals" in criteria and not isinstance(criteria["target_signals"], list):
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "error_type": "structural_validation_failure",
+                    "message": "target_signals must be a list of strings",
+                    "check": "extraction_criteria"
+                }
+            )
+        if "target_signals" in criteria and isinstance(criteria["target_signals"], list):
+            for idx, sig in enumerate(criteria["target_signals"]):
+                if not isinstance(sig, str):
+                    raise HTTPException(
+                        status_code=422,
+                        detail={
+                            "error_type": "structural_validation_failure",
+                            "message": f"target_signals element at index {idx} must be a string",
+                            "check": "extraction_criteria"
+                        }
+                    )
+
 def validate_strict_swarm_request(
     chunks: List[Any],
     extraction_criteria: Optional[Any]
@@ -69,6 +110,16 @@ def validate_strict_swarm_request(
         )
 
     # 3. Extraction criteria key requirements
+    if extraction_criteria is None:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error_type": "structural_validation_failure",
+                "message": "extraction_criteria is required in early_gate or canary modes",
+                "check": "extraction_criteria"
+            }
+        )
+
     if not isinstance(extraction_criteria, dict):
         raise HTTPException(
             status_code=422,

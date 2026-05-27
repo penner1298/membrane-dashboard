@@ -51,7 +51,7 @@ export async function POST(req: Request) {
         // Insert new rotated key
         await pool.query(`
           INSERT INTO tenants (tenant_id, api_key_hash, balance, total_saved, has_paid)
-          VALUES ($1, $2, 1000.00, 0, TRUE)
+          VALUES ($1, $2, 10.00, 0, TRUE)
           ON CONFLICT (api_key_hash) 
           DO UPDATE SET tenant_id = EXCLUDED.tenant_id
         `, [dynamicTenantId, hashedKey]);

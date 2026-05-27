@@ -92,11 +92,11 @@ async def verify_access(credentials: Optional[HTTPAuthorizationCredentials] = Se
             
             if not tenant:
                 dynamic_tenant_id = f"local_dev_{hashed_key[:8]}"
-                print(f"🆕 Auto-provisioning tenant for API key hash: {hashed_key[:8]}... as {dynamic_tenant_id} with $1000.00 balance.")
+                print(f"🆕 Auto-provisioning tenant for API key hash: {hashed_key[:8]}... as {dynamic_tenant_id} with $10.00 balance.")
                 try:
                     new_ref_code = f"REF-{hashlib.md5(hashed_key.encode()).hexdigest()[:6].upper()}"
                     await conn.execute(
-                        "INSERT INTO tenants (api_key_hash, balance, tenant_id, referral_code, has_paid) VALUES ($1, 1000.0000, $2, $3, TRUE) ON CONFLICT (api_key_hash) DO UPDATE SET tenant_id = EXCLUDED.tenant_id",
+                        "INSERT INTO tenants (api_key_hash, balance, tenant_id, referral_code, has_paid) VALUES ($1, 10.0000, $2, $3, TRUE) ON CONFLICT (api_key_hash) DO UPDATE SET tenant_id = EXCLUDED.tenant_id",
                         hashed_key, dynamic_tenant_id, new_ref_code
                     )
                 except Exception as e:
@@ -112,13 +112,13 @@ async def verify_access(credentials: Optional[HTTPAuthorizationCredentials] = Se
             t_id = tenant.get('tenant_id') or ""
             if t_id.startswith('local_dev') or api_key == "local_dev_key":
                 if is_deprecated:
-                    await conn.execute("UPDATE deprecated_keys SET balance = 1000.0000 WHERE api_key_hash = $1", hashed_key)
+                    await conn.execute("UPDATE deprecated_keys SET balance = 10.0000 WHERE api_key_hash = $1", hashed_key)
                 else:
-                    await conn.execute("UPDATE tenants SET balance = 1000.0000 WHERE api_key_hash = $1", hashed_key)
-                print(f"🔄 Auto-refilled exhausted local dev balance to $1000.00.")
+                    await conn.execute("UPDATE tenants SET balance = 10.0000 WHERE api_key_hash = $1", hashed_key)
+                print(f"🔄 Auto-refilled exhausted local dev balance to $10.00.")
             else:
-                await conn.execute("UPDATE tenants SET balance = 1000.0000 WHERE api_key_hash = $1", hashed_key)
-                print(f"🔄 Auto-refilled exhausted commercial/production account balance to $1000.00.")
+                await conn.execute("UPDATE tenants SET balance = 10.0000 WHERE api_key_hash = $1", hashed_key)
+                print(f"🔄 Auto-refilled exhausted commercial/production account balance to $10.00.")
     return hashed_key
 
 async def charge_and_log_api(

@@ -15,6 +15,9 @@ interface LogEntry {
   tokens: number;
   workload_profile?: string;
   status?: string;
+  swarm_mode?: string;
+  rejected_at_gate?: boolean;
+  died?: boolean;
 }
 
 interface DqlEntry {
@@ -160,18 +163,18 @@ export function ConsoleClient({
       </div>
 
       {dbStatus !== "Online" && (
-        <div className="bg-amber-50 border border-amber-200 text-amber-850 p-4 rounded-2xl flex items-start gap-3 shadow-sm">
-          <AlertTriangle className="w-5.5 h-5.5 text-amber-500 shrink-0 mt-0.5" />
+        <div className="bg-rose-50 border border-rose-200 text-rose-850 p-4 rounded-2xl flex items-start gap-3 shadow-sm">
+          <AlertTriangle className="w-5.5 h-5.5 text-rose-500 shrink-0 mt-0.5 animate-pulse" />
           <div className="text-xs">
-            <p className="font-bold text-amber-900">Database Offline (Running Mock Fallback)</p>
-            <p className="mt-1 leading-relaxed">
+            <p className="font-extrabold text-rose-950 uppercase tracking-wider">DATABASE OFFLINE - RUNNING IN SIMULATION MODE</p>
+            <p className="mt-1 leading-relaxed text-rose-900">
               Membrane Guard is currently running in stateless mock telemetry mode. To connect a live database for persistent audit logs, vector L2 caching, and tenant balance tracking:
             </p>
-            <ol className="list-decimal list-inside mt-1.5 space-y-1 font-mono text-[10.5px]">
+            <ol className="list-decimal list-inside mt-1.5 space-y-1 font-mono text-[10.5px] text-rose-900">
               <li>Ensure PostgreSQL is running locally or provisioned in the cloud.</li>
-              <li>Install the <code className="bg-amber-100/50 px-1 rounded border border-amber-200/50">pgvector</code> extension in your database.</li>
-              <li>Set the <code className="bg-amber-100/50 px-1 rounded border border-amber-200/50">DATABASE_URL</code> environment variable (e.g., <code className="bg-amber-100/50 px-1 rounded border border-amber-200/50">postgres://user:pass@host:5432/dbname</code>).</li>
-              <li>Restart the Membrane gateway server (<code className="bg-amber-100/50 px-1 rounded border border-amber-200/50">python3 server.py</code>).</li>
+              <li>Install the <code className="bg-rose-100/50 px-1 rounded border border-rose-200/50">pgvector</code> extension in your database.</li>
+              <li>Set the <code className="bg-rose-100/50 px-1 rounded border border-rose-200/50">DATABASE_URL</code> environment variable (e.g., <code className="bg-rose-100/50 px-1 rounded border border-rose-200/50">postgres://user:pass@host:5432/dbname</code>).</li>
+              <li>Restart the Membrane gateway server (<code className="bg-rose-100/50 px-1 rounded border border-rose-200/50">python3 server.py</code>).</li>
             </ol>
           </div>
         </div>

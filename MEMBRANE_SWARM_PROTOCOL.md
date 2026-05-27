@@ -80,3 +80,24 @@ When running in `early_gate` or `canary` modes, payloads must satisfy the follow
 
 Requests failing any of these rules return an `HTTP 422 Unprocessable Entity` containing details of the failed check.
 
+---
+
+## Sandbox Proof-of-Work Endpoint (`POST /v1/swarm/state`)
+
+Multi-agent workflows use `/v1/swarm/state` to execute compile-time validation of generated code before committing scripts to storage.
+
+### Supported Task Types
+- `python_code`: Compiles the payload with `py_compile` (strict syntax check).
+- `react_component`: Attempts TypeScript compilation via `tsc` (with fallback lightweight parsing if the compiler is unavailable in the environment).
+
+### Request Fields
+- `agent_id` (string, optional): Identifier of the requesting agent.
+- `task_type` (string, required): `python_code` or `react_component`.
+- `payload` (string, required): The raw source code to validate.
+- `target_agent_id` (string, **optional**): Destination agent identifier. This field is optional and is used only for routing/logging purposes after successful validation.
+- `destination_path` (string, optional): Relative path inside the workspace sandbox where the validated file should be written on success.
+
+On success the endpoint returns a cryptographic signature of the form `MEMBRANE_VERIFIED_[watermark]_[sha256_prefix]`.
+
+Requests with malformed or uncompilable payloads return `HTTP 400` with details of the compilation or validation failure.
+

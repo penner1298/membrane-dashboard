@@ -255,6 +255,80 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Membrane API - Swarm Edition", lifespan=lifespan)
 
+from fastapi.responses import JSONResponse
+
+def sanitize_exception_message(message: str) -> str:
+    if not message:
+        return message
+    sensitive_keywords = [
+        "litellm", "openai", "gemini", "anthropic", "cohere", "missing credentials",
+        "api_key", "api-key", "apikey", "openai_api_key", "google_api_key", "secret",
+        "token", "credentials", "auth", "authentication", "authorization"
+    ]
+    message_lower = message.lower()
+    if any(kw in message_lower for kw in sensitive_keywords):
+        return "Upstream provider authentication or configuration error. Please verify server environment credentials."
+    return message
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    detail = exc.detail
+    if isinstance(detail, dict):
+        if "message" in detail:
+            detail["message"] = sanitize_exception_message(str(detail["message"]))
+    elif isinstance(detail, str):
+        detail = sanitize_exception_message(detail)
+    return JSONResponse(
+        status_code=exc.status_code,
+        headers=exc.headers,
+        content={"detail": detail}
+    )
+
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
+
+def make_serializable_errors(errors: list) -> list:
+    cleaned = []
+    for err in errors:
+        c_err = {}
+        for k, v in err.items():
+            if k == "ctx" and isinstance(v, dict):
+                c_err["ctx"] = {ck: (str(cv) if isinstance(cv, Exception) else cv) for ck, cv in v.items()}
+            else:
+                c_err[k] = v
+        cleaned.append(c_err)
+    return cleaned
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=422,
+        content={"detail": make_serializable_errors(exc.errors())}
+    )
+
+@app.exception_handler(ValidationError)
+async def pydantic_validation_exception_handler(request: Request, exc: ValidationError):
+    return JSONResponse(
+        status_code=422,
+        content={"detail": make_serializable_errors(exc.errors())}
+    )
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    exc_name = type(exc).__name__
+    exc_msg = str(exc)
+    if "AuthenticationError" in exc_name or "APIConnectionError" in exc_name or \
+       any(kw in exc_msg.lower() for kw in ["missing credentials", "api_key", "openai_api_key", "litellm", "auth"]):
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Unauthorized: Upstream credentials are unconfigured or invalid."}
+        )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal Server Error. Please check server logs for details."}
+    )
+
+
 from fastapi.middleware.cors import CORSMiddleware
 app.add_middleware(
     CORSMiddleware,
@@ -263,6 +337,20 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def handle_head_requests(request: Request, call_next):
+    if request.method == "HEAD":
+        response = await call_next(request)
+        if response.status_code == 405:
+            from fastapi import Response
+            new_headers = dict(response.headers)
+            new_headers["Access-Control-Allow-Origin"] = "*"
+            new_headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, HEAD, PATCH"
+            new_headers["Access-Control-Allow-Headers"] = "*"
+            return Response(status_code=200, headers=new_headers)
+        return response
+    return await call_next(request)
 
 from typing import Optional
 
@@ -330,15 +418,27 @@ async def health_check(): return {"status": "Membrane Swarm API is Live.", "db_c
 @app.get("/llms.txt")
 async def get_local_llms_txt():
     from fastapi.responses import PlainTextResponse
+    dashboard_llms = os.path.join("membrane-dashboard", "public", "llms.txt")
+    if os.path.exists(dashboard_llms):
+        try:
+            with open(dashboard_llms, "r") as f:
+                return PlainTextResponse(f.read())
+        except Exception:
+            pass
+    if os.path.exists("public/llms.txt"):
+        try:
+            with open("public/llms.txt", "r") as f:
+                return PlainTextResponse(f.read())
+        except Exception:
+            pass
     return PlainTextResponse(
-        "# Membrane Swarm Proxy\n\n"
-        "- Live Cloud URL: https://membrane-api.com/v1\n"
-        "- Local Proxy URL: http://localhost:8000/v1\n"
-        "- Default Model String: membrane-engagement-layer\n"
-        "- Custom Context Purge Header: X-Membrane-Preserve-Context\n\n"
-        "Membrane is a practical proxy and parallel extraction engine. It provides an OpenAI-compatible "
-        "completions gateway with semantic caching, and a specialized map-reduce swarm endpoint "
-        "(/v1/swarm/map) for processing document slices in parallel isolation.\n"
+        "# Membrane API Documentation for LLMs & AI Agents\n\n"
+        "## What is Membrane?\n"
+        "Membrane is an open-core proxy and swarm parallel ingestion engine. It acts as a drop-in proxy for LLM completions, providing L1/L2 semantic caching, AST/TypeScript verification, and parallel map-reduce swarm processing.\n\n"
+        "## Integration & Base URL\n"
+        "Membrane is compatible with the OpenAI API specification. To integrate, configure your OpenAI client or standard HTTP library to target the active local host:\n"
+        "- Local Port Target: http://localhost:8000/v1 (FastAPI backend directly) or /v1 relative route proxied via the dashboard frontend.\n"
+        "- API Key: Optional for local development. Any custom string (e.g. local_dev_key) will work during sandbox testing.\n"
     )
 
 @app.get("/api/swarm-ledger")
@@ -631,15 +731,15 @@ async def fetch_dlq_logs(limit: int = Query(50, le=100), offset: int = Query(0),
 @app.get("/api/user/balance")
 async def get_balance(api_key_hash: str = Security(verify_access)):
     if not db_pool:
-        return {"balance": 1000.00}
+        return {"balance": 10.00}
     try:
         async with db_pool.acquire() as conn:
             tenant = await conn.fetchrow("SELECT balance FROM tenants WHERE api_key_hash = $1", api_key_hash)
             if not tenant:
-                return {"balance": 1000.00}
+                return {"balance": 10.00}
             return {"balance": float(tenant['balance'])}
     except Exception:
-        return {"balance": 1000.00}
+        return {"balance": 10.00}
 
 @app.get("/api/license/status")
 async def get_license_status():
@@ -706,6 +806,9 @@ from membrane.swarm import (
     validate_invariant_compliance,
 )
 
+# Explicit strict shape validation per audit plan (guarantees 422 on bad extraction_criteria shapes)
+from membrane.swarm.validation import validate_criteria_types
+
 @app.post("/v1/swarm/state", response_model=ProofOfWorkResponse)
 async def verify_state_machine(request: ProofOfWorkRequest, http_req: Request, api_key_hash: str = Security(verify_access)):
     enforce_public_throttle(http_req)
@@ -727,6 +830,11 @@ async def generate_swarm_plan(
     
     if not request.chunks:
         raise HTTPException(status_code=400, detail="Chunks array cannot be empty")
+        
+    # Strict shape validation on extraction_criteria (per audit plan)
+    # Guarantees clean 422 for bad shapes (e.g. target_signals as string instead of list)
+    if getattr(request, 'extraction_criteria', None) is not None:
+        validate_criteria_types(request.chunks, request.extraction_criteria)
         
     # PHASE 1: 4D LAYER - Invariant Compliance Validation
     validate_invariant_compliance(request.chunks, request.invariant_set_id)
@@ -802,8 +910,31 @@ async def swarm_map(request: SwarmMapRequest, background_tasks: BackgroundTasks,
     Membrane Native Swarm: Parallel Map-Reduce for bulk data extraction.
     Accepts an array of text chunks, processes them concurrently, and merges the JSON output.
     """
+    # Detect Swarm Mode
+    swarm_mode_header = http_req.headers.get("X-Membrane-Swarm-Mode")
+    swarm_mode = SwarmExecutionMode.LEGACY
+    if swarm_mode_header:
+        try:
+            swarm_mode = SwarmExecutionMode(swarm_mode_header.lower())
+        except ValueError:
+            pass
+    else:
+        swarm_mode_env = os.getenv("MEMBRANE_SWARM_MODE", "legacy").lower()
+        try:
+            swarm_mode = SwarmExecutionMode(swarm_mode_env)
+        except ValueError:
+            pass
+
+    # Strict shape validation on extraction_criteria at entry point (per audit plan)
+    # Guarantees clean 422 for bad shapes even in legacy mode
+    if getattr(request, 'extraction_criteria', None) is not None:
+        validate_criteria_types(request.chunks, request.extraction_criteria)
+
     if not request.chunks:
-        raise HTTPException(status_code=400, detail="Chunks array cannot be empty")
+        if swarm_mode in (SwarmExecutionMode.EARLY_GATE, SwarmExecutionMode.CANARY_PROBE):
+            validate_strict_swarm_request(request.chunks, request.extraction_criteria)
+        else:
+            raise HTTPException(status_code=400, detail="Chunks array cannot be empty")
 
     # PHASE 1: 4D LAYER - Invariant Compliance Validation
     validate_invariant_compliance(request.chunks, getattr(request, 'invariant_set_id', None))
@@ -837,21 +968,6 @@ async def swarm_map(request: SwarmMapRequest, background_tasks: BackgroundTasks,
         warnings_list.append(chunk_warning)
 
     warning_msg = " | ".join(warnings_list) if warnings_list else None
-
-    # Detect Swarm Mode
-    swarm_mode_header = http_req.headers.get("X-Membrane-Swarm-Mode")
-    swarm_mode = SwarmExecutionMode.LEGACY
-    if swarm_mode_header:
-        try:
-            swarm_mode = SwarmExecutionMode(swarm_mode_header.lower())
-        except ValueError:
-            pass
-    else:
-        swarm_mode_env = os.getenv("MEMBRANE_SWARM_MODE", "legacy").lower()
-        try:
-            swarm_mode = SwarmExecutionMode(swarm_mode_env)
-        except ValueError:
-            pass
 
     start_time = time.time()
     task_id = f"ext_matrix_{hashlib.md5(str(time.time()).encode()).hexdigest()[:8]}"

@@ -293,7 +293,13 @@ def compile_swarm_response(
                 net_enterprise_savings=round(total_savings, 6)
             ),
             is_truncated=is_truncated,
-            warning_msg=warning_msg
+            warning_msg=warning_msg,
+            swarm_mode=swarm_mode,
+            canary_used=canary_used,
+            canary_succeeded=canary_succeeded,
+            chunks_reached_model=chunks_reached_model,
+            estimated_waste_tokens=final_waste,
+            concurrency_level=concurrency_level
         )
     )
 
@@ -372,6 +378,8 @@ async def execute_swarm_experiments(
     is_truncated: bool = False,
     warning_msg: Optional[str] = None
 ) -> Any:
+    from membrane.swarm.validation import validate_criteria_types
+    validate_criteria_types(request.extraction_criteria)
     mapped_model = request.model if request.model != "membrane-engagement-layer" else CANARY_MODEL
     criteria = request.extraction_criteria or {}
     system_prompt = criteria.get("system_persona") or request.system_prompt or "Extract data."
@@ -400,7 +408,7 @@ async def execute_swarm_experiments(
                 status_code=422,
                 detail={
                     "error_type": "canary_sentinel_failure",
-                    "message": f"Canary chunk execution failed: {canary_res['error']}"
+                    "message": f"Canary sentinel probe failed on chunk 0: {canary_res['error']}. Swarm execution aborted. Only chunk 0 was run, preventing the remaining {len(chunks) - 1} chunks from executing. Estimated waste: {canary_res['tokens']} tokens. Saved approximately {int(canary_res['tokens'] * (len(chunks) - 1))} potential waste tokens."
                 }
             )
         
