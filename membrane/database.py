@@ -6,9 +6,13 @@ import datetime
 from typing import Any, Dict, List, Optional
 from fastapi import HTTPException, Security
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from membrane.cache import InMemoryCache
 
 # Global database pool reference, set dynamically at lifespan startup
 db_pool: Optional[Any] = None
+
+# Cache for verified tenants (15s TTL to prevent database lock contention under load)
+tenant_cache = InMemoryCache(max_size=1000, ttl=15)
 
 security = HTTPBearer(auto_error=False)
 failed_auth_logs: List[Dict[str, Any]] = []
@@ -32,9 +36,24 @@ async def verify_access(credentials: Optional[HTTPAuthorizationCredentials] = Se
         if api_key in ["[object Object]", "undefined", "null", ""]:
             api_key = "local_dev_key"
 
-    # We remove all format/rejection errors. If the key is not in a valid format, we default it to local_dev_key.
+    # Strict key prefix/format validation (removes unsafe default bypass)
     if not (api_key.startswith("sk_live_") or api_key.startswith("sk_membrane_") or api_key == "local_dev_key"):
-        api_key = "local_dev_key"
+        log_entry = {
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "raw_credential_repr": repr(raw_credential),
+            "raw_credential_len": len(raw_credential),
+            "sanitized_api_key_repr": repr(api_key),
+            "sanitized_api_key_len": len(api_key),
+            "prefix_ok": False,
+            "status": "REJECTED_BAD_FORMAT"
+        }
+        failed_auth_logs.append(log_entry)
+        if len(failed_auth_logs) > 50:
+            failed_auth_logs.pop(0)
+        raise HTTPException(
+            status_code=401, 
+            detail="Invalid API Key. Keys must start with 'sk_live_' or 'sk_membrane_'."
+        )
 
     hashed_key = hash_api_key(api_key)
 
@@ -51,11 +70,18 @@ async def verify_access(credentials: Optional[HTTPAuthorizationCredentials] = Se
     if len(failed_auth_logs) > 50:
         failed_auth_logs.pop(0)
 
+    # Performance optimization: check memory cache for recently verified tenant
+    cached_tenant = await tenant_cache.get(hashed_key)
+    if cached_tenant is not None:
+        return hashed_key
+
     if api_key == "sk_membrane_instant_trial":
+        await tenant_cache.set(hashed_key, True)
         return hashed_key
 
     if not db_pool:
         print("⚠️ Database offline. Bypassing billing/auth check for local demo.")
+        await tenant_cache.set(hashed_key, True)
         return hashed_key
 
     async with db_pool.acquire() as conn:
@@ -119,6 +145,8 @@ async def verify_access(credentials: Optional[HTTPAuthorizationCredentials] = Se
             else:
                 await conn.execute("UPDATE tenants SET balance = 10.0000 WHERE api_key_hash = $1", hashed_key)
                 print(f"🔄 Auto-refilled exhausted commercial/production account balance to $10.00.")
+    
+    await tenant_cache.set(hashed_key, True)
     return hashed_key
 
 async def charge_and_log_api(

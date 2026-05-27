@@ -30,44 +30,39 @@ class InMemoryCache(BaseCache):
         self._cache = {}
         self.max_size = max_size
         self.ttl = ttl
-        self._lock = asyncio.Lock()
 
     async def get(self, key: str) -> Optional[Any]:
-        async with self._lock:
-            if key not in self._cache:
-                return None
-            item = self._cache[key]
-            if time.time() - item["timestamp"] > self.ttl:
-                del self._cache[key]
-                return None
-            return item["value"]
+        if key not in self._cache:
+            return None
+        item = self._cache[key]
+        if time.time() - item["timestamp"] > self.ttl:
+            del self._cache[key]
+            return None
+        return item["value"]
 
     async def set(self, key: str, value: Any, ttl: Optional[int] = None) -> None:
-        async with self._lock:
-            self._cache[key] = {
-                "value": value,
-                "timestamp": time.time()
-            }
+        self._cache[key] = {
+            "value": value,
+            "timestamp": time.time()
+        }
 
     async def delete(self, key: str) -> None:
-        async with self._lock:
-            if key in self._cache:
-                del self._cache[key]
+        if key in self._cache:
+            del self._cache[key]
 
     async def sweep(self) -> None:
-        async with self._lock:
-            if len(self._cache) == 0:
-                return
-            now = time.time()
-            keys_to_del = [k for k, v in self._cache.items() if now - v["timestamp"] > self.ttl]
-            for k in keys_to_del:
+        if len(self._cache) == 0:
+            return
+        now = time.time()
+        keys_to_del = [k for k, v in self._cache.items() if now - v["timestamp"] > self.ttl]
+        for k in keys_to_del:
+            del self._cache[k]
+            
+        # Hard limit eviction if still over max size
+        if len(self._cache) > self.max_size:
+            keys = list(self._cache.keys())
+            for k in keys[:len(keys)//5]:
                 del self._cache[k]
-                
-            # Hard limit eviction if still over max size
-            if len(self._cache) > self.max_size:
-                keys = list(self._cache.keys())
-                for k in keys[:len(keys)//5]:
-                    del self._cache[k]
 
 l1_memory_cache = InMemoryCache(max_size=MAX_L1_CACHE_SIZE, ttl=L1_CACHE_TTL)
 active_requests: Dict[str, asyncio.Event] = {}

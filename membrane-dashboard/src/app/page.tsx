@@ -780,7 +780,7 @@ console.log(completion.choices[0].message.content);`;
             </div>
           </div>
 
-          <div className="relative group rounded-xl bg-slate-900 border border-slate-800 text-slate-200 p-4 font-mono text-xs overflow-x-auto leading-relaxed max-h-[380px]">
+          <div className="relative group rounded-xl bg-slate-900 border border-slate-800 text-slate-200 p-4 font-mono text-xs overflow-hidden leading-relaxed max-h-[380px]">
             <div className="absolute top-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity">
               <button 
                 onClick={() => handleCopy(getSdkCode(), "sdk")}
@@ -789,7 +789,9 @@ console.log(completion.choices[0].message.content);`;
                 {copiedIndex === "sdk" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
               </button>
             </div>
-            <pre className="pr-10">{getSdkCode()}</pre>
+            <pre className="w-full overflow-x-auto whitespace-pre-wrap break-all md:whitespace-pre md:break-normal leading-relaxed pr-10">
+              <code>{getSdkCode()}</code>
+            </pre>
           </div>
           
           <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 text-emerald-800 text-xs flex gap-2">

@@ -82,7 +82,7 @@ async def lifespan(app: FastAPI):
         DATABASE_SSL = DATABASE_SSL_STR.lower() == "true"
         print(f"🔌 Connecting to PostgreSQL (SSL={DATABASE_SSL})...")
         try:
-            db_pool = await asyncpg.create_pool(db_url, ssl=DATABASE_SSL)
+            db_pool = await asyncpg.create_pool(db_url, ssl=DATABASE_SSL, min_size=10, max_size=100)
             import membrane.cache
             membrane.cache.db_pool = db_pool
             import membrane.database
@@ -674,7 +674,9 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
             except Exception as e:
                 if status_label == "HEURISTIC_RECOVERY" or len(evaluation_queue) == 1:
                     await log_to_dlq(api_key_hash, prompt_repr, request.response_format, ans, str(e))
-                    raise HTTPException(status_code=422, detail={"error_type": "schema_validation_failure", "message": str(e), "failed_output": ans})
+                    sanitized_msg = sanitize_exception_message(str(e))
+                    sanitized_msg = re.sub(r'^[a-zA-Z0-9_\.]+(?:Error|Exception|Failure):\s*', '', sanitized_msg)
+                    raise HTTPException(status_code=422, detail={"error_type": "schema_validation_failure", "message": sanitized_msg, "failed_output": ans})
                 
                 if model == canary:
                     background_tasks.add_task(mark_shadow_flash_failed, req_hash)
@@ -687,7 +689,7 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
         async with active_requests_lock:
             if req_hash in active_requests:
                 active_requests[req_hash].set()
-                # Memory cleanup is handled by sweep_l1_cache background task
+                del active_requests[req_hash]
 
 @app.post("/api/chat/feedback")
 async def report_failure(request: FeedbackRequest, api_key_hash: str = Security(verify_access)):
@@ -701,7 +703,9 @@ async def report_failure(request: FeedbackRequest, api_key_hash: str = Security(
             else: await conn.execute("DELETE FROM semantic_cache WHERE prompt_text = $1 AND api_key_hash = $2 AND is_global = FALSE", request.prompt, api_key_hash)
             await conn.execute("INSERT INTO aversive_memory (prompt_hash, bad_output, reason, api_key_hash, is_global) VALUES ($1, $2, $3, $4, $5)", req_hash, request.failed_output, request.reason, api_key_hash, request.use_global_cache)
         return {"status": "Cache purged and aversive memory inoculated. Retry your prompt.", "receipt_id": req_hash}
-    except Exception as e: raise HTTPException(status_code=500, detail=f"Database error: {e}")
+    except Exception as e:
+        print(f"🚨 feedback database exception: {e}")
+        raise HTTPException(status_code=500, detail="Database error. Please check server logs for details.")
 
 @app.get("/api/logs/dlq", response_model=List[DLQLogResponse])
 async def fetch_dlq_logs(limit: int = Query(50, le=100), offset: int = Query(0), api_key_hash: str = Security(verify_access)):
