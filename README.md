@@ -1,28 +1,37 @@
 # Membrane — The Drop-In LLM Proxy That Actually Saves You Money
 
-**Stop burning tokens on failed extractions.**  
-Membrane is the **OpenAI-compatible proxy + swarm extraction engine** built for agentic workflows that process *lots* of documents, transcripts, logs, or data chunks reliably and cheaply.
+**Stop burning tokens on failed extractions.**
 
-One line of code and you get:
-- Semantic + exact caching (real $ savings)
-- `/v1/swarm/map` — parallel map-reduce with strong isolation
-- `/v1/swarm/plan` — honest cost, latency, and risk forecast **before** you spend a single token
-- Early Gate + Canary mode so bad jobs fail fast and cheap
+Membrane is an open-source OpenAI-compatible proxy + parallel swarm extraction engine. Point your existing SDK at it and get semantic caching, honest pre-flight cost forecasting, and a specialized `/v1/swarm/map` endpoint for processing large documents as isolated chunks instead of one giant context.
 
-**Works with every OpenAI SDK out of the box.**  
-No new abstractions. Just change the `base_url` and watch your costs drop.
+One line of code. Real savings. No new abstractions.
 
 [![License](https://img.shields.io/badge/License-BSL_1.1-blue.svg)](LICENSE)  
-**Free forever for local/dev use.** Commercial production = $29/mo (or $490 one-time Founding License — only first 75).
+**Free forever for local development & testing.** Commercial production use (public cloud) = **$29/mo flat** or **$490 lifetime** (founding, first 75 only).
 
-## Why developers are switching
+## Why this exists
 
-- **70-90% cost reduction** on repetitive RAG / document workloads (see benchmarks below)
-- Predictable billing — know your spend *before* you run the swarm
-- Production-grade safety: schema gating, AST verification, context isolation
-- Self-host with one `docker compose up` or run the cloud version
+Developers doing serious structured extraction (contracts, transcripts, logs, policy packets, RAG prep) hit the same wall:
 
-**Ready to integrate in < 60 seconds?** → [Quickstart](#quickstart)
+- Full documents blow past context windows or get truncated
+- One bad chunk poisons the whole response
+- Token bills are unpredictable and often shocking
+- Caching is either exact-match only or nonexistent
+
+Membrane solves the mechanical part: split work into chunks, process in true parallel with isolation, validate early so bad jobs die cheap, cache semantically when it makes sense, and tell you the cost/latency/risk **before** you spend anything.
+
+It is not magic. It is infrastructure for the class of workload where the same structured analysis runs across many similar pieces of content.
+
+## The numbers (real workloads, same prompts/models)
+
+From production use on 200-page contracts, 50 earnings transcripts, 1,000 log lines, and multi-PDF research sets:
+
+- **75-85% cost reduction** typical vs direct OpenAI calls
+- **3-5× faster** end-to-end on repetitive extraction
+- High semantic cache hit rates (often 70-90% on recurring document types)
+- Early gate + canary modes routinely save 40-90% on malformed or failing jobs
+
+See [BENCHMARKS.md](BENCHMARKS.md) for methodology and raw data.
 
 ## Quickstart (literally one line)
 
@@ -30,63 +39,76 @@ No new abstractions. Just change the `base_url` and watch your costs drop.
 from openai import OpenAI
 
 client = OpenAI(
-    base_url="https://membrane-api.com/v1",   # or http://localhost:8000/v1 for local
-    api_key="your-key-here"                    # any string works locally
+    base_url="https://membrane-api.com/v1",   # or http://localhost:8000/v1 locally
+    api_key="your-key-here"                    # any string works for local dev
 )
 
-# Normal chat completions — now with semantic caching
+# Your existing code works. You now get caching + swarm primitives.
 completion = client.chat.completions.create(
     model="membrane-engagement-layer",
-    messages=[{"role": "user", "content": "Extract liabilities from this contract..."}]
+    messages=[{"role": "user", "content": "Extract all liability caps and indemnity terms from this contract..."}]
 )
 ```
 
-For swarm ingestion (your new superpower):
+For the real power (large docs):
 
 ```python
-response = client.post("/v1/swarm/plan", json={...})  # get forecast first!
-# Then fire the real swarm/map
+# Get an honest forecast first
+plan = client.post("/v1/swarm/plan", json={
+    "chunks": [page1_text, page2_text, ...],   # full pages, no manual truncation
+    ...
+})
+
+# Then run the parallel extraction
+result = client.post("/v1/swarm/map", json={...})
 ```
 
-(Full examples in `/examples` folder + [docs](https://membrane-api.com/docs))
+Full Python/JS examples in `membrane-py/` and `membrane-js/`.
 
-**Continue reading** for architecture, swarm protocol, real applications, and benchmarks.
+## What you actually get
 
-## New Direction: Invariant-First Orchestration
+- Drop-in OpenAI SDK compatibility (no client changes beyond base_url)
+- `/v1/swarm/map` — parallel map-reduce with strong per-chunk isolation
+- `/v1/swarm/plan` — cost, latency, concurrency, and risk forecast with zero upstream spend
+- Early rejection modes (`early_gate`, `canary`) so garbage fails before it costs real money
+- L1 semantic + exact caching (the savings you actually feel)
+- Self-host in one Docker command: `docker run -p 8000:8000 membraneapi/gateway`
+- Model-agnostic routing (bring your own keys for OpenAI, Claude, Gemini, local, etc.)
+- Sandboxed code verification endpoint (`/v1/swarm/state`) for agent-generated scripts
 
-We are moving toward a more structured approach called **Invariant-First Orchestration**. The core idea is simple:
+## Real production usage
 
-1. **4D Layer** — Define and lock global invariants (schemas, budgets, output contracts, allowed models).
-2. **2D Layer** — Learn from historical execution patterns to recommend better routing.
-3. **3D Layer** — Execute with clear predictions and telemetry.
+Membrane powers extraction in:
 
-The new `/v1/swarm/plan` endpoint is the practical expression of this: call it first, get a concrete plan and cost forecast, then decide whether to execute.
+- **[Contract Pulse](https://contract-pulse.app)** — AI contract scanner that turns predatory legal language into plain English + ready-to-send pushback emails. Heavy use of swarm + early gating on 20-100+ page PDFs.
+- **[Pennergraph.ai](https://pennergraph.ai)** — Civic intelligence platform monitoring state audits, city council minutes, and regulatory filings at volume. Structured signals extracted reliably across long, messy government documents.
 
-This approach is particularly useful for production workloads where cost predictability and reliability matter.
+These are not demos. They are live systems that chose Membrane because direct LLM calls were dropping critical clauses and producing surprise bills.
 
-## Real Applications
+## Honest limitations
 
-See [REAL_APPLICATIONS.md](REAL_APPLICATIONS.md) for a living list of actual use cases where Membrane is being used today (contract analysis, meeting transcripts, log parsing, etc.). We keep this file updated with real outcomes only — no hype.
+Membrane is optimized for **repetitive structured extraction** across many similar documents or chunks. It is less magical on:
 
-## Pricing (Open Core)
+- Highly dynamic, open-ended conversational agents
+- One-off creative or reasoning tasks where full context is genuinely required
+- Workloads where the "map" step itself is trivial and the hard part is the synthesis
 
-Membrane is completely free for personal use, experimentation, and development.
+You still pay the underlying model providers. We just try very hard to make fewer of those calls wasteful.
 
-If you are using Membrane for **commercial production work**, a paid license is required:
+## Pricing (open core, honor-based)
 
-| Plan                | Price              | Details                                      |
-|---------------------|--------------------|----------------------------------------------|
-| Monthly             | $29/month          | Pay monthly                                  |
-| Annual              | $290/year          | Best value (~$24/month)                      |
-| Founding License    | **$490 one-time**  | Lifetime commercial license. Only first 75 buyers. |
+| Plan              | Price             | Notes                                      |
+|-------------------|-------------------|--------------------------------------------|
+| Local / Dev       | $0 forever        | Full features, any key works, unlimited    |
+| Commercial Prod   | $29 / month       | Flat. No metering. Public cloud deployments |
+| Annual            | $290 / year       | ~20% discount                              |
+| Founding License  | $490 one-time     | Lifetime. Limited to first 75 buyers       |
 
-The Founding License is limited to the first 75 commercial users. After that, the lifetime option will be removed.
+**Commercial production** = running on AWS, GCP, Render, Fly, Vercel, etc. powering anything outside your laptop or private network.
 
-We do not meter usage or restrict features. The only requirement is a valid license for commercial use.
+We do not enforce this technically. We ship the full software and ask you to license it if you are using it in production. The bet is that if it saves you serious money, you will support the work.
 
-## Getting Started
-
-### Quick Local Start
+## Getting started locally
 
 ```bash
 git clone https://github.com/thejoshuapenner/membrane-dashboard
@@ -95,14 +117,31 @@ pip install -r requirements.txt
 python3 server.py
 ```
 
-### Swarm State Verification Endpoint
+Or Docker:
 
-The `/v1/swarm/state` endpoint provides sandboxed compilation and proof-of-work for agent-generated code.
+```bash
+docker run -d -p 8000:8000 membraneapi/gateway
+```
 
-Key parameters:
-- `task_type`: `python_code` or `react_component`
-- `payload`: The source code to validate
-- `target_agent_id`: **Optional** destination identifier (used for logging/routing after successful verification)
-- `destination_path`: Optional relative path to persist the file on success
+Point any OpenAI-compatible client at `http://localhost:8000/v1`.
 
-See `MEMBRANE_SWARM_PROTOCOL.md` for full details and strict validation rules.
+## Project status
+
+Actively used in production by the authors for legal and government document workloads. Public documentation, examples, and integrations are maturing quickly.
+
+Feedback, real usage reports, and contributions are genuinely welcome — especially benchmarks on your own workloads and integration examples for LangChain, LlamaIndex, CrewAI, etc.
+
+**Built in public. No hype.**
+
+## Links
+
+- Live site + playground: https://membrane-api.com
+- Docs: https://membrane-api.com/docs
+- Python SDK/examples: `membrane-py/`
+- JavaScript SDK/examples: `membrane-js/`
+- Swarm protocol & ingestion rules: [MEMBRANE_SWARM_PROTOCOL.md](MEMBRANE_SWARM_PROTOCOL.md)
+- Benchmarks: [BENCHMARKS.md](BENCHMARKS.md)
+
+---
+
+**License:** Business Source License 1.1 (see LICENSE). Commercial production requires separate license.
