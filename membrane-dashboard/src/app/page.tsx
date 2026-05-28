@@ -1,100 +1,18 @@
-/* eslint-disable react-hooks/set-state-in-effect, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 "use client";
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
-import { useApiKey } from "@/context/ApiKeyContext";
 import { 
-  Play, Copy, Check, Terminal, Sliders, Sparkles, Cpu, 
-  AlertTriangle, Lock, Shield, ArrowRight, Layers, FileText, 
-  Settings, RefreshCw, CheckCircle, Database, HelpCircle, BarChart2
+  Copy, Check, Terminal, Sliders, Sparkles, Cpu, 
+  AlertTriangle, Lock, Shield, Layers, FileText, 
+  CheckCircle, Database, HelpCircle, BarChart2
 } from "lucide-react";
-import { sanitizeBearerToken } from "@/lib/utils";
-import { PdfDropzone } from "@/app/components/PdfDropzone";
 import { ComparisonPlayground } from "@/app/components/ComparisonPlayground";
 
-// Define technical patterns
-interface EngineeringPattern {
-  id: string;
-  name: string;
-  endpoint: string;
-  description: string;
-  defaultPayload: string;
-}
-
-const ENGINEERING_PATTERNS: EngineeringPattern[] = [
-  {
-    id: "swarm_plan",
-    name: "Predictive Swarm Planning",
-    endpoint: "/v1/swarm/plan",
-    description: "Returns an explicit compliance check, matched historical data routing geometry pattern, and execution trajectory forecast (estimated tokens, cost, latency, concurrency, risk score) before initiating a massive multi-chunk swarm map-reduce task.",
-    defaultPayload: JSON.stringify({
-      model: "membrane-engagement-layer",
-      chunks: [
-        "SYSTEM_LOG_20260522-23: [AUTH] [CRITICAL] Failed to authorize root session for IP: 198.51.100.42. Database validation handshake timed out after 1200ms.",
-        "SYSTEM_LOG_20260522-24: [DB_POOL] [WARNING] Connection pool size peaked at 180 concurrent threads. Auto-scaling buffer triggered to allocate 20 fresh sockets.",
-        "SYSTEM_LOG_20260522-25: [API_GATEWAY] [ERROR] Routing exception generated. Endpoint /v1/chat/completions returned HTTP 502 Bad Gateway response on worker node 4."
-      ],
-      max_concurrency: 5,
-      extraction_criteria: {
-        system_persona: "Identify error signatures, severity tokens, and root system IP addresses.",
-        target_signals: ["CRITICAL", "ERROR", "WARNING"]
-      },
-      invariant_set_id: "ent_compliance_lock_v1"
-    }, null, 2)
-  },
-  {
-    id: "swarm_map",
-    name: "High-Throughput Swarm Map-Reduce",
-    endpoint: "/v1/swarm/map",
-    description: "Concurrently parallelizes bulk extraction by slicing payloads into discrete segments, mapping context across independent worker threads, and reducing raw outputs back into a structured JSON matrix.",
-    defaultPayload: JSON.stringify({
-      chunks: [
-        "SYSTEM_LOG_20260522-23: [AUTH] [CRITICAL] Failed to authorize root session for IP: 198.51.100.42. Database validation handshake timed out after 1200ms.",
-        "SYSTEM_LOG_20260522-24: [DB_POOL] [WARNING] Connection pool size peaked at 180 concurrent threads. Auto-scaling buffer triggered to allocate 20 fresh sockets.",
-        "SYSTEM_LOG_20260522-25: [API_GATEWAY] [ERROR] Routing exception generated. Endpoint /v1/chat/completions returned HTTP 502 Bad Gateway response on worker node 4."
-      ],
-      max_concurrency: 5,
-      temperature: 0.0,
-      model: "membrane-engagement-layer",
-      extraction_criteria: {
-        system_persona: "Identify error signatures, severity tokens, and root system IP addresses.",
-        target_signals: ["CRITICAL", "ERROR", "WARNING"]
-      }
-    }, null, 2)
-  },
-  {
-    id: "context_isolation",
-    name: "Context Isolation & Memory Pruning",
-    endpoint: "/v1/chat/completions",
-    description: "Strips middle conversation history to eliminate agent memory drift and attention degradation. Intercepts message pipelines, keeping only system directives and the immediate user query.",
-    defaultPayload: JSON.stringify({
-      model: "membrane-engagement-layer",
-      messages: [
-        { "role": "system", "content": "You are a strict security telemetry analyzer. Extrapolate risk vectors." },
-        { "role": "user", "content": "Scan the previous network traffic log data for abnormalities." },
-        { "role": "assistant", "content": "Awaiting logs. Please supply raw socket connection dumps." },
-        { "role": "user", "content": "Clean up this messy log string and extract the error tokens." }
-      ],
-      temperature: 0.1
-    }, null, 2)
-  },
-  {
-    id: "sandbox_ast",
-    name: "Schema Gating & Sandbox AST Verification",
-    endpoint: "/v1/swarm/state",
-    description: "Evaluates model-generated scripts and logic inside a strict compile-time sandbox. Disables execution and throws clean AST compilation warnings if security policies or syntaxes fail.",
-    defaultPayload: JSON.stringify({
-      agent_id: "extractor_agent_node_3",
-      task_type: "python_code",
-      payload: "def parse_auth_telemetry(log_line):\n    # Extract code elements safely inside AST check sandbox\n    import re\n    ip_match = re.search(r'\\b(?:[0-9]{1,3}\\.){3}[0-9]{1,3}\\b', log_line)\n    return {\"ip\": ip_match.group(0) if ip_match else None, \"authorized\": False}",
-      target_agent_id: "database_sink_agent_node"
-    }, null, 2)
-  }
-];
-
+// Define workloads for performance metrics
 const workloads = [
   {
     id: "contracts",
@@ -102,7 +20,7 @@ const workloads = [
     rawCost: 18.40,
     membraneCost: 2.71,
     savings: "85%",
-    speedup: "3.8\u00d7",
+    speedup: "3.8×",
     cacheHit: "74%",
     notes: "Full swarm + early gate"
   },
@@ -112,7 +30,7 @@ const workloads = [
     rawCost: 9.20,
     membraneCost: 1.38,
     savings: "85%",
-    speedup: "4.2\u00d7",
+    speedup: "4.2×",
     cacheHit: "91%",
     notes: "Heavy semantic repeat"
   },
@@ -122,7 +40,7 @@ const workloads = [
     rawCost: 4.10,
     membraneCost: 0.82,
     savings: "80%",
-    speedup: "2.9\u00d7",
+    speedup: "2.9×",
     cacheHit: "63%",
     notes: "Canary mode saved 41% of runs"
   },
@@ -132,85 +50,11 @@ const workloads = [
     rawCost: 12.60,
     membraneCost: 3.15,
     savings: "75%",
-    speedup: "4.7\u00d7",
+    speedup: "4.7×",
     cacheHit: "82%",
     notes: "Map-reduce isolation"
   }
 ];
-
-function generateTaskId() {
-  return "tx_" + Math.random().toString(36).slice(2, 10);
-}
-
-function renderHighlightedOutput(text: string): React.ReactNode {
-  if (!text) return null;
-  
-  if (text.startsWith("//")) {
-    return (
-      <div className="space-y-1">
-        {text.split("\n").map((line, i) => {
-          if (line.startsWith("//")) {
-            return (
-              <div key={i} className="text-slate-500 italic font-mono">
-                {line}
-              </div>
-            );
-          }
-          return (
-            <div key={i} className="text-slate-200 font-mono">
-              {line}
-            </div>
-          );
-        })}
-      </div>
-    );
-  }
-
-  const lines = text.split("\n");
-  return (
-    <div className="space-y-1 font-mono text-slate-200">
-      {lines.map((line, i) => {
-        const elements: React.ReactNode[] = [];
-        let remaining = line;
-        
-        const tokenRegex = /^(\s+)|(^"[^"]*"\s*(?=:))|(^"[^"]*")|(^\b(?:true|false|null|\d+(?:\.\d+)?)\b)|(^[{}[\]:,])|(^[^"{}[\],:\s]+)/;
-        
-        let colKey = 0;
-        while (remaining.length > 0) {
-          const match = remaining.match(tokenRegex);
-          if (!match) {
-            elements.push(<span key={colKey}>{remaining}</span>);
-            break;
-          }
-          
-          const val = match[0];
-          remaining = remaining.substring(val.length);
-          
-          if (match[1]) {
-            elements.push(<span key={colKey} className="whitespace-pre">{val}</span>);
-          } else if (match[2]) {
-            elements.push(<span key={colKey} className="text-blue-400 font-semibold">{val}</span>);
-          } else if (match[3]) {
-            elements.push(<span key={colKey} className="text-emerald-400 font-medium">{val}</span>);
-          } else if (match[4]) {
-            elements.push(<span key={colKey} className="text-amber-400 font-bold">{val}</span>);
-          } else if (match[5]) {
-            elements.push(<span key={colKey} className="text-slate-400">{val}</span>);
-          } else {
-            elements.push(<span key={colKey} className="text-slate-200">{val}</span>);
-          }
-          colKey++;
-        }
-        
-        return (
-          <div key={i} className="min-h-[1.2rem]">
-            {elements}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
 
 function renderHighlightedSdkCode(code: string, tab: "python" | "javascript" | "cursorrules"): React.ReactNode {
   if (!code) return null;
@@ -271,7 +115,6 @@ function renderHighlightedSdkCode(code: string, tab: "python" | "javascript" | "
   );
 }
 
-
 export default function Home() {
   const [baseUrl, setBaseUrl] = useState("http://localhost:3000/v1");
 
@@ -298,66 +141,12 @@ client = OpenAI(
 
 response = client.chat.completions.create(
     model="membrane-engagement-layer",
-    messages=[{"role": "user", "content": "Extract all dates, parties, and obligations from this contract..."}]
+    messages=[{"role": "user", "content": "Extract all obligations..."}]
 )`;
 
-  const [selectedPattern, setSelectedPattern] = useState<EngineeringPattern>(ENGINEERING_PATTERNS[0]);
-  const [payloadText, setPayloadText] = useState<string>(ENGINEERING_PATTERNS[0].defaultPayload);
-  const [slices, setSlices] = useState<number>(10);
-  const [preserveContext, setPreserveContext] = useState<boolean>(false);
   const [trialTab, setTrialTab] = useState<"curl" | "python" | "docker">("curl");
-  const [valueLedger, setValueLedger] = useState<any | null>(null);
-  const [inputMode, setInputMode] = useState<"json" | "document">("json");
-  const [pdfProcessing, setPdfProcessing] = useState<boolean>(false);
-  const [gatewayMode, setGatewayMode] = useState<"hosted" | "local">("hosted");
-  const [isDocumentClamped, setIsDocumentClamped] = useState<boolean>(false);
-  
-  // Consume unified API Key context
-  const { apiKey: playgroundApiKey, updateApiKey, refreshApiKey } = useApiKey();
-  
-  // Terminal / execute state
-  const [isExecuting, setIsExecuting] = useState<boolean>(false);
-  const [streamOutput, setStreamOutput] = useState<string>("// Awaiting execution trigger...\n");
   const [copiedIndex, setCopiedIndex] = useState<string | null>(null);
-  
-  // ROI / Savings states
-  const [savingsCalculated, setSavingsCalculated] = useState<any>({
-    actual: 0,
-    gross: 0,
-    percent: 0
-  });
-
-  // SDK Recipe active language tab
   const [sdkTab, setSdkTab] = useState<"python" | "javascript" | "cursorrules">("python");
-
-  useEffect(() => {
-    // Sync default payload when pattern changes
-    setPayloadText(selectedPattern.defaultPayload);
-    setStreamOutput("// Awaiting execution trigger...\n");
-    setSavingsCalculated({ actual: 0, gross: 0, percent: 0 });
-  }, [selectedPattern]);
-
-  const handlePdfExtracted = (chunks: string[], fileName: string) => {
-    setSelectedPattern(ENGINEERING_PATTERNS[0]); // High-Throughput Swarm Map-Reduce
-    let processedChunks = chunks;
-    if (chunks.length > 50) {
-      processedChunks = chunks.slice(0, 50);
-      setIsDocumentClamped(true);
-    } else {
-      setIsDocumentClamped(false);
-    }
-    setSlices(processedChunks.length);
-    const payload = {
-      model: "membrane-engagement-layer",
-      chunks: processedChunks,
-      max_concurrency: 5,
-      extraction_criteria: {
-        system_persona: "Secure contract liabilities mapping.",
-        target_signals: ["liability", "indemnity", "breach"]
-      }
-    };
-    setPayloadText(JSON.stringify(payload, null, 2));
-  };
 
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -365,206 +154,49 @@ response = client.chat.completions.create(
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
-  // Run the playground API query
-  const executePlaygroundQuery = async (retryKey?: string) => {
-    setIsExecuting(true);
-    setStreamOutput("// Initializing secure client handshake...\n");
-    setSavingsCalculated({ actual: 0, gross: 0, percent: 0 });
-    setValueLedger(null);
-
-    const apiBase = gatewayMode === "hosted"
-      ? (typeof window !== "undefined" ? window.location.origin : "")
-      : "http://localhost:8000";
-
-    const targetUrl = `${apiBase}${selectedPattern.endpoint}`;
-    const activeKey = (retryKey && typeof retryKey === "string") ? retryKey : playgroundApiKey;
-    const cleanKey = sanitizeBearerToken(activeKey);
-    
-    // Setup headers
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${cleanKey}`
-    };
-
-    if (preserveContext && selectedPattern.id === "context_isolation") {
-      headers["X-Membrane-Preserve-Context"] = "true";
-    }
-
-    try {
-      const bodyData = JSON.parse(payloadText);
-      
-      // Inject slices if it is the swarm map and has multiple chunks
-      if (selectedPattern.id === "swarm_map") {
-        // Mock segment splitting based on slider value
-        const initialChunks = bodyData.chunks || [];
-        const expandedChunks = [];
-        for (let i = 0; i < slices; i++) {
-          const baseChunk = initialChunks[i % initialChunks.length] || "Generic system trace data.";
-          expandedChunks.push(`[Segment ${i + 1}/${slices}] ${baseChunk}`);
-        }
-        bodyData.chunks = expandedChunks;
-      }
-
-      setStreamOutput(`// Contacting proxy endpoint: ${selectedPattern.endpoint}...\n`);
-
-      const response = await fetch(targetUrl, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(bodyData)
-      });
-
-      if (response.status === 401 && !retryKey) {
-        setStreamOutput("// Handshake route rejected (401). Triggering self-healing credential provisioning...\n");
-        const newKey = await refreshApiKey();
-        if (newKey) {
-          const cleanNewKey = sanitizeBearerToken(newKey);
-          setStreamOutput(`// Active credential provisioned: ${cleanNewKey}. Re-submitting query...\n`);
-          await new Promise(r => setTimeout(r, 600));
-          await executePlaygroundQuery(cleanNewKey);
-          return;
-        }
-      }
-
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${errText}`);
-      }
-
-      const resJson = await response.json();
-      
-      // Simulate real-time streaming visualization of the response
-      setStreamOutput("// Handshake successful. Streaming payload tokens...\n");
-      await new Promise(r => setTimeout(r, 600));
-
-      setStreamOutput(JSON.stringify(resJson, null, 2));
-
-      // Compute client-side ROI metrics for representation
-      let savingsPct = 0;
-      let actualCost = 0.00042;
-      let unoptimizedCost = 0.00124;
-
-      if (resJson.trajectory) {
-        const traj = resJson.trajectory;
-        actualCost = Number(traj.estimated_retail_cost || 0);
-        unoptimizedCost = actualCost * 2.0;
-        savingsPct = 50.0;
-        
-        setValueLedger({
-          actualCost,
-          unoptimizedCost,
-          savingsPercent: savingsPct,
-          chunkCount: bodyData.chunks?.length || 1,
-          model: bodyData.model || "membrane-engagement-layer",
-          taskId: resJson.selected_routing_geometry || "plan_tx",
-          timestamp: new Date().toISOString()
-        });
-      } else if (resJson.membrane_metadata?.value_ledger) {
-        const ledger = resJson.membrane_metadata.value_ledger;
-        actualCost = Number(ledger.actual_cost_incurred || 0);
-        unoptimizedCost = Number(ledger.gross_unoptimized_cost || 0);
-        savingsPct = Number(ledger.net_enterprise_savings || 80.0);
-        
-        setValueLedger({
-          actualCost,
-          unoptimizedCost,
-          savingsPercent: savingsPct,
-          chunkCount: resJson.extractions?.length || bodyData.chunks?.length || 1,
-          model: resJson.model || "membrane-engagement-layer",
-          taskId: resJson.task_id || generateTaskId(),
-          timestamp: new Date().toISOString()
-        });
-      } else {
-        if (selectedPattern.id === "swarm_map") {
-          savingsPct = 60 + (slices % 8); // Parallel optimizations savings
-          actualCost = (slices * 0.00004);
-          unoptimizedCost = actualCost / (1 - (savingsPct / 100));
-        } else if (selectedPattern.id === "context_isolation") {
-          if (preserveContext) {
-            savingsPct = 0;
-            actualCost = 0.00182;
-            unoptimizedCost = 0.00182;
-          } else {
-            savingsPct = 78.4;
-            actualCost = 0.00032;
-            unoptimizedCost = 0.00148;
-          }
-        } else if (selectedPattern.id === "sandbox_ast") {
-          savingsPct = 100; // Exact match pre-scan cache hit or offline simulation
-          actualCost = 0.0000;
-          unoptimizedCost = 0.00084;
-        }
-
-        setValueLedger({
-          actualCost,
-          unoptimizedCost,
-          savingsPercent: savingsPct,
-          chunkCount: selectedPattern.id === "swarm_map" ? slices : 1,
-          model: bodyData.model || "membrane-engagement-layer",
-          taskId: generateTaskId(),
-          timestamp: new Date().toISOString()
-        });
-      }
-
-      setSavingsCalculated({
-        actual: actualCost.toFixed(5),
-        gross: unoptimizedCost.toFixed(5),
-        percent: savingsPct.toFixed(1)
-      });
-
-    } catch (err: unknown) {
-      const errorObject = err as Error;
-      const is401 = errorObject.message && (errorObject.message.includes("401") || errorObject.message.includes("Unauthorized") || errorObject.message.includes("Tenant not found"));
-      if (is401) {
-        setStreamOutput(`// Exception Caught:\n${errorObject.message || String(errorObject)}\n\n💡 PROXIMITY ASSISTANCE (401 Unauthorized):\nIt looks like the API key you are using is not registered on the live hosted Render server, or has expired.\n\nTo resolve this instantly:\n1. Open the DevOps Console (click "Console" in the header).\n2. Copy the active "Gateway Authorization Key" (prefilled for you).\n3. Paste it in the "Gateway Authorization Key" input box on the left panel.\n4. Re-execute this query.`);
-      } else {
-        setStreamOutput(`// Exception Caught:\n${errorObject.message || String(errorObject)}`);
-      }
-    } finally {
-      setIsExecuting(false);
-    }
-  };
-
-  // Generate tabbed SDK text blocks
-  const getSdkCode = () => {
+  const getDropInCode = () => {
     if (sdkTab === "python") {
       return `from openai import OpenAI
 
-# Repoint base_url to local container engine. Any key works during local evaluation!
 client = OpenAI(
-    base_url="http://localhost:8000/v1",
-    api_key="local_tinkering_key"
+    base_url="http://localhost:8000/v1",   # or your production gateway
+    api_key="your_key_here"
 )
 
-# Gateway seamlessly handles AST verification and model fallback
-completion = client.chat.completions.create(
+# Then use it exactly as before
+response = client.chat.completions.create(
     model="membrane-engagement-layer",
     messages=[{"role": "user", "content": "Extract liabilities from my contract."}]
 )`;
     } else if (sdkTab === "javascript") {
       return `import OpenAI from "openai";
 
-// Repoint baseURL to local container engine. Any key works during local evaluation!
-const openai = new OpenAI({
+const client = new OpenAI({
   baseURL: "http://localhost:8000/v1",
-  apiKey: "local_tinkering_key",
+  apiKey: "your_key_here",
 });
 
-// Gateway seamlessly handles AST verification and model fallback
-const completion = await openai.chat.completions.create({
+const response = await client.chat.completions.create({
   model: "membrane-engagement-layer",
   messages: [{ role: "user", content: "Extract liabilities from my contract." }],
 });
 
-console.log(completion.choices[0].message.content);`;
+console.log(response.choices[0].message.content);`;
     } else {
-      return `# .cursorrules - Membrane Integration Pattern Context
+      return `# Pass this header for multi-turn conversational loops
+import requests
 
-# Rules for Membrane Lossless Agent Protocol integration:
-- Always prefer 'membrane-engagement-layer' model string for telemetry tracking
-- For conversational chat loops, prune context by default unless 'X-Membrane-Preserve-Context: true' is requested
-- Split large document extraction tasks into parallel map-reduce jobs using '/v1/swarm/map'
-- Target local URL: http://localhost:8000/v1 (or production hosted example: ${baseUrl})
-- Always pass 'X-Membrane-Preserve-Context: true' header to bypass default zero-shot context pruning when conversational history is required.`;
+response = requests.post(
+    "http://localhost:8000/v1/chat/completions",
+    headers={
+        "Authorization": "Bearer your_key_here",
+        "X-Membrane-Preserve-Context": "true"
+    },
+    json={
+        "model": "membrane-engagement-layer",
+        "messages": [{"role": "user", "content": "Continue chat..."}]
+    }
+)`;
     }
   };
 
@@ -587,7 +219,7 @@ console.log(completion.choices[0].message.content);`;
       <Header />
 
       {/* Main Section */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24 space-y-16 md:space-y-20 relative z-10">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24 space-y-16 md:space-y-24 relative z-10">
         
         {/* HERO HEADER */}
         <div className="text-center max-w-4xl mx-auto space-y-8 pt-4">
@@ -597,16 +229,12 @@ console.log(completion.choices[0].message.content);`;
           <h1 className="text-5xl sm:text-7xl lg:text-8xl font-serif font-black tracking-tight text-slate-950 leading-none uppercase">
             Membrane
           </h1>
-          <p className="text-xl sm:text-2xl font-bold text-slate-900 max-w-3xl mx-auto leading-tight">
-            The proxy that turns expensive LLM extractions into predictable, cheap wins.
+          <p className="text-xl sm:text-3xl font-bold text-slate-900 max-w-3xl mx-auto leading-tight">
+            Reliable structured extraction at scale without context decay or surprise token bills.
           </p>
           <div className="text-sm sm:text-base font-medium text-slate-700 max-w-3xl mx-auto leading-relaxed space-y-4">
-            <p className="font-extrabold text-slate-950 uppercase tracking-wide text-xs">Stop guessing. Stop wasting tokens on failed jobs.</p>
-            <p className="max-w-2xl mx-auto">
-              Drop in any list of documents, transcripts, logs, or data — Membrane chunks it, runs parallel agents with ironclad isolation, and returns clean structured JSON.
-            </p>
-            <p className="max-w-2xl mx-auto">
-              <strong>Call <code>/v1/swarm/plan</code> first</strong> &rarr; get an honest forecast of cost, latency, risk, and cache hits <strong>before</strong> you spend anything.
+            <p className="max-w-2xl mx-auto text-slate-800">
+              Split large documents/logs/contracts into isolated chunks, run the same extraction/analysis in parallel with early validation and cost forecasting, then reduce the results — all through a drop-in OpenAI-compatible endpoint.
             </p>
             <div className="max-w-xl mx-auto p-3.5 bg-emerald-50/60 rounded-xl border border-emerald-200/40 text-center shadow-xs glass-card-tactile">
               <p className="text-xs font-black text-emerald-800 tracking-wide uppercase">
@@ -621,16 +249,16 @@ console.log(completion.choices[0].message.content);`;
           {/* CTA Buttons */}
           <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
             <a
-              href="#quickstart"
-              className="inline-flex items-center justify-center px-6 py-3 text-xs font-black uppercase tracking-wider text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 tactile-button active:scale-[0.98] transition-all"
+              href="#comparison-playground"
+              className="inline-flex items-center justify-center px-6 py-3 text-xs font-black uppercase tracking-wider text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 tactile-button active:scale-[0.98] transition-all shadow-sm"
             >
-              Try it now — 30-second local setup
+              Try the Model Agnostic Playground
             </a>
             <a
-              href="#playground"
+              href="#quickstart"
               className="inline-flex items-center justify-center px-6 py-3 text-xs font-black uppercase tracking-wider text-slate-700 bg-white rounded-xl hover:bg-slate-50 border border-slate-200 shadow-sm active:scale-[0.98] transition-all"
             >
-              See live swarm demo
+              Run locally in 30 seconds
             </a>
             <a
               href="#pricing"
@@ -666,7 +294,7 @@ console.log(completion.choices[0].message.content);`;
         </div>
 
         {/* 90-SECOND INSTANT TRIAL TERMINAL */}
-        <div id="quickstart" className="max-w-3xl mx-auto space-y-3">
+        <div id="quickstart" className="max-w-3xl mx-auto space-y-3 scroll-mt-20">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between text-xs font-mono text-slate-500 px-1 gap-2">
             <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/80">
               <button
@@ -720,7 +348,7 @@ console.log(completion.choices[0].message.content);`;
                 onClick={() => {
                   let text = trialCurlSnippet;
                   if (trialTab === "python") text = trialPythonSnippet;
-                  else if (trialTab === "docker") text = "docker run -d -p 8000:8000 thejoshuapenner/membrane-dashboard";
+                  else if (trialTab === "docker") text = "docker run -d -p 8000:8000 thejoshuapenner/membrane";
                   handleCopy(text, "trial");
                 }}
                 className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:bg-slate-800 hover:text-slate-100 border border-slate-700 transition shadow-sm"
@@ -731,7 +359,7 @@ console.log(completion.choices[0].message.content);`;
             <div className="w-full overflow-x-auto whitespace-pre-wrap break-all md:whitespace-pre md:break-normal leading-relaxed pr-10">
               {trialTab === "curl" && renderHighlightedSdkCode(trialCurlSnippet, "javascript")}
               {trialTab === "python" && renderHighlightedSdkCode(trialPythonSnippet, "python")}
-              {trialTab === "docker" && renderHighlightedSdkCode("docker run -d -p 8000:8000 thejoshuapenner/membrane-dashboard", "javascript")}
+              {trialTab === "docker" && renderHighlightedSdkCode("docker run -d -p 8000:8000 thejoshuapenner/membrane", "javascript")}
             </div>
           </div>
           <p className="text-[11px] text-slate-500 text-center italic">
@@ -744,358 +372,29 @@ console.log(completion.choices[0].message.content);`;
           </p>
         </div>
 
-        {/* SIDE-BY-SIDE PLATFORM PLAYGROUND */}
-        <div id="playground" className="space-y-6">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-slate-200 pb-4">
-            <div>
-              <h2 className="text-2xl sm:text-3xl font-serif font-black text-slate-950 flex items-center gap-2">
-                <Sliders className="w-5 h-5 text-emerald-600" /> Network Pattern Playground
-              </h2>
-              <p className="text-xs text-slate-500 mt-1">Select an architectural pattern and trigger queries against our live hosted gateway.</p>
+        {/* INTERACTIVE COMPARISON PLAYGROUND */}
+        <section id="comparison-playground" className="space-y-6 scroll-mt-20 pt-8">
+          <div className="text-center max-w-3xl mx-auto space-y-3">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/50 text-[10px] font-extrabold tracking-[0.2em] uppercase">
+              <Sliders className="w-3.5 h-3.5" /> AGNOSTIC EVALUATION
             </div>
-            
-            {/* Pattern Selector Pill Row */}
-            <div className="flex flex-wrap gap-2 w-full md:w-auto">
-              {ENGINEERING_PATTERNS.map((pat) => (
-                <button
-                  key={pat.id}
-                  onClick={() => setSelectedPattern(pat)}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition ${
-                    selectedPattern.id === pat.id
-                      ? "bg-emerald-50/75 border-emerald-500/40 text-emerald-700 shadow-sm"
-                      : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                  }`}
-                >
-                  {pat.name}
-                </button>
-              ))}
-            </div>
+            <h2 className="text-3xl sm:text-5xl font-serif font-black text-slate-950 leading-tight">
+              See the difference on a real contract or log set.
+            </h2>
+            <p className="text-slate-600 text-sm max-w-2xl mx-auto leading-relaxed">
+              Left = direct call to your chosen model with the full document. Right = same task through Membrane's chunked parallel swarm + reduction (you supply the key for the underlying model).
+            </p>
+            <p className="text-slate-500 text-xs italic">
+              Demonstrating structured recall/faithfulness gap, cold vs cached run latency, and actual cost accounting.
+            </p>
           </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
-            
-            {/* LEFT INPUT BAY (5 cols) */}
-            <div className="lg:col-span-5 flex flex-col space-y-6">
-              <div className="glass-card-tactile tilt-card rounded-2xl p-6 space-y-4 flex-1 flex flex-col justify-between">
-                <div className="space-y-4 flex-1 flex flex-col">
-                  
-                  {/* Mode switcher tab header */}
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                    <div className="flex items-center gap-2 text-xs font-mono font-bold text-slate-400 uppercase tracking-widest">
-                      <Database className="w-4 h-4 text-emerald-600" /> INPUT BAY
-                    </div>
-                    <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
-                      <button
-                        onClick={() => {
-                          setInputMode("json");
-                          setIsDocumentClamped(false);
-                        }}
-                        className={`px-2 py-1 text-[10px] font-bold rounded-md transition ${inputMode === "json" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
-                      >
-                        Raw JSON
-                      </button>
-                      <button
-                        onClick={() => setInputMode("document")}
-                        className={`px-2 py-1 text-[10px] font-bold rounded-md transition ${inputMode === "document" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
-                      >
-                        Doc Extract
-                      </button>
-                    </div>
-                  </div>
-
-                  {inputMode === "document" ? (
-                    <div className="space-y-4">
-                      <p className="text-xs text-slate-600 leading-relaxed">
-                        Drop a PDF contract. The browser extracts the text client-side, splits it into segments, and sends it to the parallel map-reduce proxy gateway.
-                      </p>
-                      
-                      <PdfDropzone
-                        onTextExtracted={handlePdfExtracted}
-                        isProcessing={pdfProcessing}
-                        setIsProcessing={setPdfProcessing}
-                      />
-                      
-                      {selectedPattern.id === "swarm_map" && slices > 0 && (
-                        <div className="space-y-3">
-                          {isDocumentClamped ? (
-                            <div className="p-3 bg-amber-50 border border-amber-200/80 rounded-xl text-amber-800 text-[11px] leading-relaxed flex items-start gap-2.5">
-                              <AlertTriangle className="w-4.5 h-4.5 text-amber-600 shrink-0 mt-0.5" />
-                              <div>
-                                <p className="font-bold text-amber-900">Scale Throttle Warning</p>
-                                <p className="mt-0.5 leading-relaxed">
-                                  Target exceeds the 50-chunk sandbox limit. Document has been capped at the 50-chunk sandbox threshold. Reduce density or add a License Key to unlock higher capacities.
-                                </p>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-emerald-800 text-[11px] leading-relaxed">
-                              <p className="font-bold flex items-center gap-1">
-                                <Sparkles className="w-3.5 h-3.5 text-emerald-600" /> Document Loaded!
-                              </p>
-                              <p className="mt-0.5">
-                                Extracted <b>{slices} text segments</b>. Hit &quot;Execute Swarm Extraction&quot; below to trigger the map-reduce proxy layer.
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <>
-                      <p className="text-xs text-slate-600 leading-relaxed">
-                        {selectedPattern.description}
-                      </p>
-                      
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Gateway Target URL</label>
-                          <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded border border-slate-200 text-[9px] font-sans">
-                            <button
-                              type="button"
-                              onClick={() => setGatewayMode("hosted")}
-                              className={`px-1.5 py-0.5 rounded font-bold transition-all cursor-pointer ${
-                                gatewayMode === "hosted"
-                                  ? "bg-white text-slate-900 shadow-xs"
-                                  : "text-slate-500 hover:text-slate-700"
-                              }`}
-                            >
-                              Live Hosted
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setGatewayMode("local")}
-                              className={`px-1.5 py-0.5 rounded font-bold transition-all cursor-pointer ${
-                                gatewayMode === "local"
-                                  ? "bg-white text-slate-900 shadow-xs"
-                                  : "text-slate-500 hover:text-slate-700"
-                              }`}
-                            >
-                              Local Dev
-                            </button>
-                          </div>
-                        </div>
-                        <div className="bg-slate-50 px-3 py-2 rounded-lg border border-slate-200 text-xs font-mono text-slate-600 select-all">
-                          POST {gatewayMode === "hosted" ? (typeof window !== "undefined" ? window.location.origin : "https://membrane-api.com") : "http://localhost:8000"}{selectedPattern.endpoint}
-                        </div>
-                      </div>
-                    </>
-                  )}
-
-
-
-                  {/* Dynamic control options depending on selected pattern */}
-                  {inputMode === "json" && selectedPattern.id === "swarm_map" && (
-                    <div className="space-y-3 pt-2">
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="font-bold text-slate-600">Slice Density:</span>
-                        <span className={`font-mono font-black ${slices > 50 ? "text-amber-600" : "text-emerald-600"}`}>{slices} Segments</span>
-                      </div>
-                      <input 
-                        type="range" 
-                        min="5" 
-                        max="65" 
-                        value={slices}
-                        onChange={(e) => setSlices(Number(e.target.value))}
-                        className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600"
-                      />
-                      {slices > 50 && (
-                        <div className="p-3 bg-amber-50 border border-amber-200/80 rounded-xl text-amber-800 text-[11px] leading-relaxed flex items-start gap-2 animate-in fade-in duration-200">
-                          <AlertTriangle className="w-4.5 h-4.5 text-amber-600 shrink-0 mt-0.5" />
-                          <div>
-                            <p className="font-bold text-amber-900">Scale Throttle Warning</p>
-                            <p className="mt-0.5 leading-relaxed">
-                              Scale Throttle: Target exceeds the 50-chunk sandbox limit. Reduce density or add a License Key to unlock higher capacities.
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {inputMode === "json" && selectedPattern.id === "context_isolation" && (
-                    <div className="pt-2">
-                      <label className="flex items-center gap-3 cursor-pointer select-none">
-                        <input 
-                          type="checkbox" 
-                          checked={preserveContext} 
-                          onChange={(e) => setPreserveContext(e.target.checked)}
-                          className="w-4 h-4 text-emerald-600 bg-gray-100 border-gray-300 rounded focus:ring-emerald-500"
-                        />
-                        <div className="text-xs">
-                          <p className="font-bold text-slate-700">Preserve Context Header</p>
-                          <p className="text-[10px] text-slate-400">Pass X-Membrane-Preserve-Context: true</p>
-                        </div>
-                      </label>
-                    </div>
-                  )}
-                  
-                  {inputMode === "json" && (
-                    <div className="space-y-1.5 flex-1 flex flex-col">
-                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Payload Variables (JSON)</label>
-                      <textarea
-                        value={payloadText}
-                        onChange={(e) => setPayloadText(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 font-mono text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-400 focus:bg-white resize-none flex-1 min-h-[220px]"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Trigger Buttons */}
-                <div className="pt-4 mt-auto">
-                  <button
-                    onClick={() => executePlaygroundQuery()}
-                    disabled={isExecuting || (selectedPattern.id === "swarm_map" && slices > 50)}
-                    className={`w-full py-3 rounded-xl font-bold text-sm text-white flex items-center justify-center gap-2 shadow-sm transition tilt-3d ${
-                      isExecuting 
-                        ? "bg-slate-800 animate-pulse" 
-                        : (selectedPattern.id === "swarm_map" && slices > 50)
-                          ? "bg-slate-400 cursor-not-allowed opacity-60"
-                          : "bg-slate-900 hover:bg-slate-800 active:scale-[0.99]"
-                    }`}
-                  >
-                    {isExecuting ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 animate-spin" /> Stream Executing...
-                      </>
-                    ) : (
-                      <>
-                        <Play className="w-4 h-4 fill-current" /> Execute Gateway Query
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* RIGHT OUTPUT CANVAS (7 cols) */}
-            <div className="lg:col-span-7 flex flex-col space-y-6">
-              
-              {/* Output Monitor */}
-              <div className="glass-card-tactile tilt-card rounded-2xl p-6 flex-1 flex flex-col justify-between">
-                <div className="space-y-4 flex-1 flex flex-col">
-                  <div className="flex items-center justify-between text-xs font-mono font-bold text-slate-400 uppercase tracking-[0.15em]">
-                    <span className="flex items-center gap-1.5"><Terminal className="w-4 h-4 text-slate-600" /> LOSSLESS OUTPUT CANVAS</span>
-                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100/50">COMPLETED RESPONSE</span>
-                  </div>
-
-                  <div className="bg-slate-900 rounded-xl p-4 border border-slate-800/80 font-mono text-xs text-slate-100 flex-1 min-h-[450px] overflow-y-auto max-h-[580px] relative select-text leading-relaxed dark-scrollbar shadow-lg">
-                    {renderHighlightedOutput(streamOutput)}
-                  </div>
-                </div>
-              </div>
-            </div>
+          <div className="bg-white/40 backdrop-blur-md rounded-3xl border border-slate-200/50 shadow-sm p-1.5 glass-card-tactile">
+            <ComparisonPlayground />
           </div>
-        </div>
-
-        {/* TABBED CONTEXT-AWARE SDK RECIPES */}
-        <div className="glass-card-tactile tilt-card rounded-2xl p-6 space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
-            <div>
-              <h3 className="text-lg font-black text-slate-950 flex items-center gap-2">
-                <FileText className="w-5 h-5 text-slate-700" /> Context-Aware SDK Recipes
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">Integrating the selected pattern into your codebase loops dynamically.</p>
-            </div>
-            
-            {/* Recipes languages tabs */}
-            <div className="flex gap-2">
-              {(["python", "javascript", "cursorrules"] as const).map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setSdkTab(tab)}
-                  className={`px-3 py-1 text-xs font-semibold rounded-md border capitalize transition ${
-                    sdkTab === tab
-                      ? "bg-slate-100 border-slate-200 text-slate-900 shadow-xs"
-                      : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                  }`}
-                >
-                  {tab === "cursorrules" ? ".cursorrules" : tab}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="relative group rounded-xl bg-slate-900 border border-slate-800/80 text-slate-100 p-4 font-mono text-xs overflow-hidden leading-relaxed max-h-[380px] dark-scrollbar shadow-lg">
-            <div className="absolute top-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button 
-                onClick={() => handleCopy(getSdkCode(), "sdk")}
-                className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:bg-slate-800 hover:text-slate-100 border border-slate-700 transition shadow-sm"
-              >
-                {copiedIndex === "sdk" ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-              </button>
-            </div>
-            <div className="w-full overflow-x-auto whitespace-pre-wrap break-all md:whitespace-pre md:break-normal leading-relaxed pr-10">
-              {renderHighlightedSdkCode(getSdkCode(), sdkTab)}
-            </div>
-          </div>
-          
-          <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 text-emerald-800 text-xs flex gap-2">
-            <Lock className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-bold">Important Architecture Directive</p>
-              <p className="text-[10.5px] mt-0.5 leading-relaxed">
-                By default, conversational routes isolate System directive context blocks and delete intermediates. Document client applications to explicitly pass the `X-Membrane-Preserve-Context: true` header to preserve chat context sequences.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* WHO IT'S FOR & FEATURES */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 tilt-container">
-          {/* Features Column */}
-          <div className="md:col-span-2 glass-card-tactile tilt-card rounded-2xl p-8 space-y-6">
-            <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2 font-serif">
-              <Sparkles className="w-5 h-5 text-emerald-600" /> Key Features
-            </h3>
-            <ul className="space-y-3 text-sm text-slate-700">
-              <li className="flex items-start gap-2.5">
-                <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <span><b>Semantic Caching</b> — Never pay twice for the same question</span>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <span><b>Swarm Map-Reduce</b> — Parallel processing with zero context bleed</span>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <span><b>/v1/swarm/plan</b> — Cost & risk forecasting before you commit</span>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <span><b>Early Gate + Canary</b> — Catch failures at sub-millisecond cost</span>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <span><b>Full OpenAI Compatibility</b> — Works with LangChain, LlamaIndex, CrewAI, etc.</span>
-              </li>
-              <li className="flex items-start gap-2.5">
-                <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <span><b>Invariant-First Orchestration</b> — Schemas, budgets, and output contracts enforced</span>
-              </li>
-            </ul>
-          </div>
-          {/* Who It's For Column */}
-          <div className="glass-card-tactile tilt-card rounded-2xl p-8 flex flex-col justify-between">
-            <div className="space-y-4">
-              <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2 font-serif">
-                <Cpu className="w-5 h-5 text-emerald-600" /> Who It’s For
-              </h3>
-              <p className="text-sm text-slate-600 leading-relaxed">
-                Developers and small teams building document-heavy or high-volume structured workflows — legal tech, research tools, compliance, RAG pipelines, log analysis, and similar use cases.
-              </p>
-            </div>
-            <div className="pt-4 border-t border-slate-100 mt-4 space-y-1">
-              <p className="text-[10px] font-mono text-slate-400 uppercase tracking-widest font-black">Our Philosophy</p>
-              <p className="text-sm font-serif italic text-emerald-700 font-bold">
-                Simple. Predictable. Actually reliable.
-              </p>
-            </div>
-          </div>
-        </div>
+        </section>
 
         {/* SYSTEM BENCHMARKS SHOWCASE */}
-        <div className="space-y-8">
+        <div className="space-y-8 scroll-mt-20 pt-8">
           <div className="text-center max-w-2xl mx-auto space-y-3">
             <h2 className="text-3xl sm:text-4xl font-serif font-black text-slate-950 flex items-center justify-center gap-2">
               <BarChart2 className="w-6 h-6 text-emerald-600" />
@@ -1141,11 +440,176 @@ console.log(completion.choices[0].message.content);`;
           </div>
         </div>
 
-        {/* INTERACTIVE COMPARISON PLAYGROUND */}
-        <ComparisonPlayground />
+        {/* THE THREE LEVERS SECTION */}
+        <section id="levers" className="space-y-8 scroll-mt-20 pt-8">
+          <div className="text-center max-w-3xl mx-auto space-y-3">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/50 text-[10px] font-extrabold tracking-[0.2em] uppercase">
+              <Layers className="w-3.5 h-3.5" /> CORE MECHANISMS
+            </div>
+            <h2 className="text-3xl sm:text-5xl font-serif font-black text-slate-950 leading-tight">
+              The Three Levers That Actually Move the Needle
+            </h2>
+            <p className="text-slate-600 text-sm max-w-2xl mx-auto leading-relaxed">
+              No marketing buzzwords. Just the exact mechanisms that prevent context decay, eliminate schema failures, and protect your budget.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto items-stretch tilt-container">
+            {/* Card A: Pre-flight Planning */}
+            <div className="glass-card-tactile glass-card-tactile-hover rounded-2xl p-6 flex flex-col justify-between border border-slate-200 hover:border-emerald-500/30 shadow-xs">
+              <div className="space-y-4">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center border border-emerald-200/30">
+                  <Sliders className="w-5 h-5 text-emerald-600" />
+                </div>
+                <h3 className="text-lg font-extrabold text-slate-950 font-serif">Pre-flight Planning</h3>
+                <code className="text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-mono self-start border border-slate-200">
+                  GET /v1/swarm/plan
+                </code>
+                <p className="text-xs text-slate-600 leading-relaxed pt-1">
+                  Before you spend anything, get an explicit forecast: estimated tokens, retail cost, latency, recommended concurrency, and risk score.
+                </p>
+              </div>
+            </div>
+
+            {/* Card B: Early Rejection Modes */}
+            <div className="glass-card-tactile glass-card-tactile-hover rounded-2xl p-6 flex flex-col justify-between border border-slate-200 hover:border-emerald-500/30 shadow-xs">
+              <div className="space-y-4">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center border border-emerald-200/30">
+                  <AlertTriangle className="w-5 h-5 text-emerald-600" />
+                </div>
+                <h3 className="text-lg font-extrabold text-slate-950 font-serif">Early Rejection Modes</h3>
+                <div className="flex gap-1.5 flex-wrap">
+                  <code className="text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-mono border border-slate-200">
+                    early_gate
+                  </code>
+                  <code className="text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-mono border border-slate-200">
+                    canary
+                  </code>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed pt-1">
+                  Bad payloads fail fast and cheap. <code className="text-[11px] font-bold text-slate-800 font-mono">early_gate</code> validates structure before any model calls. <code className="text-[11px] font-bold text-slate-800 font-mono">canary</code> runs only chunk 0 first and aborts if it fails.
+                </p>
+              </div>
+            </div>
+
+            {/* Card C: Strong Isolation & Schema Enforcement */}
+            <div className="glass-card-tactile glass-card-tactile-hover rounded-2xl p-6 flex flex-col justify-between border border-slate-200 hover:border-emerald-500/30 shadow-xs">
+              <div className="space-y-4">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center border border-emerald-200/30">
+                  <Lock className="w-5 h-5 text-emerald-600" />
+                </div>
+                <h3 className="text-lg font-extrabold text-slate-950 font-serif">Strong Isolation + Schema</h3>
+                <code className="text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-mono self-start border border-slate-200">
+                  POST /v1/swarm/state
+                </code>
+                <p className="text-xs text-slate-600 leading-relaxed pt-1">
+                  Each chunk is processed independently. Extraction criteria are validated. Agent-generated code can be sandbox-compiled and signed before you trust it.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* DROP-IN COMPATIBILITY */}
+        <section id="compatibility" className="max-w-3xl mx-auto space-y-6 scroll-mt-20 pt-8">
+          <div className="text-center space-y-3">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/50 text-[10px] font-extrabold tracking-[0.2em] uppercase">
+              <Terminal className="w-3.5 h-3.5" /> DROP-IN REPLACEMENT
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-serif font-black text-slate-950 leading-tight">
+              Drop-In Compatibility
+            </h2>
+            <p className="text-slate-600 text-sm max-w-2xl mx-auto">
+              The gateway adds planning, isolation, caching, and validation on top. Your existing code does not change.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              {(["python", "javascript", "cursorrules"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setSdkTab(tab)}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg border capitalize transition ${
+                    sdkTab === tab
+                      ? "bg-slate-100 border-slate-200 text-slate-900 shadow-xs"
+                      : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                  }`}
+                >
+                  {tab === "python" && "Python SDK"}
+                  {tab === "javascript" && "JavaScript SDK"}
+                  {tab === "cursorrules" && "Preserve Context Header"}
+                </button>
+              ))}
+            </div>
+
+            <div className="relative group rounded-xl bg-slate-900 border border-slate-800/80 text-slate-100 p-4 font-mono text-xs overflow-hidden leading-relaxed max-h-[380px] dark-scrollbar shadow-lg">
+              <div className="absolute top-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button 
+                  onClick={() => handleCopy(getDropInCode(), "compatibility-code")}
+                  className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:bg-slate-800 hover:text-slate-100 border border-slate-700 transition shadow-sm"
+                >
+                  {copiedIndex === "compatibility-code" ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                </button>
+              </div>
+              <div className="w-full overflow-x-auto whitespace-pre-wrap break-all md:whitespace-pre md:break-normal leading-relaxed pr-10">
+                {renderHighlightedSdkCode(getDropInCode(), sdkTab)}
+              </div>
+            </div>
+            
+            <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 text-emerald-800 text-xs flex gap-2">
+              <Lock className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold">Important Context Preservation Note</p>
+                <p className="text-[10.5px] mt-0.5 leading-relaxed text-slate-700">
+                  By default, conversational routes isolate system directives and prune middle messages to prevent agent drift. To keep full conversational history, simply pass the <code className="font-mono bg-emerald-100/60 px-1 py-0.5 rounded text-emerald-800 text-[10px]">X-Membrane-Preserve-Context: true</code> header.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* SELF-HOST & CONTROL */}
+        <section id="self-host" className="max-w-3xl mx-auto space-y-6 scroll-mt-20 pt-8">
+          <div className="text-center space-y-3">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/50 text-[10px] font-extrabold tracking-[0.2em] uppercase">
+              <Shield className="w-3.5 h-3.5" /> PRIVACY & COMPLIANCE
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-serif font-black text-slate-950 leading-tight">
+              Self-Host + Control
+            </h2>
+            <p className="text-slate-600 text-sm max-w-2xl mx-auto">
+              Full data stays on your infrastructure. No external logging of prompts or results unless you configure it.
+            </p>
+          </div>
+
+          <div className="bg-slate-900 border border-slate-800/80 p-5 rounded-2xl font-mono text-sm relative group overflow-hidden dark-scrollbar shadow-lg">
+            <div className="flex items-center gap-1.5 pb-3 mb-3 border-b border-slate-800/50">
+              <div className="w-2.5 h-2.5 rounded-full bg-rose-400" />
+              <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+              <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+              <span className="text-[10px] text-slate-500 font-mono ml-2 uppercase tracking-wider">Docker Run Command</span>
+            </div>
+            
+            <div className="absolute top-12 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button 
+                onClick={() => handleCopy("docker run -p 8000:8000 thejoshuapenner/membrane", "docker-run")}
+                className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:bg-slate-800 hover:text-slate-100 border border-slate-700 transition shadow-sm"
+              >
+                {copiedIndex === "docker-run" ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+              </button>
+            </div>
+            <div className="w-full overflow-x-auto whitespace-pre-wrap break-all md:whitespace-pre md:break-normal leading-relaxed pr-10 text-emerald-400 font-bold">
+              docker run -p 8000:8000 thejoshuapenner/membrane
+            </div>
+          </div>
+          <p className="text-[11px] text-slate-500 text-center italic">
+            This matters enormously to legal/tech, compliance, and research teams who actually have to ship this stuff.
+          </p>
+        </section>
 
         {/* PRICING & PHILOSOPHY */}
-        <section id="pricing" className="space-y-8">
+        <section id="pricing" className="space-y-8 scroll-mt-20 pt-8">
           <div className="text-center max-w-2xl mx-auto space-y-3">
             <h2 className="text-3xl sm:text-4xl font-serif font-black text-slate-950">Pricing (Open Core)</h2>
             <p className="text-slate-600 text-sm leading-relaxed">
@@ -1263,6 +727,96 @@ console.log(completion.choices[0].message.content);`;
           </div>
         </section>
 
+        {/* HONEST LIMITATIONS */}
+        <section id="limitations" className="max-w-3xl mx-auto space-y-6 scroll-mt-20 pt-8">
+          <div className="text-center space-y-3">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/50 text-[10px] font-extrabold tracking-[0.2em] uppercase">
+              <HelpCircle className="w-3.5 h-3.5" /> BUILDS CREDIBILITY
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-serif font-black text-slate-950">
+              Honest Limitations
+            </h2>
+            <p className="text-slate-600 text-sm">
+              We want you to trust Membrane. Here is what it is NOT built for:
+            </p>
+          </div>
+
+          <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-6 md:p-8 space-y-4 shadow-sm">
+            <ul className="space-y-4 text-sm text-slate-700">
+              <li className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Repetitive Structured Extraction Focus:</strong> Membrane is optimized specifically for running structured extraction at scale across repetitive items (contracts, logs, transcripts, research papers).
+                </span>
+              </li>
+              <li className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Less magical on dynamic chat:</strong> It is not a general-purpose conversational agent platform. If you are building a highly dynamic open-ended chat assistant, standard direct LLM loops may be more appropriate.
+                </span>
+              </li>
+              <li className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Model Costs Still Apply:</strong> Membrane optimizes token consumption and catches bad requests early, but you still pay the underlying LLM provider for successful executions.
+                </span>
+              </li>
+            </ul>
+          </div>
+        </section>
+
+        {/* WHO THIS IS FOR */}
+        <section id="who-it-is-for" className="max-w-3xl mx-auto space-y-6 scroll-mt-20 pt-8 pb-8">
+          <div className="text-center space-y-3">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/50 text-[10px] font-extrabold tracking-[0.2em] uppercase">
+              <Cpu className="w-3.5 h-3.5" /> TARGET WORKLOADS
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-serif font-black text-slate-950">
+              Who This Is For
+            </h2>
+            <p className="text-slate-600 text-sm">
+              Membrane is designed specifically for teams facing these developer challenges:
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
+            <div className="glass-card-tactile rounded-xl p-5 border border-slate-200/80 shadow-xs flex items-start gap-4">
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center border border-emerald-200/30 shrink-0">
+                <FileText className="w-4 h-4 text-emerald-600" />
+              </div>
+              <div>
+                <h4 className="font-extrabold text-sm text-slate-900 uppercase tracking-wide">Document Analysis Teams</h4>
+                <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                  Teams doing bulk contract, regulatory, or research document analysis where missing a clause or line translates to financial or compliance risk.
+                </p>
+              </div>
+            </div>
+
+            <div className="glass-card-tactile rounded-xl p-5 border border-slate-200/80 shadow-xs flex items-start gap-4">
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center border border-emerald-200/30 shrink-0">
+                <Database className="w-4 h-4 text-emerald-600" />
+              </div>
+              <div>
+                <h4 className="font-extrabold text-sm text-slate-900 uppercase tracking-wide">Telemetry & Transcripts Pipeline Builders</h4>
+                <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                  Engineers building high-volume log, sensor telemetry, or meeting transcript processing pipelines that need to extract structured insights reliably.
+                </p>
+              </div>
+            </div>
+
+            <div className="glass-card-tactile rounded-xl p-5 border border-slate-200/80 shadow-xs flex items-start gap-4">
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center border border-emerald-200/30 shrink-0">
+                <AlertTriangle className="w-4 h-4 text-emerald-600" />
+              </div>
+              <div>
+                <h4 className="font-extrabold text-sm text-slate-900 uppercase tracking-wide">Developers Battling Context Decay</h4>
+                <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                  Anyone who has watched a direct LLM call silently drop critical structured data on long inputs and needs it to stop happening immediately.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
 
       </main>
 

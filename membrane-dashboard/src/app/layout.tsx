@@ -20,18 +20,18 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "Membrane | Proxy & Swarm Ingestion Engine",
-  description: "Membrane is an open-core proxy and swarm parallel ingestion engine offering semantic caching and structured schema extraction.",
-  keywords: "LLM proxy, swarm ingestion, semantic caching, agent sandbox, structured extraction",
+  title: "Membrane | Reliable Structured LLM Extraction at Scale",
+  description: "Split large documents, logs, and contracts into isolated chunks, run extraction in parallel with early validation and cost forecasting, and reduce results through a drop-in OpenAI-compatible endpoint.",
+  keywords: "LLM extraction, swarm map-reduce, semantic caching, developer proxy, OpenAI compatible, document chunking, cost forecasting",
   openGraph: {
-    title: "Membrane | Proxy & Swarm Ingestion Engine",
-    description: "Membrane is an open-core proxy and swarm parallel ingestion engine offering semantic caching and structured schema extraction.",
+    title: "Membrane | Reliable Structured LLM Extraction at Scale",
+    description: "Split large documents, logs, and contracts into isolated chunks, run extraction in parallel with early validation and cost forecasting, and reduce results through a drop-in OpenAI-compatible endpoint.",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Membrane | Proxy & Swarm Ingestion Engine",
-    description: "Membrane is an open-core proxy and swarm parallel ingestion engine offering semantic caching and structured schema extraction.",
+    title: "Membrane | Reliable Structured LLM Extraction at Scale",
+    description: "Split large documents, logs, and contracts into isolated chunks, run extraction in parallel with early validation and cost forecasting, and reduce results through a drop-in OpenAI-compatible endpoint.",
   }
 };
 

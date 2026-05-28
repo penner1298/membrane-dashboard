@@ -114,19 +114,27 @@ async def process_swarm_chunk(
                 if isinstance(extracted_val, dict):
                     for sig in target_signals:
                         sig_lower = sig.lower()
+                        base_sig = sig_lower.split("_")[0] if "_" in sig_lower else sig_lower
                         for k, v in extracted_val.items():
-                            if sig_lower in k.lower() and v is not None and v != "" and str(v).lower() not in ("null", "none"):
+                            k_lower = k.lower()
+                            val_str = str(v).lower() if v is not None else ""
+                            # Match if signal is in key, key is in signal, key matches base signal, or base signal is in value string
+                            if (sig_lower in k_lower or k_lower in sig_lower or base_sig in k_lower or base_sig in val_str) and v is not None and v != "" and val_str not in ("null", "none"):
                                 matched_signals.append(sig)
                                 break
                 elif isinstance(extracted_val, list):
                     extracted_val_str = str(extracted_val).lower()
                     for sig in target_signals:
-                        if sig.lower() in extracted_val_str:
+                        sig_lower = sig.lower()
+                        base_sig = sig_lower.split("_")[0] if "_" in sig_lower else sig_lower
+                        if sig_lower in extracted_val_str or base_sig in extracted_val_str:
                             matched_signals.append(sig)
                 else:
                     extracted_val_str = str(extracted_val).lower()
                     for sig in target_signals:
-                        if sig.lower() in extracted_val_str:
+                        sig_lower = sig.lower()
+                        base_sig = sig_lower.split("_")[0] if "_" in sig_lower else sig_lower
+                        if sig_lower in extracted_val_str or base_sig in extracted_val_str:
                             matched_signals.append(sig)
 
                 return {

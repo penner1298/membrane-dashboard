@@ -362,7 +362,26 @@ const parseOutputToItems = (text: string): ExtractedItem[] => {
       }
     }
 
-    return items;
+    // Deduplicate items with the same content and location/source reference
+    const uniqueItems: ExtractedItem[] = [];
+    const seen = new Set<string>();
+    for (const item of items) {
+      const contentNorm = item.content.trim();
+      const sourceNorm = (item.source || "").trim();
+      const key = `${contentNorm}|${sourceNorm}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueItems.push(item);
+      } else {
+        // Merge types if we see the same content again
+        const existing = uniqueItems.find(u => `${u.content.trim()}|${(u.source || "").trim()}` === key);
+        if (existing && !existing.type.toLowerCase().includes(item.type.toLowerCase())) {
+          existing.type = `${existing.type}, ${item.type}`;
+        }
+      }
+    }
+
+    return uniqueItems;
   } catch (e) {
     return [{ type: "raw_text", content: text }];
   }
@@ -1835,9 +1854,13 @@ Format your output strictly as a JSON object matching this schema:
                           parseOutputToItems(directOutput).map((item, idx) => (
                             <div key={idx} className="bg-white border border-slate-200/80 rounded-xl p-3 shadow-xs hover:border-slate-350 transition duration-150">
                               <div className="flex items-center justify-between gap-2 mb-1.5">
-                                <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider ${getBadgeColorClass(item.type)}`}>
-                                  {item.type.replace(/_/g, " ")}
-                                </span>
+                                <div className="flex flex-wrap gap-1">
+                                  {item.type.split(",").map((t, tIdx) => (
+                                    <span key={tIdx} className={`px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider ${getBadgeColorClass(t.trim())}`}>
+                                      {t.trim().replace(/_/g, " ")}
+                                    </span>
+                                  ))}
+                                </div>
                                 {item.source && (
                                   <span className="text-[8.5px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
                                     {item.source}
@@ -1877,9 +1900,13 @@ Format your output strictly as a JSON object matching this schema:
                                   </div>
                                 )}
                                 <div className="flex items-center justify-between gap-2 mb-1.5">
-                                  <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider ${getBadgeColorClass(item.type)}`}>
-                                    {item.type.replace(/_/g, " ")}
-                                  </span>
+                                  <div className="flex flex-wrap gap-1">
+                                    {item.type.split(",").map((t, tIdx) => (
+                                      <span key={tIdx} className={`px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider ${getBadgeColorClass(t.trim())}`}>
+                                        {t.trim().replace(/_/g, " ")}
+                                      </span>
+                                    ))}
+                                  </div>
                                   {item.source && (
                                     <span className="text-[8.5px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
                                       {item.source}
