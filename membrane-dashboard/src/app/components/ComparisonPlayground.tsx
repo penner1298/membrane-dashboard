@@ -200,8 +200,66 @@ interface ExtractedItem {
 const parseOutputToItems = (text: string): ExtractedItem[] => {
   if (!text) return [];
   try {
-    const cleaned = text.trim();
-    const parsed = JSON.parse(cleaned);
+    let cleaned = text.trim();
+    if (cleaned.startsWith("```")) {
+      cleaned = cleaned.replace(/^```[a-zA-Z]*\n?/, "");
+      cleaned = cleaned.replace(/\n?```$/, "");
+      cleaned = cleaned.trim();
+    }
+
+    let parsed: any;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch (parseErr) {
+      // Attempt truncated/partial JSON recovery
+      parsed = null;
+      const closeBraceIndices: number[] = [];
+      for (let i = 0; i < cleaned.length; i++) {
+        if (cleaned[i] === '}') {
+          closeBraceIndices.push(i);
+        }
+      }
+
+      for (let i = closeBraceIndices.length - 1; i >= 0; i--) {
+        const idx = closeBraceIndices[i];
+        const candidateSlice = cleaned.substring(0, idx + 1);
+        
+        // 1. Try closing as array of objects inside wrapping object
+        try {
+          parsed = JSON.parse(candidateSlice + "]}");
+          break;
+        } catch (e) {}
+
+        // 2. Try closing as single object
+        try {
+          parsed = JSON.parse(candidateSlice + "}");
+          break;
+        } catch (e) {}
+
+        // 3. Try parsing candidateSlice directly (no additions)
+        try {
+          parsed = JSON.parse(candidateSlice);
+          break;
+        } catch (e) {}
+      }
+
+      if (!parsed) {
+        // 4. Try closing as direct array of objects
+        for (let i = closeBraceIndices.length - 1; i >= 0; i--) {
+          const idx = closeBraceIndices[i];
+          const candidateSlice = cleaned.substring(0, idx + 1);
+          try {
+            parsed = JSON.parse(candidateSlice + "]");
+            break;
+          } catch (e) {}
+        }
+      }
+
+      // If all repair attempts fail, rethrow original parse error
+      if (!parsed) {
+        throw parseErr;
+      }
+    }
     const items: ExtractedItem[] = [];
 
     const processObject = (obj: any, defaultType: string = "extraction"): ExtractedItem => {
