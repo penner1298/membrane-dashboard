@@ -30,7 +30,7 @@ We are removing all hardcoded barriers and API key requirements in favor of a pe
 - Update `/v1/swarm/map` to process all chunks in full without truncation. Return a non-blocking compliance warning if running without a verified license key:
   `warning_msg = "This instance appears to be running in a production environment without a commercial license. Membrane is free for local development. A $29/month commercial license is required for production use."`
 - Update `/llms.txt` endpoint to return a clean, grounded description matching the new positioning.
-- Update references to the Docker image from `thejoshuapenner/membrane-guard` to `thejoshuapenner/membrane`.
+- Update references to the Docker image from `thejoshuapenner/membrane-guard` to `membraneapi/gateway`.
 
 ---
 
@@ -39,7 +39,7 @@ We are removing all hardcoded barriers and API key requirements in favor of a pe
 #### [MODIFY] [page.tsx](file:///Users/thejoshuapenner/My%20Drive/Penner%20Strategy/membrane-dashboard/membrane-dashboard/src/app/page.tsx)
 - Rewrite Hero copy and section content to align with `homepage-draft.md`.
 - Explain that API keys are completely optional / any custom string works.
-- Update Docker commands from `thejoshuapenner/membrane-guard` to `thejoshuapenner/membrane`.
+- Update Docker commands from `thejoshuapenner/membrane-guard` to `membraneapi/gateway`.
 - Remove the "Segment Safety Guardrail (QA-24)" warning/blocking UI element.
 - Add a new "Pricing & Philosophy" responsive section with a clear definition of Commercial Production.
 

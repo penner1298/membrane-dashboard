@@ -38,8 +38,8 @@ We do not meter usage or restrict features. The only distinction is whether the 
 ### Quick Local Start
 
 ```bash
-git clone https://github.com/thejoshuapenner/membrane
-cd membrane
+git clone https://github.com/thejoshuapenner/membrane-dashboard
+cd membrane-dashboard
 pip install -r requirements.txt
 python3 server.py
 ```
@@ -49,7 +49,7 @@ Then point your OpenAI client to `http://localhost:8000/v1`.
 ### With Docker
 
 ```bash
-docker run -d -p 8000:8000 thejoshuapenner/membrane
+docker run -d -p 8000:8000 membraneapi/gateway
 ```
 
 ## Key Endpoints

@@ -229,147 +229,62 @@ response = requests.post(
           <h1 className="text-5xl sm:text-7xl lg:text-8xl font-serif font-black tracking-tight text-slate-950 leading-none uppercase">
             Membrane
           </h1>
-          <p className="text-xl sm:text-3xl font-bold text-slate-900 max-w-3xl mx-auto leading-tight">
-            Reliable structured extraction at scale without context decay or surprise token bills.
+          <p className="text-xl sm:text-2xl font-bold text-slate-900 max-w-3xl mx-auto leading-tight">
+            Reliable structured extraction on large documents without context decay or surprise token bills.
           </p>
           <div className="text-sm sm:text-base font-medium text-slate-700 max-w-3xl mx-auto leading-relaxed space-y-4">
             <p className="max-w-2xl mx-auto text-slate-800">
-              Split large documents/logs/contracts into isolated chunks, run the same extraction/analysis in parallel with early validation and cost forecasting, then reduce the results — all through a drop-in OpenAI-compatible endpoint.
+              Split documents into isolated chunks, run the same analysis in parallel with early validation and pre-flight forecasting, then reduce the results — through a drop-in OpenAI-compatible gateway.
             </p>
             <div className="max-w-xl mx-auto p-3.5 bg-emerald-50/60 rounded-xl border border-emerald-200/40 text-center shadow-xs glass-card-tactile">
               <p className="text-xs font-black text-emerald-800 tracking-wide uppercase">
                 Free for local development forever &bull; $29/mo flat for production
               </p>
-              <p className="text-[10px] font-bold text-slate-500 tracking-wider uppercase mt-1">
-                One-line OpenAI SDK compatible &bull; Self-host in seconds
-              </p>
             </div>
           </div>
  
           {/* CTA Buttons */}
-          <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
-            <a
-              href="#comparison-playground"
-              className="inline-flex items-center justify-center px-6 py-3 text-xs font-black uppercase tracking-wider text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 tactile-button active:scale-[0.98] transition-all shadow-sm"
-            >
-              Try the Model Agnostic Playground
-            </a>
-            <a
-              href="#quickstart"
-              className="inline-flex items-center justify-center px-6 py-3 text-xs font-black uppercase tracking-wider text-slate-700 bg-white rounded-xl hover:bg-slate-50 border border-slate-200 shadow-sm active:scale-[0.98] transition-all"
-            >
-              Run locally in 30 seconds
-            </a>
-            <a
-              href="#pricing"
-              className="inline-flex items-center justify-center px-6 py-3 text-xs font-black uppercase tracking-wider text-amber-950 bg-amber-500 rounded-xl hover:bg-amber-600 shadow-md active:scale-[0.98] transition-all border border-amber-400/20"
-            >
-              Get Founding License ($490 lifetime)
-            </a>
-          </div>
- 
-          {/* Real Savings stats section */}
-          <div className="max-w-4xl mx-auto pt-10 border-t border-slate-200/50 mt-12 tilt-container">
-            <p className="text-[9px] font-mono text-slate-400 uppercase tracking-[0.25em] font-black text-center mb-6">
-              Real results from production workloads
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-              <div className="glass-card-tactile tilt-card hover:border-emerald-500/30 rounded-xl p-5 shadow-xs flex flex-col items-center justify-center text-center">
-                <span className="text-3xl font-serif font-black text-emerald-600 leading-none mb-1">83%</span>
-                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Cost Reduction</span>
-                <span className="text-[10px] text-slate-500 mt-1">on contract analysis (Contract Pulse)</span>
-              </div>
-              <div className="glass-card-tactile tilt-card hover:border-emerald-500/30 rounded-xl p-5 shadow-xs flex flex-col items-center justify-center text-center">
-                <span className="text-3xl font-serif font-black text-emerald-600 leading-none mb-1">4.7&times;</span>
-                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Faster Processing</span>
-                <span className="text-[10px] text-slate-500 mt-1">multi-PDF research vs sequential LangChain</span>
-              </div>
-              <div className="glass-card-tactile tilt-card hover:border-emerald-500/30 rounded-xl p-5 shadow-xs flex flex-col items-center justify-center text-center">
-                <span className="text-3xl font-serif font-black text-emerald-600 leading-none mb-1">91%</span>
-                <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Cache Hit Rate</span>
-                <span className="text-[10px] text-slate-500 mt-1">repetitive queries hit semantic cache</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 90-SECOND INSTANT TRIAL TERMINAL */}
-        <div id="quickstart" className="max-w-3xl mx-auto space-y-3 scroll-mt-20">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between text-xs font-mono text-slate-500 px-1 gap-2">
-            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/80">
-              <button
-                onClick={() => setTrialTab("curl")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all uppercase cursor-pointer border ${
-                  trialTab === "curl" 
-                    ? "bg-white border-slate-200 text-slate-900 shadow-sm" 
-                    : "bg-transparent border-transparent text-slate-500 hover:text-slate-800"
-                }`}
+          <div className="flex flex-col items-center justify-center gap-6 pt-4">
+            <div className="flex flex-wrap items-center justify-center gap-4">
+              <a
+                href="#comparison-playground"
+                className="inline-flex items-center justify-center px-6 py-3 text-xs font-black uppercase tracking-wider text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 tactile-button active:scale-[0.98] transition-all shadow-sm"
               >
-                Cloud Sandbox (cURL)
-              </button>
-              <button
-                onClick={() => setTrialTab("python")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all uppercase cursor-pointer border ${
-                  trialTab === "python" 
-                    ? "bg-white border-slate-200 text-slate-900 shadow-sm" 
-                    : "bg-transparent border-transparent text-slate-500 hover:text-slate-800"
-                }`}
+                Open the Model Agnostic Playground
+              </a>
+              <a
+                href="#pricing"
+                className="inline-flex items-center justify-center px-6 py-3 text-xs font-black uppercase tracking-wider text-amber-950 bg-amber-500 rounded-xl hover:bg-amber-600 shadow-md active:scale-[0.98] transition-all border border-amber-400/20"
               >
-                Python SDK
-              </button>
-              <button
-                onClick={() => setTrialTab("docker")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all uppercase cursor-pointer border ${
-                  trialTab === "docker" 
-                    ? "bg-white border-slate-200 text-slate-900 shadow-sm" 
-                    : "bg-transparent border-transparent text-slate-500 hover:text-slate-800"
-                }`}
-              >
-                Local Sandbox (Docker)
-              </button>
-            </div>
-            <span className="text-[10px] uppercase font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded self-start sm:self-auto">Try it now (no signup required)</span>
-          </div>
-          
-          <div className="bg-slate-900 border border-slate-800/80 p-5 rounded-2xl font-mono text-sm relative group overflow-hidden dark-scrollbar shadow-lg">
-            <div className="flex items-center gap-1.5 pb-3 mb-3 border-b border-slate-800/50">
-              <div className="w-2.5 h-2.5 rounded-full bg-rose-400" />
-              <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
-              <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-              <span className="text-[10px] text-slate-500 font-mono ml-2 uppercase tracking-wider">
-                {trialTab === "curl" && "bash / cURL"}
-                {trialTab === "python" && "python"}
-                {trialTab === "docker" && "docker"}
-              </span>
+                Get Founding License ($490 lifetime)
+              </a>
             </div>
             
-            <div className="absolute top-12 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button 
-                onClick={() => {
-                  let text = trialCurlSnippet;
-                  if (trialTab === "python") text = trialPythonSnippet;
-                  else if (trialTab === "docker") text = "docker run -d -p 8000:8000 thejoshuapenner/membrane";
-                  handleCopy(text, "trial");
-                }}
-                className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:bg-slate-800 hover:text-slate-100 border border-slate-700 transition shadow-sm"
+            {/* Run Locally Quick Terminal Widget */}
+            <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-xl p-3 flex items-center justify-between shadow-md">
+              <div className="flex items-center gap-2 overflow-hidden mr-2">
+                <span className="text-[10px] font-mono text-emerald-500 select-none shrink-0">$</span>
+                <span className="text-xs font-mono text-slate-200 select-all truncate">
+                  docker run -d -p 8000:8000 membraneapi/gateway
+                </span>
+              </div>
+              <button
+                onClick={() => handleCopy("docker run -d -p 8000:8000 membraneapi/gateway", "hero-docker")}
+                className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-slate-100 border border-slate-700 transition shrink-0"
+                title="Copy Docker command"
               >
-                {copiedIndex === "trial" ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                {copiedIndex === "hero-docker" ? (
+                  <Check className="w-3.5 h-3.5 text-emerald-500" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5" />
+                )}
               </button>
             </div>
-            <div className="w-full overflow-x-auto whitespace-pre-wrap break-all md:whitespace-pre md:break-normal leading-relaxed pr-10">
-              {trialTab === "curl" && renderHighlightedSdkCode(trialCurlSnippet, "javascript")}
-              {trialTab === "python" && renderHighlightedSdkCode(trialPythonSnippet, "python")}
-              {trialTab === "docker" && renderHighlightedSdkCode("docker run -d -p 8000:8000 thejoshuapenner/membrane", "javascript")}
-            </div>
+            
+            <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider -mt-3">
+              Or run <code className="bg-slate-100 text-slate-800 px-1 py-0.5 rounded font-mono text-[9px] border border-slate-200">python server.py</code> locally
+            </p>
           </div>
-          <p className="text-[11px] text-slate-500 text-center italic">
-            {trialTab === "curl" 
-              ? "Copy and paste this query into your terminal. Authorization headers are optional during development; any string will work."
-              : trialTab === "python"
-                ? "Run this Python snippet using the official OpenAI SDK client library."
-                : "Run this command to spin up the local Membrane container proxy on port 8000. Free and unrestricted for local development."
-            }
-          </p>
         </div>
 
         {/* INTERACTIVE COMPARISON PLAYGROUND */}
@@ -379,66 +294,19 @@ response = requests.post(
               <Sliders className="w-3.5 h-3.5" /> AGNOSTIC EVALUATION
             </div>
             <h2 className="text-3xl sm:text-5xl font-serif font-black text-slate-950 leading-tight">
-              See the difference on a real contract or log set.
+              See the architectural difference on real documents.
             </h2>
             <p className="text-slate-600 text-sm max-w-2xl mx-auto leading-relaxed">
-              Left = direct call to your chosen model with the full document. Right = same task through Membrane's chunked parallel swarm + reduction (you supply the key for the underlying model).
+              Left column = direct call to your chosen model with the full document in one context. Right columns = the same task through Membrane's chunked parallel swarm + reduction layer (you supply the key for the underlying model).
             </p>
             <p className="text-slate-500 text-xs italic">
-              Demonstrating structured recall/faithfulness gap, cold vs cached run latency, and actual cost accounting.
+              Compare structure extraction accuracy, processing latency, and token costs in real time.
             </p>
           </div>
           <div className="bg-white/40 backdrop-blur-md rounded-3xl border border-slate-200/50 shadow-sm p-1.5 glass-card-tactile">
             <ComparisonPlayground />
           </div>
         </section>
-
-        {/* SYSTEM BENCHMARKS SHOWCASE */}
-        <div className="space-y-8 scroll-mt-20 pt-8">
-          <div className="text-center max-w-2xl mx-auto space-y-3">
-            <h2 className="text-3xl sm:text-4xl font-serif font-black text-slate-950 flex items-center justify-center gap-2">
-              <BarChart2 className="w-6 h-6 text-emerald-600" />
-              Real-World Workload Performance Metrics
-            </h2>
-            <p className="text-slate-600 text-sm leading-relaxed">
-              Standardized results mapped directly from live document-heavy extraction testing comparing raw LLM completions against Membrane swarm executions.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 max-w-6xl mx-auto items-stretch tilt-container">
-            {workloads.map((w) => (
-              <div key={w.id} className="glass-card-tactile glass-card-tactile-hover tilt-card rounded-2xl p-5 flex flex-col justify-between gap-4 shadow-sm hover:border-emerald-500/30">
-                <div className="space-y-1">
-                  <h4 className="font-extrabold text-sm text-slate-950 leading-tight">{w.name}</h4>
-                  <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100 inline-block font-mono tracking-wide">{w.notes}</span>
-                </div>
-                
-                <div className="divide-y divide-slate-100/85 space-y-2 text-xs pt-1">
-                  <div className="flex justify-between items-center pt-2">
-                    <span className="text-slate-500">Raw LLM Cost:</span>
-                    <span className="font-mono text-slate-400 line-through">${w.rawCost.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between items-center pt-2">
-                    <span className="text-slate-700 font-bold">Membrane Cost:</span>
-                    <span className="font-mono text-emerald-600 font-black text-sm">${w.membraneCost.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between items-center pt-2">
-                    <span className="text-slate-500 font-bold">Savings Factor:</span>
-                    <span className="font-mono text-emerald-600 font-black">{w.savings}</span>
-                  </div>
-                  <div className="flex justify-between items-center pt-2">
-                    <span className="text-slate-500">Speedup:</span>
-                    <span className="font-mono text-slate-900 font-black">{w.speedup}</span>
-                  </div>
-                  <div className="flex justify-between items-center pt-2">
-                    <span className="text-slate-700 font-bold">Cache Hit Rate:</span>
-                    <span className="font-mono text-slate-950 font-black">{w.cacheHit}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
 
         {/* THE THREE LEVERS SECTION */}
         <section id="levers" className="space-y-8 scroll-mt-20 pt-8">
@@ -447,16 +315,16 @@ response = requests.post(
               <Layers className="w-3.5 h-3.5" /> CORE MECHANISMS
             </div>
             <h2 className="text-3xl sm:text-5xl font-serif font-black text-slate-950 leading-tight">
-              The Three Levers That Actually Move the Needle
+              The Three Levers
             </h2>
             <p className="text-slate-600 text-sm max-w-2xl mx-auto leading-relaxed">
-              No marketing buzzwords. Just the exact mechanisms that prevent context decay, eliminate schema failures, and protect your budget.
+              This solves the exact painful thing you hit on long documents or bulk structured work.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto items-stretch tilt-container">
             {/* Card A: Pre-flight Planning */}
-            <div className="glass-card-tactile glass-card-tactile-hover rounded-2xl p-6 flex flex-col justify-between border border-slate-200 hover:border-emerald-500/30 shadow-xs">
+            <div className="glass-card-tactile rounded-2xl p-6 flex flex-col justify-between border border-slate-200 hover:border-emerald-500/30 shadow-xs">
               <div className="space-y-4">
                 <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center border border-emerald-200/30">
                   <Sliders className="w-5 h-5 text-emerald-600" />
@@ -466,13 +334,13 @@ response = requests.post(
                   GET /v1/swarm/plan
                 </code>
                 <p className="text-xs text-slate-600 leading-relaxed pt-1">
-                  Before you spend anything, get an explicit forecast: estimated tokens, retail cost, latency, recommended concurrency, and risk score.
+                  Get an explicit forecast of estimated tokens, cost, latency, recommended concurrency, and risk score before you spend anything.
                 </p>
               </div>
             </div>
 
             {/* Card B: Early Rejection Modes */}
-            <div className="glass-card-tactile glass-card-tactile-hover rounded-2xl p-6 flex flex-col justify-between border border-slate-200 hover:border-emerald-500/30 shadow-xs">
+            <div className="glass-card-tactile rounded-2xl p-6 flex flex-col justify-between border border-slate-200 hover:border-emerald-500/30 shadow-xs">
               <div className="space-y-4">
                 <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center border border-emerald-200/30">
                   <AlertTriangle className="w-5 h-5 text-emerald-600" />
@@ -487,23 +355,23 @@ response = requests.post(
                   </code>
                 </div>
                 <p className="text-xs text-slate-600 leading-relaxed pt-1">
-                  Bad payloads fail fast and cheap. <code className="text-[11px] font-bold text-slate-800 font-mono">early_gate</code> validates structure before any model calls. <code className="text-[11px] font-bold text-slate-800 font-mono">canary</code> runs only chunk 0 first and aborts if it fails.
+                  Bad jobs fail fast and cheap. <code className="font-bold text-slate-800 font-mono">early_gate</code> validates structure with zero model calls. <code className="font-bold text-slate-800 font-mono">canary</code> runs only the first chunk and aborts on failure.
                 </p>
               </div>
             </div>
 
-            {/* Card C: Strong Isolation & Schema Enforcement */}
-            <div className="glass-card-tactile glass-card-tactile-hover rounded-2xl p-6 flex flex-col justify-between border border-slate-200 hover:border-emerald-500/30 shadow-xs">
+            {/* Card C: Isolation + Schema Controls */}
+            <div className="glass-card-tactile rounded-2xl p-6 flex flex-col justify-between border border-slate-200 hover:border-emerald-500/30 shadow-xs">
               <div className="space-y-4">
                 <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center border border-emerald-200/30">
                   <Lock className="w-5 h-5 text-emerald-600" />
                 </div>
-                <h3 className="text-lg font-extrabold text-slate-950 font-serif">Strong Isolation + Schema</h3>
+                <h3 className="text-lg font-extrabold text-slate-950 font-serif">Isolation + Schema Controls</h3>
                 <code className="text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-mono self-start border border-slate-200">
                   POST /v1/swarm/state
                 </code>
                 <p className="text-xs text-slate-600 leading-relaxed pt-1">
-                  Each chunk is processed independently. Extraction criteria are validated. Agent-generated code can be sandbox-compiled and signed before you trust it.
+                  Each chunk runs independently. Extraction criteria are validated. Agent-generated code can be sandbox-compiled and signed before you trust it.
                 </p>
               </div>
             </div>
@@ -517,10 +385,10 @@ response = requests.post(
               <Terminal className="w-3.5 h-3.5" /> DROP-IN REPLACEMENT
             </div>
             <h2 className="text-3xl sm:text-4xl font-serif font-black text-slate-950 leading-tight">
-              Drop-In Compatibility
+              Drop-in Compatibility
             </h2>
             <p className="text-slate-600 text-sm max-w-2xl mx-auto">
-              The gateway adds planning, isolation, caching, and validation on top. Your existing code does not change.
+              Your existing OpenAI SDK code works. The gateway adds planning, isolation, early rejection, and caching on top.
             </p>
           </div>
 
@@ -576,10 +444,10 @@ response = requests.post(
               <Shield className="w-3.5 h-3.5" /> PRIVACY & COMPLIANCE
             </div>
             <h2 className="text-3xl sm:text-4xl font-serif font-black text-slate-950 leading-tight">
-              Self-Host + Control
+              Self-Host & Control
             </h2>
             <p className="text-slate-600 text-sm max-w-2xl mx-auto">
-              Full data stays on your infrastructure. No external logging of prompts or results unless you configure it.
+              Full data stays in your environment. No external logging of prompts unless you configure it.
             </p>
           </div>
 
@@ -593,18 +461,18 @@ response = requests.post(
             
             <div className="absolute top-12 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity">
               <button 
-                onClick={() => handleCopy("docker run -p 8000:8000 thejoshuapenner/membrane", "docker-run")}
+                onClick={() => handleCopy("docker run -p 8000:8000 membraneapi/gateway", "docker-run")}
                 className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:bg-slate-800 hover:text-slate-100 border border-slate-700 transition shadow-sm"
               >
                 {copiedIndex === "docker-run" ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
               </button>
             </div>
             <div className="w-full overflow-x-auto whitespace-pre-wrap break-all md:whitespace-pre md:break-normal leading-relaxed pr-10 text-emerald-400 font-bold">
-              docker run -p 8000:8000 thejoshuapenner/membrane
+              docker run -p 8000:8000 membraneapi/gateway
             </div>
           </div>
           <p className="text-[11px] text-slate-500 text-center italic">
-            This matters enormously to legal/tech, compliance, and research teams who actually have to ship this stuff.
+            Essential for teams processing proprietary, compliance-heavy, or regulated documents.
           </p>
         </section>
 
@@ -618,7 +486,7 @@ response = requests.post(
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto items-stretch tilt-container">
             {/* Free Tier */}
-            <div className="glass-card-tactile glass-card-tactile-hover tilt-card rounded-2xl p-6 flex flex-col justify-between hover:border-emerald-500/40">
+            <div className="glass-card-tactile rounded-2xl p-6 flex flex-col justify-between border border-slate-200/80 hover:border-emerald-500/40">
               <div className="space-y-4">
                 <div className="flex justify-between items-start">
                   <div>
@@ -638,14 +506,14 @@ response = requests.post(
               <div className="pt-6">
                 <Link
                   href="/docs"
-                  className="w-full inline-flex items-center justify-center py-2 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition duration-300 shadow-sm active:scale-[0.98] border border-slate-950 text-center"
+                  className="w-full inline-flex items-center justify-center py-2 px-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition duration-300 shadow-sm active:scale-[0.98] border border-slate-950 text-center font-sans"
                 >
                   Read Developer Docs
                 </Link>
               </div>
             </div>
             {/* Commercial Tier */}
-            <div className="glass-card-tactile glass-card-tactile-hover tilt-card rounded-2xl p-6 flex flex-col justify-between relative overflow-hidden border-2 border-emerald-500/20">
+            <div className="glass-card-tactile rounded-2xl p-6 flex flex-col justify-between relative overflow-hidden border border-emerald-500/20">
               <div className="absolute top-0 right-0 bg-emerald-600 text-white text-[9px] font-bold px-2.5 py-0.5 rounded-bl-lg uppercase tracking-wider">
                 Production
               </div>
@@ -673,14 +541,14 @@ response = requests.post(
                   href="https://buy.polar.sh/polar_cl_yDHzavhCzMw8FkCp0t0X2NJNfg5xgqLmudIxZ0S54BZ"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full inline-flex items-center justify-center py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition duration-300 shadow-md hover:shadow-emerald-600/20 active:scale-[0.98] border border-emerald-500/20 text-center"
+                  className="w-full inline-flex items-center justify-center py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition duration-300 shadow-md hover:shadow-emerald-600/20 active:scale-[0.98] border border-emerald-500/20 text-center font-sans"
                 >
                   Activate License on Polar.sh
                 </a>
               </div>
             </div>
             {/* Founding License Tier */}
-            <div className="glass-card-tactile glass-card-amber-hover tilt-card rounded-2xl p-6 flex flex-col justify-between relative overflow-hidden border-2 border-amber-400/40 bg-gradient-to-b from-amber-50/10 via-white to-white text-slate-900">
+            <div className="glass-card-tactile rounded-2xl p-6 flex flex-col justify-between relative overflow-hidden border border-amber-400/40 bg-gradient-to-b from-amber-50/10 via-white to-white text-slate-900">
               <div className="absolute top-0 right-0 bg-amber-500 text-slate-950 text-[9px] font-black px-2.5 py-0.5 rounded-bl-lg uppercase tracking-wider">
                 Founding
               </div>
@@ -708,7 +576,7 @@ response = requests.post(
                   href="https://buy.polar.sh/polar_cl_hEuA0alAsGc5tgvwGraM3rBMf8KuPablnLNR422vBy8"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full inline-flex items-center justify-center py-2 px-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs uppercase tracking-wider rounded-xl transition duration-300 shadow-md hover:shadow-amber-500/20 active:scale-[0.98] border border-amber-400/20 text-center"
+                  className="w-full inline-flex items-center justify-center py-2 px-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs uppercase tracking-wider rounded-xl transition duration-300 shadow-md hover:shadow-amber-500/20 active:scale-[0.98] border border-amber-400/20 text-center font-sans"
                 >
                   Purchase Founding License
                 </a>
@@ -727,11 +595,48 @@ response = requests.post(
           </div>
         </section>
 
-        {/* HONEST LIMITATIONS */}
-        <section id="limitations" className="max-w-3xl mx-auto space-y-6 scroll-mt-20 pt-8">
+        {/* REAL APPLICATIONS */}
+        <section id="real-applications" className="max-w-3xl mx-auto space-y-6 scroll-mt-20 pt-8">
           <div className="text-center space-y-3">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/50 text-[10px] font-extrabold tracking-[0.2em] uppercase">
-              <HelpCircle className="w-3.5 h-3.5" /> BUILDS CREDIBILITY
+              <Database className="w-3.5 h-3.5" /> Case Studies
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-serif font-black text-slate-950">
+              Real applications
+            </h2>
+            <p className="text-slate-600 text-sm max-w-2xl mx-auto">
+              Membrane is used in production on document-heavy, high-stakes extraction workloads.
+            </p>
+          </div>
+
+          <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-6 md:p-8 space-y-4 shadow-sm">
+            <ul className="space-y-4 text-xs sm:text-sm text-slate-700 animate-fade-in">
+              <li className="flex items-start gap-3">
+                <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Contract analysis</strong> &mdash; <a href="https://contract-pulse.app" target="_blank" rel="noopener noreferrer" className="text-emerald-600 font-bold underline hover:text-emerald-700">Contract Pulse</a> uses Membrane&apos;s parallel swarm extraction to surface hidden risks and special clauses across long legal PDFs with strong isolation and early validation.
+                </span>
+              </li>
+              <li className="flex items-start gap-3">
+                <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Policy &amp; government documents</strong> &mdash; <a href="https://pennergraph.ai" target="_blank" rel="noopener noreferrer" className="text-emerald-600 font-bold underline hover:text-emerald-700">PennerAI</a> runs Membrane swarms over state audits, city council minutes, and regulatory files to extract structured signals that direct LLM calls frequently miss.
+                </span>
+              </li>
+            </ul>
+            <div className="pt-2 text-center border-t border-slate-200/50 mt-4">
+              <p className="text-xs text-slate-500">
+                More examples and technical detail are in the <Link href="/docs" className="text-emerald-600 font-bold underline hover:text-emerald-700">docs</Link>.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* HONEST LIMITATIONS */}
+        <section id="limitations" className="max-w-3xl mx-auto space-y-6 scroll-mt-20 pt-8 pb-12">
+          <div className="text-center space-y-3">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/50 text-[10px] font-extrabold tracking-[0.2em] uppercase">
+              <HelpCircle className="w-3.5 h-3.5" /> LIMITATIONS
             </div>
             <h2 className="text-3xl sm:text-4xl font-serif font-black text-slate-950">
               Honest Limitations
@@ -742,79 +647,26 @@ response = requests.post(
           </div>
 
           <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-6 md:p-8 space-y-4 shadow-sm">
-            <ul className="space-y-4 text-sm text-slate-700">
+            <ul className="space-y-4 text-xs sm:text-sm text-slate-700 font-sans">
               <li className="flex items-start gap-3">
                 <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                 <span>
-                  <strong>Repetitive Structured Extraction Focus:</strong> Membrane is optimized specifically for running structured extraction at scale across repetitive items (contracts, logs, transcripts, research papers).
+                  <strong>Repetitive Structured Extraction Focus:</strong> Membrane is strongest on repetitive structured extraction across many similar items (contracts, logs, transcripts, policy docs).
                 </span>
               </li>
               <li className="flex items-start gap-3">
                 <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                 <span>
-                  <strong>Less magical on dynamic chat:</strong> It is not a general-purpose conversational agent platform. If you are building a highly dynamic open-ended chat assistant, standard direct LLM loops may be more appropriate.
+                  <strong>Less magic on dynamic chat:</strong> It is less magic on highly dynamic, open-ended conversational agents.
                 </span>
               </li>
               <li className="flex items-start gap-3">
                 <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                 <span>
-                  <strong>Model Costs Still Apply:</strong> Membrane optimizes token consumption and catches bad requests early, but you still pay the underlying LLM provider for successful executions.
+                  <strong>Model Costs Still Apply:</strong> You still pay for the underlying model calls &mdash; we just try to make fewer of them wasteful.
                 </span>
               </li>
             </ul>
-          </div>
-        </section>
-
-        {/* WHO THIS IS FOR */}
-        <section id="who-it-is-for" className="max-w-3xl mx-auto space-y-6 scroll-mt-20 pt-8 pb-8">
-          <div className="text-center space-y-3">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/50 text-[10px] font-extrabold tracking-[0.2em] uppercase">
-              <Cpu className="w-3.5 h-3.5" /> TARGET WORKLOADS
-            </div>
-            <h2 className="text-3xl sm:text-4xl font-serif font-black text-slate-950">
-              Who This Is For
-            </h2>
-            <p className="text-slate-600 text-sm">
-              Membrane is designed specifically for teams facing these developer challenges:
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4">
-            <div className="glass-card-tactile rounded-xl p-5 border border-slate-200/80 shadow-xs flex items-start gap-4">
-              <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center border border-emerald-200/30 shrink-0">
-                <FileText className="w-4 h-4 text-emerald-600" />
-              </div>
-              <div>
-                <h4 className="font-extrabold text-sm text-slate-900 uppercase tracking-wide">Document Analysis Teams</h4>
-                <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                  Teams doing bulk contract, regulatory, or research document analysis where missing a clause or line translates to financial or compliance risk.
-                </p>
-              </div>
-            </div>
-
-            <div className="glass-card-tactile rounded-xl p-5 border border-slate-200/80 shadow-xs flex items-start gap-4">
-              <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center border border-emerald-200/30 shrink-0">
-                <Database className="w-4 h-4 text-emerald-600" />
-              </div>
-              <div>
-                <h4 className="font-extrabold text-sm text-slate-900 uppercase tracking-wide">Telemetry & Transcripts Pipeline Builders</h4>
-                <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                  Engineers building high-volume log, sensor telemetry, or meeting transcript processing pipelines that need to extract structured insights reliably.
-                </p>
-              </div>
-            </div>
-
-            <div className="glass-card-tactile rounded-xl p-5 border border-slate-200/80 shadow-xs flex items-start gap-4">
-              <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center border border-emerald-200/30 shrink-0">
-                <AlertTriangle className="w-4 h-4 text-emerald-600" />
-              </div>
-              <div>
-                <h4 className="font-extrabold text-sm text-slate-900 uppercase tracking-wide">Developers Battling Context Decay</h4>
-                <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                  Anyone who has watched a direct LLM call silently drop critical structured data on long inputs and needs it to stop happening immediately.
-                </p>
-              </div>
-            </div>
           </div>
         </section>
 
@@ -824,3 +676,4 @@ response = requests.post(
     </div>
   );
 }
+

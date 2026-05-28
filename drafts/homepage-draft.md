@@ -47,4 +47,4 @@ This is not magic. It is a set of patterns and infrastructure that makes certain
 
 **Built in public. Feedback welcome.**
 
-[GitHub](https://github.com/thejoshuapenner/membrane) • [Docs](#) • [Dashboard](#)
+[GitHub](https://github.com/thejoshuapenner/membrane-dashboard) • [Docs](#) • [Dashboard](#)

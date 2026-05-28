@@ -1601,7 +1601,153 @@ Headers:
           </div>
         </section>
 
-        {/* SECTION 9: PRODUCTION DEPLOYMENT & LICENSING */}
+        {/* SECTION 9: REAL APPLICATIONS */}
+        <section className="mb-20" id="real-applications">
+          <div className="flex items-center gap-2.5 mb-6">
+            <Activity className="w-6 h-6 text-emerald-600" />
+            <h2 className="text-2xl font-serif font-black text-slate-950 m-0">Real Applications</h2>
+          </div>
+
+          <p className="text-slate-600 text-xs leading-relaxed mb-6">
+            Membrane is used in production on workloads that require reliable structured extraction across many long or messy documents, where context decay, silent omissions, and unpredictable cost are the dominant risks.
+          </p>
+
+          <div className="space-y-8">
+            {/* Public Examples */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest font-mono">Public Examples</h3>
+              
+              <div className="grid grid-cols-1 gap-6">
+                {/* Contract Pulse */}
+                <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+                  <div className="absolute top-0 left-0 w-full h-[2px] bg-emerald-500" />
+                  <div className="flex justify-between items-start flex-wrap gap-2 mb-4">
+                    <div>
+                      <h4 className="text-base font-bold text-slate-900">Contract Analysis (Contract Pulse)</h4>
+                      <p className="text-[11px] text-slate-500 mt-0.5">Live site: <a href="https://contract-pulse.app" target="_blank" rel="noopener noreferrer" className="text-emerald-600 font-bold underline hover:text-emerald-700">contract-pulse.app</a></p>
+                    </div>
+                    <span className="px-2 py-0.5 text-[9px] font-bold font-mono text-emerald-700 bg-emerald-50 rounded border border-emerald-200">Production Swarm</span>
+                  </div>
+                  <div className="space-y-3 text-xs">
+                    <div>
+                      <span className="font-bold text-slate-800">Problem:</span>
+                      <p className="text-slate-600 mt-0.5 leading-relaxed">
+                        Legal teams need to extract risks, special indemnity clauses, liability caps, and hidden exclusions from long contracts. Direct LLM calls on 20–100+ page PDFs routinely drop or misinterpret buried terms.
+                      </p>
+                    </div>
+                    <div>
+                      <span className="font-bold text-slate-800">How Membrane is used:</span>
+                      <ul className="list-disc pl-5 mt-1 space-y-1 text-slate-600 leading-relaxed">
+                        <li>Documents are chunked (typically by page or logical section).</li>
+                        <li>Parallel extraction runs via <code className="bg-slate-100 px-1 border border-slate-200 rounded text-[11px] font-mono">/v1/swarm/map</code> (commonly with <code className="bg-slate-100 px-1 border border-slate-200 rounded text-[11px] font-mono">canary</code> or <code className="bg-slate-100 px-1 border border-slate-200 rounded text-[11px] font-mono">early_gate</code> mode for fast failure on malformed inputs).</li>
+                        <li><code className="bg-slate-100 px-1 border border-slate-200 rounded text-[11px] font-mono">/v1/swarm/plan</code> is used pre-flight for cost/risk forecasting on large batches.</li>
+                        <li>Raw per-chunk results are passed through a lightweight synthesis/reduction layer.</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <span className="font-bold text-slate-800">Observed benefits:</span>
+                      <p className="text-emerald-700 font-bold mt-0.5">
+                        ✓ Higher recall on complex legal language, early rejection of bad extractions, and more predictable token spend.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* PennerAI */}
+                <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm">
+                  <div className="absolute top-0 left-0 w-full h-[2px] bg-emerald-500" />
+                  <div className="flex justify-between items-start flex-wrap gap-2 mb-4">
+                    <div>
+                      <h4 className="text-base font-bold text-slate-900">Policy &amp; Government Document Intelligence (PennerAI)</h4>
+                      <p className="text-[11px] text-slate-500 mt-0.5">Live site: <a href="https://pennergraph.ai" target="_blank" rel="noopener noreferrer" className="text-emerald-600 font-bold underline hover:text-emerald-700">pennergraph.ai</a></p>
+                    </div>
+                    <span className="px-2 py-0.5 text-[9px] font-bold font-mono text-emerald-700 bg-emerald-50 rounded border border-emerald-200">Production Swarm</span>
+                  </div>
+                  <div className="space-y-3 text-xs">
+                    <div>
+                      <span className="font-bold text-slate-800">Problem:</span>
+                      <p className="text-slate-600 mt-0.5 leading-relaxed">
+                        Tracking facts, obligations, and correlations across state audits, city council minutes, contracts, and regulatory filings at volume. Direct LLM calls on these documents frequently miss or hallucinate structured details.
+                      </p>
+                    </div>
+                    <div>
+                      <span className="font-bold text-slate-800">How Membrane is used:</span>
+                      <ul className="list-disc pl-5 mt-1 space-y-1 text-slate-600 leading-relaxed">
+                        <li>Large policy/audit packets are split into logical chunks.</li>
+                        <li>Swarm extraction (<code className="bg-slate-100 px-1 border border-slate-200 rounded text-[11px] font-mono">/v1/swarm/map</code>) with isolation runs the same structured queries across chunks.</li>
+                        <li>Context pruning is the default (full history only when <code className="bg-slate-100 px-1 border border-slate-200 rounded text-[11px] font-mono">X-Membrane-Preserve-Context: true</code> is explicitly passed).</li>
+                        <li><code className="bg-slate-100 px-1 border border-slate-200 rounded text-[11px] font-mono">/v1/swarm/plan</code> provides upfront estimates before running large jobs.</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <span className="font-bold text-slate-800">Observed benefits:</span>
+                      <p className="text-emerald-700 font-bold mt-0.5">
+                        ✓ More complete extraction of signals across long, repetitive government documents and better cost predictability.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Abstracted / Internal Patterns */}
+            <div className="space-y-4 pt-4">
+              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest font-mono">Abstracted / Internal Patterns</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                
+                <div className="p-5 bg-white border border-slate-200/80 rounded-xl shadow-xs">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Pattern A</span>
+                  <h4 className="text-xs font-black text-slate-900 mb-2">Research &amp; Content Document Workflows</h4>
+                  <p className="text-[11px] text-slate-500 leading-relaxed mb-3">
+                    Large volumes of research papers, transcripts, or internal reports must be turned into structured, queryable data (entities, obligations, risks, action items).
+                  </p>
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    <strong>Membrane usage:</strong> Chunk-by-chunk parallel extraction (<code className="font-mono bg-slate-100 text-[10px]">/v1/swarm/map</code>) with early gating, batch cost forecasting via <code className="font-mono bg-slate-100 text-[10px]">/v1/swarm/plan</code>, and L1/L2 semantic caching on repeated queries.
+                  </p>
+                </div>
+
+                <div className="p-5 bg-white border border-slate-200/80 rounded-xl shadow-xs">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Pattern B</span>
+                  <h4 className="text-xs font-black text-slate-900 mb-2">Operational &amp; Task Intelligence Systems</h4>
+                  <p className="text-[11px] text-slate-500 leading-relaxed mb-3">
+                    Recurring logs, meeting notes, support tickets, or journal entries must be turned into structured tasks, risks, or metrics on a daily/weekly cadence.
+                  </p>
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    <strong>Membrane usage:</strong> Batched chunks processed through swarm map with <code className="font-mono bg-slate-100 text-[10px]">canary</code> mode for fast failure. Context pruning is enabled by default to prevent agent drift.
+                  </p>
+                </div>
+
+                <div className="p-5 bg-white border border-slate-200/80 rounded-xl shadow-xs">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Pattern C</span>
+                  <h4 className="text-xs font-black text-slate-900 mb-2">Code, Security &amp; Data Ingestion</h4>
+                  <p className="text-[11px] text-slate-500 leading-relaxed mb-3">
+                    Large codebases, scraped web data, or repositories need structured extraction (vulnerabilities, entities, relationships) with compilation checks before downstream use.
+                  </p>
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    <strong>Membrane usage:</strong> Swarm map extraction with strict schema enforcement. <code className="font-mono bg-slate-100 text-[10px]">/v1/swarm/state</code> is used to compile and sign agent-generated scripts.
+                  </p>
+                </div>
+
+              </div>
+            </div>
+
+            {/* Summary of Strengths */}
+            <div className="p-6 bg-emerald-50/60 border border-emerald-200/40 rounded-2xl">
+              <h4 className="text-xs font-bold text-emerald-800 uppercase tracking-wider mb-3">Summary of Strengths Demonstrated in Practice</h4>
+              <ul className="text-xs text-slate-700 list-disc pl-5 space-y-1.5 leading-relaxed">
+                <li><strong>Chunk isolation + parallel map-reduce:</strong> Eliminates context decay and silent drop-offs on long documents.</li>
+                <li><strong>Pre-flight forecasting:</strong> <code className="font-mono bg-emerald-100/50 px-1 text-[11px] rounded text-emerald-800">/v1/swarm/plan</code> provides upfront cost, latency, and risk estimations.</li>
+                <li><strong>Token preservation:</strong> Early gate and canary modes prevent spending tokens on malformed payloads.</li>
+                <li><strong>Near-zero compute costs:</strong> Semantic caching delivers instant, zero-cost completions on repeating structured queries.</li>
+                <li><strong>Zero client refactoring:</strong> OpenAI SDK compatibility makes integration a one-line repoint.</li>
+              </ul>
+            </div>
+
+          </div>
+        </section>
+
+        {/* SECTION 10: PRODUCTION DEPLOYMENT & LICENSING */}
         <section className="mb-20">
           <div className="flex items-center gap-2.5 mb-6">
             <Server className="w-6 h-6 text-emerald-600" />
@@ -1645,7 +1791,7 @@ Headers:
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block font-mono">Example Production Docker Run</span>
               <div className="bg-slate-900 p-4 rounded-xl font-mono text-xs text-slate-200 relative group overflow-hidden">
                 <button 
-                  onClick={() => handleCopy('docker run -d \\\n  -p 8000:8000 \\\n  -e MEMBRANE_LICENSE_KEY="your_commercial_license_key" \\\n  -e REDIS_URL="redis://your-redis-host:6379" \\\n  -e DATABASE_URL="postgres://your-db-url" \\\n  thejoshuapenner/membrane-dashboard', "prod_docker")}
+                  onClick={() => handleCopy('docker run -d \\\n  -p 8000:8000 \\\n  -e MEMBRANE_LICENSE_KEY="your_commercial_license_key" \\\n  -e REDIS_URL="redis://your-redis-host:6379" \\\n  -e DATABASE_URL="postgres://your-db-url" \\\n  membraneapi/gateway', "prod_docker")}
                   className="absolute right-4 top-4 p-1.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700 transition"
                 >
                   {copiedText === "prod_docker" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
@@ -1656,7 +1802,7 @@ Headers:
   -e MEMBRANE_LICENSE_KEY="your_commercial_license_key" \\
   -e REDIS_URL="redis://your-redis-host:6379" \\
   -e DATABASE_URL="postgres://your-db-url" \\
-  thejoshuapenner/membrane-dashboard`}</code>
+  membraneapi/gateway`}</code>
                 </pre>
               </div>
             </div>
