@@ -30,7 +30,7 @@ async def health_check():
 
 @router.get("/llms.txt")
 async def get_local_llms_txt():
-    dashboard_llms = os.path.join("membrane-dashboard", "public", "llms.txt")
+    dashboard_llms = os.path.join("dashboard", "public", "llms.txt")
     if os.path.exists(dashboard_llms):
         try:
             with open(dashboard_llms, "r") as f:
