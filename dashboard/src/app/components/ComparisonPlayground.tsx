@@ -1513,7 +1513,7 @@ Format your output strictly as a JSON object matching this schema:
             disabled={isRunning || pdfLoading}
             className={`w-full py-6 rounded-xl font-bold text-xs uppercase tracking-wider text-white flex items-center justify-center gap-2 shadow-md transition active:scale-[0.99] disabled:opacity-50 ${
               cacheReady && !isRunning
-                ? "bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-700 ring-2 ring-emerald-300 ring-offset-2 animate-pulse duration-1000"
+                ? "bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-600 hover:from-amber-600 hover:to-yellow-600 ring-2 ring-amber-300 ring-offset-2 animate-pulse duration-1000"
                 : "bg-slate-900 hover:bg-slate-800"
             }`}
           >
