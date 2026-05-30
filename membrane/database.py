@@ -68,7 +68,8 @@ async def verify_access(credentials: Optional[HTTPAuthorizationCredentials] = Se
         os.environ.get("NODE_ENV") == "production"
     )
 
-    if is_prod and not db_pool:
+    require_db = os.environ.get("MEMBRANE_REQUIRE_DB", "true").lower() in ("1", "true", "yes")
+    if is_prod and not db_pool and require_db:
         raise HTTPException(
             status_code=503,
             detail="Service unavailable: tenant database is required for production API key verification."
