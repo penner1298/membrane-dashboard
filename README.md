@@ -68,8 +68,8 @@ python3 -m unittest discover -s tests -p 'test*.py'
 
 cd dashboard
 npm run lint -- --quiet
-npx tsc --noEmit --incremental false
 npm run build
+npx tsc --noEmit --incremental false
 ```
 
 ---

@@ -7,7 +7,7 @@ Membrane is a monorepo. The historical GitHub repository name may say `membrane-
 | Area | Path |
 | :--- | :--- |
 | Backend gateway, auth, cache, licensing, telemetry | `membrane/` |
-| Dashboard, docs site, API proxy routes | `membrane-dashboard/` |
+| Dashboard, docs site, API proxy routes | `dashboard/` |
 | Backend regression tests | `tests/` |
 | Technical notes and experiment history | `docs/` |
 | Local operational helpers | `scripts/` |
@@ -24,7 +24,7 @@ python3 server.py
 Dashboard:
 
 ```bash
-cd membrane-dashboard
+cd dashboard
 npm install
 npm run dev
 ```
@@ -38,10 +38,10 @@ Before opening or merging a pull request, run the relevant checks:
 ```bash
 python3 -m unittest discover -s tests -p 'test*.py'
 
-cd membrane-dashboard
+cd dashboard
 npm run lint -- --quiet
-npx tsc --noEmit --incremental false
 npm run build
+npx tsc --noEmit --incremental false
 ```
 
 For changes that touch security, auth, billing, cache writes, webhook verification, production environment behavior, or API key provisioning, include a short risk note in the pull request. Name the failure mode you tested and whether the route fails open or fails closed.

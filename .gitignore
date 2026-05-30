@@ -19,4 +19,5 @@ dashboard/src/.DS_Store
 dashboard/src/app/.DS_Store
 
 sandbox_scratch/*.json
+drafts/
 *.log

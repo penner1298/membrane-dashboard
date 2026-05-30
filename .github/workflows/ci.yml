@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: membrane-dashboard
+        working-directory: dashboard
     env:
       NEXT_TELEMETRY_DISABLED: "1"
     steps:
@@ -42,7 +42,7 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: membrane-dashboard/package-lock.json
+          cache-dependency-path: dashboard/package-lock.json
 
       - name: Install dashboard dependencies
         run: npm ci
@@ -50,8 +50,8 @@ jobs:
       - name: Lint
         run: npm run lint -- --quiet
 
-      - name: Type check
-        run: npx tsc --noEmit --incremental false
-
       - name: Build
         run: npm run build
+
+      - name: Type check
+        run: npx tsc --noEmit --incremental false

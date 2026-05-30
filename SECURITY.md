@@ -22,7 +22,7 @@ If private reporting is not available, contact the maintainer directly and inclu
 Security review currently covers:
 
 - Python backend routes under `membrane/`.
-- Next.js API routes under `membrane-dashboard/src/app/api/`.
+- Next.js API routes under `dashboard/src/app/api/`.
 - License, billing, webhook, cache, DLQ, and admin flows.
 - Deployment configuration and environment variable handling.
 

@@ -11,8 +11,8 @@ Describe what changed and why.
 ## Checks
 
 - [ ] `python3 -m unittest discover -s tests -p 'test*.py'` from the repo root
-- [ ] `cd membrane-dashboard && npm run lint -- --quiet`
-- [ ] `cd membrane-dashboard && npx tsc --noEmit --incremental false`
-- [ ] `cd membrane-dashboard && npm run build`
+- [ ] `cd dashboard && npm run lint -- --quiet`
+- [ ] `cd dashboard && npm run build`
+- [ ] `cd dashboard && npx tsc --noEmit --incremental false`
 - [ ] Docs updated, if setup/API/deployment behavior changed
 - [ ] No secrets, local cache files, generated exports, or build artifacts included
