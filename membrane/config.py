@@ -11,8 +11,8 @@ PRO_INPUT_COST = 1.25
 PRO_OUTPUT_COST = 5.00
 
 MARKUP_MULTIPLIER = 2.0  # You charge 2x the raw API cost
-L1_CACHE_FEE = 0.0001   # Subsidized micro-transaction for Global Hive Mind
-L2_CACHE_FEE = 0.0025   # Discounted rate for Private Silo Database Read
+L1_CACHE_FEE = 0.0   # Subsidized micro-transaction for Global Hive Mind
+L2_CACHE_FEE = 0.0   # Discounted rate for Private Silo Database Read
 
 # --- AGENT-AGNOSTIC MODEL SPECIFICATIONS ---
 # We support FLASH_MODEL (or CANARY_MODEL), APEX_MODEL, and EMBED_MODEL (or EMBEDDING_MODEL).

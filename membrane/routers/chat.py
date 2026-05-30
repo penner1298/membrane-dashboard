@@ -3,6 +3,7 @@ import re
 import json
 import hashlib
 import asyncio
+import time
 from typing import Optional, Dict, Any, List
 from fastapi import APIRouter, HTTPException, Security, Query, BackgroundTasks, Request
 from fastapi.responses import StreamingResponse
@@ -179,18 +180,20 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
         else:
             messages = [{"role": "user", "content": (request.prompt or "") + "\n" + system_instruction}]
 
-        effective_model = request.model
-        if effective_model == "membrane-engagement-layer":
-            effective_model = FLASH_MODEL
+        # Resolve provider name from request model or api key to select deterministic nodes
+        provider = None
+        model_str = (request.model or "").lower()
+        if "gpt" in model_str or "openai" in model_str or model_str.startswith("o1") or model_str.startswith("o3-"):
+            provider = "openai"
+        elif "claude" in model_str or "anthropic" in model_str:
+            provider = "anthropic"
+        elif "gemini" in model_str or "google" in model_str:
+            provider = "google"
+        elif "gemma" in model_str or "ollama" in model_str:
+            provider = "gemma"
 
-        canary = effective_model or CANARY_MODEL
-        apex = APEX_MODEL
-        if effective_model and not is_general_protocol:
-            if "flash" in effective_model.lower() or "mini" in effective_model.lower():
-                if "gemini" in effective_model.lower():
-                    apex = os.getenv("MEMBRANE_APEX_MODEL") or os.getenv("APEX_MODEL") or "gemini/gemini-3.5-flash"
-                elif "gpt" in effective_model.lower():
-                    apex = "openai/gpt-4o"
+        from membrane.swarm.execution import resolve_provider_nodes
+        canary, apex = resolve_provider_nodes(provider, request.provider_api_key)
 
         if canary == apex:
             evaluation_queue = [(canary, "SURFACE_ENGAGEMENT", None)]
@@ -221,7 +224,7 @@ async def chat_endpoint(request: ChatRequest, background_tasks: BackgroundTasks,
                     litellm_kwargs["api_key"] = request.provider_api_key
 
                 res = await acompletion(model=model, messages=messages, **litellm_kwargs)
-                ans = res.choices[0].message.content
+                ans = res.choices[0].message.content or ""
                 in_tok, out_tok = res.usage.prompt_tokens, res.usage.completion_tokens
 
                 actual_cost = calc_cost(model, in_tok, out_tok, res)
@@ -297,7 +300,34 @@ async def report_failure(request: FeedbackRequest, api_key_hash: str = Security(
     req_hash = hashlib.md5((scope_identifier + request.prompt + str(request.response_format)).encode()).hexdigest()
     await l1_memory_cache.delete(req_hash)
     if not db_pool:
-        return {"status": "L1 Cache Purged. Database unavailable."}
+        # --- Local Sandbox Fallback Mode ---
+        from membrane.cache import local_semantic_cache_db, save_local_semantic_cache
+        from membrane.telemetry import local_aversive_memory_db, save_local_aversive_memory
+        
+        global_val = request.use_global_cache
+        
+        # 1. Purge matching entries from local semantic cache
+        filtered_cache = [
+            e for e in local_semantic_cache_db
+            if not (e.get("prompt_text") == request.prompt and e.get("is_global") == global_val and (global_val or e.get("api_key_hash") == api_key_hash))
+        ]
+        local_semantic_cache_db.clear()
+        local_semantic_cache_db.extend(filtered_cache)
+        save_local_semantic_cache(local_semantic_cache_db)
+        
+        # 2. Inoculate into local aversive memory
+        local_aversive_memory_db.append({
+            "prompt_hash": req_hash,
+            "bad_output": request.failed_output,
+            "reason": request.reason,
+            "api_key_hash": api_key_hash,
+            "is_global": global_val,
+            "timestamp": time.time()
+        })
+        save_local_aversive_memory(local_aversive_memory_db)
+        
+        return {"status": "🎫 Local Sandbox Cache purged and aversive memory inoculated. Retry your prompt.", "receipt_id": req_hash}
+
     try:
         async with db_pool.acquire() as conn:
             if request.use_global_cache:
@@ -309,6 +339,7 @@ async def report_failure(request: FeedbackRequest, api_key_hash: str = Security(
     except Exception as e:
         print(f"🚨 feedback database exception: {e}")
         raise HTTPException(status_code=500, detail="Database error. Please check server logs for details.")
+
 
 async def stream_openai_response(res, model_name, context_status):
     content = res.answer
@@ -434,6 +465,13 @@ async def openai_compatible_endpoint(
         context_purged = True
 
     provider_api_key = request.headers.get("x-provider-api-key") or request.headers.get("X-Provider-API-Key")
+    if not provider_api_key:
+        auth_header = request.headers.get("Authorization") or request.headers.get("authorization")
+        if auth_header and auth_header.lower().startswith("bearer "):
+            token = auth_header[7:].strip().strip('"').strip("'")
+            if token.startswith("AIza") or token.startswith("sk-"):
+                provider_api_key = token
+
     internal_req = ChatRequest(
         prompt=None,
         messages=messages,

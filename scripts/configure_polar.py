@@ -148,7 +148,7 @@ def main():
         "recurring_interval_count": 1,
         "prices": [
             {
-                "price_amount": 29000,
+                "price_amount": 27840,
                 "price_currency": "usd",
                 "amount_type": "fixed"
             }

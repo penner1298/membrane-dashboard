@@ -72,5 +72,19 @@ class TestDatabase(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(mock_conn.fetchrow.called)
         self.assertTrue(mock_conn.execute.called)
 
+    async def test_verify_access_with_gemini_prefix(self):
+        credentials = MagicMock()
+        credentials.credentials = "AIzaSyCur0iK5vXOK-LnCzIeYLMj1shJBu8xjX4"
+        hashed = await database.verify_access(credentials)
+        expected_hash = database.hash_api_key("AIzaSyCur0iK5vXOK-LnCzIeYLMj1shJBu8xjX4")
+        self.assertEqual(hashed, expected_hash)
+
+    async def test_verify_access_with_openai_prefix(self):
+        credentials = MagicMock()
+        credentials.credentials = "sk-proj-1234567890abcdef"
+        hashed = await database.verify_access(credentials)
+        expected_hash = database.hash_api_key("sk-proj-1234567890abcdef")
+        self.assertEqual(hashed, expected_hash)
+
 if __name__ == "__main__":
     unittest.main()

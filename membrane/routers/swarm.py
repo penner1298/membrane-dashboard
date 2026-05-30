@@ -130,6 +130,12 @@ async def swarm_map(request: SwarmMapRequest, background_tasks: BackgroundTasks,
     provider_api_key = http_req.headers.get("x-provider-api-key") or http_req.headers.get("X-Provider-API-Key")
     if not provider_api_key:
         provider_api_key = getattr(request, 'provider_api_key', None) or (request.model_extra.get('provider_api_key') if request.model_extra else None)
+    if not provider_api_key:
+        auth_header = http_req.headers.get("Authorization") or http_req.headers.get("authorization")
+        if auth_header and auth_header.lower().startswith("bearer "):
+            token = auth_header[7:].strip().strip('"').strip("'")
+            if token.startswith("AIza") or token.startswith("sk-"):
+                provider_api_key = token
 
     provider = http_req.headers.get("x-provider") or http_req.headers.get("X-Provider") or http_req.headers.get("x-provider-name") or http_req.headers.get("X-Provider-Name")
     if not provider:
@@ -181,12 +187,14 @@ async def swarm_map(request: SwarmMapRequest, background_tasks: BackgroundTasks,
     cached = await l1_memory_cache.get(req_hash)
     if cached:
         cached_response = cached["response"]
+        if isinstance(cached_response, dict):
+            cached_response = SwarmMapResponse(**cached_response)
         resp_copy = deepcopy(cached_response)
         resp_copy.membrane_metadata.status = "SEMANTIC_CACHE"
-        resp_copy.membrane_metadata.value_ledger.actual_cost_incurred = 0.0025
+        resp_copy.membrane_metadata.value_ledger.actual_cost_incurred = 0.0
         resp_copy.membrane_metadata.value_ledger.net_enterprise_savings = max(
             0.0, 
-            resp_copy.membrane_metadata.value_ledger.gross_unoptimized_cost - 0.0025
+            resp_copy.membrane_metadata.value_ledger.gross_unoptimized_cost
         )
         resp_copy.membrane_metadata.swarm_mode = swarm_mode.value
         resp_copy.membrane_metadata.prompt_tokens = 0
@@ -197,7 +205,7 @@ async def swarm_map(request: SwarmMapRequest, background_tasks: BackgroundTasks,
         cache_log = {
             "endpoint": "/v1/swarm/map",
             "tokens": 0,
-            "retail_cost": 0.0025,
+            "retail_cost": 0.0,
             "wholesale_cost": 0.0,
             "savings": resp_copy.membrane_metadata.value_ledger.net_enterprise_savings,
             "raw_input_size": sum(len(c) for c in request.chunks),
@@ -273,7 +281,11 @@ async def swarm_map(request: SwarmMapRequest, background_tasks: BackgroundTasks,
         warning_msg=warning_msg
     )
 
-    # Save to L1 memory cache
-    await l1_memory_cache.set(req_hash, {"response": response})
+    # Save to L1 memory cache ONLY if all chunks executed successfully without errors
+    failed_chunks = len(request.chunks) - response.membrane_metadata.total_raw_extractions_captured
+    if failed_chunks == 0:
+        await l1_memory_cache.set(req_hash, {"response": response.model_dump()})
+    else:
+        print(f"⚠️ Swarm had {failed_chunks} failed chunks due to rate limits or API errors. Skipping L1 caching to prevent cache poisoning.")
 
     return response

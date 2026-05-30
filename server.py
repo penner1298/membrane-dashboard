@@ -14,4 +14,5 @@ db_pool = None
 if __name__ == "__main__":
     # Get port configuration (defaults to 8000)
     port = int(os.environ.get("PORT", 8000))
-    uvicorn.run("membrane.app:app", host="0.0.0.0", port=port, reload=True)
+    reload_enabled = os.environ.get("UVICORN_RELOAD", "").lower() in ("1", "true", "yes")
+    uvicorn.run("membrane.app:app", host="0.0.0.0", port=port, reload=reload_enabled)

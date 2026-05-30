@@ -136,6 +136,8 @@ class SwarmMapMetadata(BaseModel):
     prompt_tokens: Optional[int] = None
     completion_tokens: Optional[int] = None
     total_tokens: Optional[int] = None
+    canary_model: Optional[str] = None
+    apex_model: Optional[str] = None
 
 class SwarmMapResponse(BaseModel):
     object: str = "swarm.extraction_matrix"

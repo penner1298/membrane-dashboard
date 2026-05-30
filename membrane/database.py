@@ -37,8 +37,10 @@ async def verify_access(credentials: Optional[HTTPAuthorizationCredentials] = Se
             api_key = "local_dev_key"
 
     # Strict key prefix/format validation (removes unsafe default bypass)
-    # Strict key prefix/format validation (removes unsafe default bypass)
-    if not (api_key.startswith("sk_live_") or api_key.startswith("sk_membrane_") or api_key == "local_dev_key"):
+    masked_raw = raw_credential if raw_credential == "local_dev_key" else (raw_credential[:8] + "..." if len(raw_credential) > 8 else "***")
+    masked_api = api_key if api_key == "local_dev_key" else (api_key[:8] + "..." if len(api_key) > 8 else "***")
+    print(f"🔑 verify_access: raw_credential={masked_raw!r}, api_key={masked_api!r}")
+    if not (api_key.startswith("sk_live_") or api_key.startswith("sk_membrane_") or api_key.startswith("AIza") or api_key.startswith("sk-") or api_key == "local_dev_key"):
         masked_raw = raw_credential if raw_credential == "local_dev_key" else (raw_credential[:8] + "..." if len(raw_credential) > 8 else "***")
         masked_api = api_key if api_key == "local_dev_key" else (api_key[:8] + "..." if len(api_key) > 8 else "***")
         log_entry = {
@@ -59,6 +61,18 @@ async def verify_access(credentials: Optional[HTTPAuthorizationCredentials] = Se
         )
 
     hashed_key = hash_api_key(api_key)
+    is_prod = (
+        os.environ.get("RENDER") == "true" or
+        os.environ.get("ENVIRONMENT") == "production" or
+        os.environ.get("ENV") == "production" or
+        os.environ.get("NODE_ENV") == "production"
+    )
+
+    if is_prod and not db_pool:
+        raise HTTPException(
+            status_code=503,
+            detail="Service unavailable: tenant database is required for production API key verification."
+        )
 
     masked_raw = raw_credential if raw_credential == "local_dev_key" else (raw_credential[:8] + "..." if len(raw_credential) > 8 else "***")
     masked_api = api_key if api_key == "local_dev_key" else (api_key[:8] + "..." if len(api_key) > 8 else "***")
@@ -81,6 +95,12 @@ async def verify_access(credentials: Optional[HTTPAuthorizationCredentials] = Se
         return hashed_key
 
     if api_key == "sk_membrane_instant_trial":
+        trial_enabled = os.environ.get("MEMBRANE_ENABLE_INSTANT_TRIAL", "").lower() in ("1", "true", "yes")
+        if is_prod and not trial_enabled:
+            raise HTTPException(
+                status_code=401,
+                detail="Unauthorized: instant trial keys are disabled in this production environment."
+            )
         await tenant_cache.set(hashed_key, True)
         return hashed_key
 

@@ -3,6 +3,7 @@ import json
 import time
 import asyncio
 import hashlib
+import os
 from typing import Any, Dict, List, Optional, Tuple
 import jsonschema
 from litellm import acompletion
@@ -15,14 +16,57 @@ from membrane.cache import get_embedding
 # Global database pool reference, set dynamically at lifespan startup
 db_pool: Optional[Any] = None
 
+AVERSIVE_MEMORY_FILE = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "sandbox_scratch",
+    "local_aversive_memory.json"
+)
+
+def load_local_aversive_memory() -> List[Dict[str, Any]]:
+    if os.path.exists(AVERSIVE_MEMORY_FILE):
+        try:
+            with open(AVERSIVE_MEMORY_FILE, "r") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return []
+
+def save_local_aversive_memory(data: List[Dict[str, Any]]):
+    try:
+        os.makedirs(os.path.dirname(AVERSIVE_MEMORY_FILE), exist_ok=True)
+        with open(AVERSIVE_MEMORY_FILE, "w") as f:
+            json.dump(data, f, indent=2)
+    except Exception:
+        pass
+
+local_aversive_memory_db = load_local_aversive_memory()
+
 async def get_aversive_warnings(
     prompt_hash: str,
     api_key_hash: str,
     is_global: bool,
     conn: Optional[Any] = None
 ) -> str:
+    # --- Local persistent aversive warnings fallback ---
     if not db_pool and not conn:
-        return ""
+        global local_aversive_memory_db
+        local_aversive_memory_db = load_local_aversive_memory()
+        
+        matched_rows = []
+        for entry in local_aversive_memory_db:
+            if entry.get("prompt_hash") == prompt_hash:
+                if entry.get("is_global") == is_global or (not is_global and entry.get("api_key_hash") == api_key_hash):
+                    matched_rows.append(entry)
+        
+        # Sort desc by timestamp
+        matched_rows = sorted(matched_rows, key=lambda x: x.get("timestamp", 0), reverse=True)
+        rows = matched_rows[:3]
+        if not rows:
+            return ""
+        warning = "\n\n[SYSTEM WARNING: You have attempted this prompt before and FAILED. Do NOT repeat these mistakes.]"
+        for i, r in enumerate(rows):
+            warning += f"\nFailure {i+1}:\n- Bad Output: {r.get('bad_output')}\n- Rejection Reason: {r.get('reason')}"
+        return warning + "\n[END WARNING]\n"
     
     async def run_query(c):
         if is_global: 
@@ -51,6 +95,7 @@ async def get_aversive_warnings(
         return warning + "\n[END WARNING]\n"
     except Exception:
         return ""
+
 
 def get_semantic_priming(prompt: str, schema: Optional[dict]) -> str:
     # Strict extraction directive to remove narrative conversational preambles/notes

@@ -54,7 +54,17 @@ async def process_swarm_chunk(
             try:
                 user_content = chunk
                 if target_signals:
-                    user_content = f"Target Signals to extract: {json.dumps(target_signals)}\n\nText Chunk:\n{chunk}"
+                    user_content = (
+                        f"Target Signals to extract: {json.dumps(target_signals)}\n\n"
+                        f"Format your output strictly as a JSON object with a single key \"extracted_data\" containing a list of objects. "
+                        f"Each object in the \"extracted_data\" list MUST represent a matched signal and have exactly these three string fields:\n"
+                        f"- \"type\": the matched signal category (must match one of: {json.dumps(target_signals)})\n"
+                        f"- \"content\": the verbatim sentence, line, or clause from the text matching the signal (do not summarize or truncate)\n"
+                        f"- \"location\": the section, paragraph header, or location reference where this was found in the text\n\n"
+                        f"If no target signals are found in this chunk, return:\n"
+                        f"{{\"extracted_data\": []}}\n\n"
+                        f"Text Chunk:\n{chunk}"
+                    )
                 
                 messages = [
                     {"role": "system", "content": system_prompt},
@@ -203,7 +213,8 @@ def compile_swarm_response(
     estimated_waste_tokens: int = 0,
     latency_ms: int = 0,
     died: bool = False,
-    concurrency_level: int = 0
+    concurrency_level: int = 0,
+    apex_model: Optional[str] = None
 ) -> Any:
     # We import models dynamically to avoid circular import issues
     from membrane.swarm import (
@@ -304,7 +315,24 @@ def compile_swarm_response(
         background_tasks.add_task(charge_and_log_api_batch, api_key_hash, billing_logs)
 
     if failed == len(chunks):
-        raise HTTPException(status_code=500, detail="All swarm chunks failed to compile.")
+        unique_errors = []
+        for r in results:
+            if r.get("error") and r["error"] not in unique_errors:
+                unique_errors.append(str(r["error"]))
+        errors_str = " | ".join(unique_errors)
+        raise HTTPException(status_code=500, detail=f"All {len(chunks)} swarm chunks failed to compile. Errors: {errors_str}")
+
+    if failed > 0:
+        unique_errors = []
+        for r in results:
+            if r.get("error") and r["error"] not in unique_errors:
+                unique_errors.append(str(r["error"]))
+        errors_str = " | ".join(unique_errors)
+        chunk_err = f"⚠️ Swarm Alert: {failed} out of {len(chunks)} parallel chunks failed to compile due to errors: {errors_str}. Extractions are incomplete."
+        if warning_msg:
+            warning_msg = f"{warning_msg} | {chunk_err}"
+        else:
+            warning_msg = chunk_err
 
     resolved_task_id = task_id or f"ext_matrix_{hashlib.md5(str(time.time()).encode()).hexdigest()[:8]}"
     
@@ -334,7 +362,9 @@ def compile_swarm_response(
             concurrency_level=concurrency_level,
             prompt_tokens=total_prompt_tokens,
             completion_tokens=total_completion_tokens,
-            total_tokens=total_tokens
+            total_tokens=total_tokens,
+            canary_model=model,
+            apex_model=apex_model
         )
     )
 
@@ -408,7 +438,7 @@ def resolve_provider_nodes(provider: Optional[str], api_key: Optional[str] = Non
             provider = "anthropic"
         elif api_key.startswith("sk-"):
             provider = "openai"
-        elif api_key.startswith("AIzaSy"):
+        elif api_key.startswith("AIza"):
             provider = "google"
         elif "ollama" in api_key.lower():
             provider = "gemma"
@@ -493,7 +523,7 @@ async def execute_swarm_experiments(
     system_prompt = criteria.get("system_persona") or request.system_prompt or "Extract data."
     target_signals = criteria.get("target_signals") or []
     
-    concurrency_limit = min(request.max_concurrency, 10) if not license_active else request.max_concurrency
+    concurrency_limit = min(request.max_concurrency, 100)
     semaphore = asyncio.Semaphore(concurrency_limit)
     
     if swarm_mode == SwarmExecutionMode.CANARY_PROBE:
@@ -557,7 +587,8 @@ async def execute_swarm_experiments(
             estimated_waste_tokens=estimated_waste,
             latency_ms=latency_ms,
             died=died,
-            concurrency_level=peak_concurrency
+            concurrency_level=peak_concurrency,
+            apex_model=apex_node
         )
         
     else:
@@ -593,5 +624,6 @@ async def execute_swarm_experiments(
             estimated_waste_tokens=estimated_waste,
             latency_ms=latency_ms,
             died=died,
-            concurrency_level=peak_concurrency
+            concurrency_level=peak_concurrency,
+            apex_model=apex_node
         )

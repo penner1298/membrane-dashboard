@@ -1,6 +1,7 @@
 import unittest
 import asyncio
 import re
+from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi.testclient import TestClient
 from server import app
 from membrane.database import verify_access, tenant_cache, hash_api_key
@@ -10,8 +11,11 @@ from fastapi.security import HTTPAuthorizationCredentials
 class TestV2AuditFixes(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.client = TestClient(app)
-        # Clear tenant cache between tests
+        # Clear tenant cache and routing caches between tests
         tenant_cache._cache.clear()
+        from membrane.cache import l1_memory_cache, local_semantic_cache_db
+        l1_memory_cache._cache.clear()
+        local_semantic_cache_db.clear()
 
     def test_invalid_api_key_format_returns_401(self):
         """Requests with credentials that do not match the expected formats must return HTTP 401."""
@@ -32,6 +36,31 @@ class TestV2AuditFixes(unittest.IsolatedAsyncioTestCase):
         }, headers=headers)
         # null defaults to local_dev_key, which is valid for local testing, so this should pass (200 or 500/502 but NOT 401)
         self.assertNotEqual(r.status_code, 401)
+
+    def test_chat_completions_canary_success_path(self):
+        """Verify that a realistic prompt resolves successfully on the canary node (SURFACE_ENGAGEMENT)."""
+        bouncer_response = MagicMock()
+        bouncer_response.choices = [MagicMock(message=MagicMock(content="0"))]
+
+        llm_response = MagicMock()
+        llm_response.choices = [MagicMock(message=MagicMock(content='{"status": "active"}'))]
+        llm_response.usage.prompt_tokens = 12
+        llm_response.usage.completion_tokens = 6
+
+        headers = {"Authorization": "Bearer local_dev_key"}
+        with patch("membrane.telemetry.acompletion", new=AsyncMock(return_value=bouncer_response)), \
+             patch("membrane.routers.chat.acompletion", new=AsyncMock(return_value=llm_response)):
+            r = self.client.post("/v1/chat/completions", json={
+                "model": "membrane-engagement-layer",
+                "messages": [
+                    {"role": "system", "content": "You are a JSON generator."},
+                    {"role": "user", "content": "Please output a JSON object containing key 'status' with value 'active'."}
+                ]
+            }, headers=headers)
+        self.assertEqual(r.status_code, 200)
+        resp_data = r.json()
+        self.assertEqual(resp_data["choices"][0]["message"]["content"], '{"status": "active"}')
+        self.assertEqual(resp_data["membrane_metadata"]["status"], "SURFACE_ENGAGEMENT")
 
     def test_exception_sanitization_scrubs_litellm_pathways(self):
         """Exceptions returned to clients must be sanitized and scrubbed of specific library pathways/classes."""

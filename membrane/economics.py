@@ -27,6 +27,12 @@ def calculate_token_savings(model_name: str, raw_tokens: int, optimized_tokens: 
     }
 
 def calc_cost(model_name: str, in_tokens: int, out_tokens: int, response_object: Optional[Any] = None) -> float:
+    if "gemini" in model_name.lower():
+        if "flash" in model_name.lower():
+            return (in_tokens / 1000000) * FLASH_INPUT_COST + (out_tokens / 1000000) * FLASH_OUTPUT_COST
+        else:
+            return (in_tokens / 1000000) * PRO_INPUT_COST + (out_tokens / 1000000) * PRO_OUTPUT_COST
+            
     if any(p in model_name.lower() for p in ["ollama/", "local/", "llama"]):
         return 0.0
     try:

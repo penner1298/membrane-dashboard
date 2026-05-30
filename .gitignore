@@ -1,42 +1,22 @@
-# Ignore personal workspace directories (inherited)
-votepenner.com/
-votepenner_kanban/
-tenant-pulse/
-inputs/
-weaver/
-
-# Ignore personal agent configurations
-AGENTS.md
-IDENTITY.md
-LESSONS.md
-SOUL.md
-TACTICS.md
-BOOTSTRAP.md
-
-# Ignore large DBs and uncompiled data
-*.db
-*.sqlite
-*.log
-*.csv
-
-# Ignore local Next.js environment & dependencies
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-__pycache__/
-node_modules/
-.next/
-
-# Ignore OS metadata files
 .DS_Store
+.env
+.env.*
+!.env.example
 
-# Ignore runtime diagnostic files, logs, and scratch scripts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+dashboard/node_modules/
+dashboard/.next/
+dashboard/.vercel/
+dashboard/tsconfig.tsbuildinfo
+dashboard/*.tsbuildinfo
+dashboard/.DS_Store
+dashboard/src/.DS_Store
+dashboard/src/app/.DS_Store
+
+sandbox_scratch/*.json
 *.log
-gearbox_gemma.log
-/test_*.py
-fix_*.py
-.trash/
-sandbox_scratch/
-.vercel

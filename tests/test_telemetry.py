@@ -8,20 +8,27 @@ class TestTelemetry(unittest.IsolatedAsyncioTestCase):
         telemetry.db_pool = None
 
     def test_get_semantic_priming(self):
+        narrative_restriction = (
+            "\n[SYSTEM DIRECTIVE: You are acting as a strict data extraction proxy. "
+            "Do NOT include any conversational preamble, markdown narrative explanation, "
+            "notes, disclaimers, or chat feedback. Output ONLY the raw data requested (e.g. JSON array/object or direct plain text list). "
+            "Your response MUST start directly with the first character of the requested data payload (e.g. `[` or `{` or list items) "
+            "and stop immediately after the data concludes.]\n"
+        )
         # schema intent
         self.assertEqual(
             telemetry.get_semantic_priming("test prompt", {"type": "object"}),
-            "[METADATA: Domain=Data_Extraction, Intent=Parsing, Creativity=0]\n"
+            f"[METADATA: Domain=Data_Extraction, Intent=Parsing, Creativity=0]\n{narrative_restriction}"
         )
         # engineering/coding intent
         self.assertEqual(
             telemetry.get_semantic_priming("write python code", None),
-            "[METADATA: Domain=Software_Engineering, Intent=Code_Generation, Creativity=0]\n"
+            f"[METADATA: Domain=Software_Engineering, Intent=Code_Generation, Creativity=0]\n{narrative_restriction}"
         )
-        # general reasoning
+        # general extraction fallback
         self.assertEqual(
             telemetry.get_semantic_priming("hello world", None),
-            "[METADATA: Domain=General_Reasoning, Intent=Conversation, Creativity=7]\n"
+            f"[METADATA: Domain=Data_Extraction, Intent=Extraction, Creativity=0]\n{narrative_restriction}"
         )
 
     def test_fidelity_check_schema_valid(self):
@@ -55,7 +62,7 @@ class TestTelemetry(unittest.IsolatedAsyncioTestCase):
             schema
         )
         self.assertFalse(passed)
-        self.assertIn("Schema violation", error)
+        self.assertIn("Schema validation failed", error)
 
     def test_fidelity_check_refusal(self):
         # Refusal check

@@ -31,7 +31,7 @@ class TestSwarmExperiments(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(ctx.exception.detail["check"], "chunks")
 
     def test_validation_gate_too_many_chunks(self):
-        chunks = ["chunk"] * 26
+        chunks = ["chunk"] * 51
         criteria = {"system_persona": "a", "target_signals": ["b"]}
         with self.assertRaises(HTTPException) as ctx:
             validate_strict_swarm_request(chunks, criteria)
@@ -62,7 +62,7 @@ class TestSwarmExperiments(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(ctx.exception.detail["check"], "Criteria shape")
 
     def test_validation_gate_total_input_ceiling(self):
-        chunks = ["a" * 20000] * 11 # 220k total chars
+        chunks = ["a" * 25000] * 41 # 1.025M total chars, <= 50 chunks
         criteria = {"system_persona": "a", "target_signals": ["b"]}
         with self.assertRaises(HTTPException) as ctx:
             validate_strict_swarm_request(chunks, criteria)
