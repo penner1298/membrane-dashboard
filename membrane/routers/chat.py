@@ -10,7 +10,13 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 # Import security dependencies
-from membrane.security import scrub_pii, validate_model_string, sanitize_exception_message
+from membrane.security import (
+    scrub_pii,
+    validate_model_string,
+    sanitize_exception_message,
+    resolve_explicit_provider_api_key,
+    ensure_provider_credentials,
+)
 from membrane.database import verify_access, charge_and_log_api, log_to_dlq
 from membrane.cache import (
     l1_memory_cache,
@@ -417,6 +423,8 @@ class OpenAICompletionRequest(BaseModel):
     top_p: Optional[float] = None
     stream: Optional[bool] = False
     response_format: Optional[Dict[str, Any]] = None
+    provider_api_key: Optional[str] = None
+    model_config = {"extra": "allow"}
 
 @router.post("/v1/chat/completions")
 async def openai_compatible_endpoint(
@@ -464,13 +472,10 @@ async def openai_compatible_endpoint(
         messages = new_messages
         context_purged = True
 
-    provider_api_key = request.headers.get("x-provider-api-key") or request.headers.get("X-Provider-API-Key")
-    if not provider_api_key:
-        auth_header = request.headers.get("Authorization") or request.headers.get("authorization")
-        if auth_header and auth_header.lower().startswith("bearer "):
-            token = auth_header[7:].strip().strip('"').strip("'")
-            if token.startswith("AIza") or token.startswith("sk-"):
-                provider_api_key = token
+    explicit_provider_api_key = request.headers.get("x-provider-api-key") or request.headers.get("X-Provider-API-Key")
+    request_provider_api_key = body.provider_api_key or (body.model_extra.get("provider_api_key") if body.model_extra else None)
+    provider_api_key = resolve_explicit_provider_api_key(explicit_provider_api_key, request_provider_api_key)
+    ensure_provider_credentials(model_override, provider_api_key=provider_api_key)
 
     internal_req = ChatRequest(
         prompt=None,
