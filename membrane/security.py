@@ -114,3 +114,48 @@ def sanitize_exception_message(message: str) -> str:
     if any(kw in message_lower for kw in sensitive_keywords):
         return "Upstream provider authentication or configuration error. Please verify server environment credentials."
     return message
+
+
+def is_membrane_api_key(token: Optional[str]) -> bool:
+    if not token:
+        return False
+    return token.startswith("sk_live_") or token.startswith("sk_membrane_")
+
+
+def resolve_explicit_provider_api_key(
+    explicit_key: Optional[str] = None,
+    request_key: Optional[str] = None,
+) -> Optional[str]:
+    provider_api_key = explicit_key or request_key
+    if is_membrane_api_key(provider_api_key):
+        return None
+    return provider_api_key
+
+
+def provider_env_key_available(model: Optional[str], provider: Optional[str] = None) -> bool:
+    provider_name = (provider or "").lower().strip()
+    model_name = (model or "").lower().strip()
+
+    if provider_name in ("openai", "gpt") or model_name.startswith("openai/") or "gpt" in model_name or model_name.startswith(("o1", "o3-")):
+        return bool(os.getenv("OPENAI_API_KEY"))
+    if provider_name in ("anthropic", "claude") or model_name.startswith("anthropic/") or "claude" in model_name:
+        return bool(os.getenv("ANTHROPIC_API_KEY"))
+    if provider_name in ("google", "gemini") or model_name.startswith("gemini/") or "gemini" in model_name or "google" in model_name:
+        return bool(os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY"))
+    if provider_name in ("gemma", "ollama") or model_name.startswith("ollama/"):
+        return True
+    return bool(
+        os.getenv("GEMINI_API_KEY")
+        or os.getenv("GOOGLE_API_KEY")
+        or os.getenv("OPENAI_API_KEY")
+        or os.getenv("ANTHROPIC_API_KEY")
+    )
+
+
+def ensure_provider_credentials(model: Optional[str], provider: Optional[str] = None, provider_api_key: Optional[str] = None) -> None:
+    if provider_api_key or provider_env_key_available(model, provider):
+        return
+    raise HTTPException(
+        status_code=503,
+        detail="Server provider environment is missing or incomplete. Configure an upstream provider key on the Membrane server, or pass an explicit provider key with a provider-key field/header.",
+    )

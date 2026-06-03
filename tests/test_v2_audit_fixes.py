@@ -1,5 +1,6 @@
 import unittest
 import asyncio
+import os
 import re
 from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi.testclient import TestClient
@@ -48,7 +49,8 @@ class TestV2AuditFixes(unittest.IsolatedAsyncioTestCase):
         llm_response.usage.completion_tokens = 6
 
         headers = {"Authorization": "Bearer local_dev_key"}
-        with patch("membrane.telemetry.acompletion", new=AsyncMock(return_value=bouncer_response)), \
+        with patch.dict(os.environ, {"GEMINI_API_KEY": "server-side-provider-key"}), \
+             patch("membrane.telemetry.acompletion", new=AsyncMock(return_value=bouncer_response)), \
              patch("membrane.routers.chat.acompletion", new=AsyncMock(return_value=llm_response)):
             r = self.client.post("/v1/chat/completions", json={
                 "model": "membrane-engagement-layer",
@@ -61,6 +63,67 @@ class TestV2AuditFixes(unittest.IsolatedAsyncioTestCase):
         resp_data = r.json()
         self.assertEqual(resp_data["choices"][0]["message"]["content"], '{"status": "active"}')
         self.assertEqual(resp_data["membrane_metadata"]["status"], "SURFACE_ENGAGEMENT")
+
+    def test_chat_membrane_bearer_is_not_provider_api_key(self):
+        """Membrane API keys authenticate the request but must not be forwarded as provider credentials."""
+        bouncer_response = MagicMock()
+        bouncer_response.choices = [MagicMock(message=MagicMock(content="0"))]
+
+        llm_response = MagicMock()
+        llm_response.choices = [MagicMock(message=MagicMock(content='{"status": "active"}'))]
+        llm_response.usage.prompt_tokens = 12
+        llm_response.usage.completion_tokens = 6
+
+        headers = {"Authorization": "Bearer sk_membrane_test_boundary_key"}
+        with patch.dict(os.environ, {"GEMINI_API_KEY": "server-side-provider-key"}), \
+             patch("membrane.telemetry.acompletion", new=AsyncMock(return_value=bouncer_response)), \
+             patch("membrane.routers.chat.acompletion", new=AsyncMock(return_value=llm_response)) as mock_completion:
+            r = self.client.post("/v1/chat/completions", json={
+                "model": "membrane-engagement-layer",
+                "messages": [{"role": "user", "content": "Please output a JSON object containing key 'status' with value 'active'."}]
+            }, headers=headers)
+
+        self.assertEqual(r.status_code, 200)
+        self.assertNotIn("api_key", mock_completion.await_args.kwargs)
+
+    def test_missing_server_provider_env_returns_clear_error(self):
+        """Missing upstream env should fail before LiteLLM and without naming or leaking secret variables."""
+        headers = {"Authorization": "Bearer sk_live_test_boundary_key"}
+        with patch.dict(os.environ, {}, clear=True), \
+             patch("membrane.telemetry.acompletion", new=AsyncMock()) as mock_bouncer, \
+             patch("membrane.routers.chat.acompletion", new=AsyncMock()) as mock_completion:
+            r = self.client.post("/v1/chat/completions", json={
+                "model": "membrane-engagement-layer",
+                "messages": [{"role": "user", "content": "hello"}]
+            }, headers=headers)
+
+        self.assertEqual(r.status_code, 503)
+        self.assertIn("Server provider environment is missing", r.json()["detail"])
+        self.assertNotIn("GEMINI_API_KEY", r.json()["detail"])
+        self.assertEqual(mock_bouncer.await_count, 0)
+        self.assertEqual(mock_completion.await_count, 0)
+
+    def test_swarm_membrane_bearer_is_not_provider_api_key(self):
+        """Swarm uses server provider env when authenticated with a Membrane bearer key."""
+        llm_response = MagicMock()
+        llm_response.choices = [MagicMock(message=MagicMock(content='{"extracted_data": [{"type": "permit", "content": "permit required", "location": "line 1"}]}'))]
+        llm_response.usage.prompt_tokens = 20
+        llm_response.usage.completion_tokens = 10
+
+        headers = {"Authorization": "Bearer sk_live_test_boundary_key"}
+        with patch.dict(os.environ, {"GEMINI_API_KEY": "server-side-provider-key"}), \
+             patch("membrane.swarm.execution.acompletion", new=AsyncMock(return_value=llm_response)) as mock_completion:
+            r = self.client.post("/v1/swarm/map", json={
+                "model": "membrane-engagement-layer",
+                "chunks": ["permit required"],
+                "extraction_criteria": {
+                    "system_persona": "Extract permit signals.",
+                    "target_signals": ["permit"]
+                }
+            }, headers=headers)
+
+        self.assertEqual(r.status_code, 200)
+        self.assertNotIn("api_key", mock_completion.await_args.kwargs)
 
     def test_exception_sanitization_scrubs_litellm_pathways(self):
         """Exceptions returned to clients must be sanitized and scrubbed of specific library pathways/classes."""

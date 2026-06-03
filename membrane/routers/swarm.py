@@ -5,7 +5,12 @@ import hashlib
 from typing import Any, List, Optional
 from fastapi import APIRouter, HTTPException, Security, Request, BackgroundTasks
 
-from membrane.security import validate_model_string, enforce_public_throttle
+from membrane.security import (
+    validate_model_string,
+    enforce_public_throttle,
+    resolve_explicit_provider_api_key,
+    ensure_provider_credentials,
+)
 from membrane.database import verify_access, charge_and_log_api_batch
 from membrane.config import MAX_SAFE_CHUNK_CHARS, MARKUP_MULTIPLIER
 from membrane.licensing import global_state
@@ -127,19 +132,14 @@ async def generate_swarm_plan(
 async def swarm_map(request: SwarmMapRequest, background_tasks: BackgroundTasks, http_req: Request, api_key_hash: str = Security(verify_access)):
     enforce_public_throttle(http_req)
     
-    provider_api_key = http_req.headers.get("x-provider-api-key") or http_req.headers.get("X-Provider-API-Key")
-    if not provider_api_key:
-        provider_api_key = getattr(request, 'provider_api_key', None) or (request.model_extra.get('provider_api_key') if request.model_extra else None)
-    if not provider_api_key:
-        auth_header = http_req.headers.get("Authorization") or http_req.headers.get("authorization")
-        if auth_header and auth_header.lower().startswith("bearer "):
-            token = auth_header[7:].strip().strip('"').strip("'")
-            if token.startswith("AIza") or token.startswith("sk-"):
-                provider_api_key = token
+    explicit_provider_api_key = http_req.headers.get("x-provider-api-key") or http_req.headers.get("X-Provider-API-Key")
+    request_provider_api_key = getattr(request, 'provider_api_key', None) or (request.model_extra.get('provider_api_key') if request.model_extra else None)
+    provider_api_key = resolve_explicit_provider_api_key(explicit_provider_api_key, request_provider_api_key)
 
     provider = http_req.headers.get("x-provider") or http_req.headers.get("X-Provider") or http_req.headers.get("x-provider-name") or http_req.headers.get("X-Provider-Name")
     if not provider:
         provider = getattr(request, 'provider', None) or (request.model_extra.get('provider') if request.model_extra else None)
+    ensure_provider_credentials(request.model, provider=provider, provider_api_key=provider_api_key)
 
     request.provider = provider
     request.provider_api_key = provider_api_key
